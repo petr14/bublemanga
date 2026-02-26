@@ -1,6 +1,6 @@
 import time
 from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response, make_response
 import threading
 import sqlite3
 import secrets
@@ -19,6 +19,7 @@ from telegram.ext import (
 from functools import wraps
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from flask_compress import Compress
 from senkuro_api import SenkuroAPI
 
 
@@ -35,6 +36,12 @@ TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html', 'text/css', 'application/json',
+    'application/javascript', 'text/javascript'
+]
+app.config['COMPRESS_LEVEL'] = 6
+Compress(app)
 
 _TYPE_RU = {
     'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа',
@@ -1264,6 +1271,43 @@ def get_popular_manga_from_api(period="MONTH", limit=12):
     """Получить популярные манги из API"""
     return api.fetch_popular_manga(period=period, limit=limit)
 
+
+def get_cached_recent_chapters(ttl_seconds=300):
+    """
+    Получить последние главы с кешированием в БД.
+
+    Args:
+        ttl_seconds: время жизни кеша в секундах (по умолчанию 5 минут)
+
+    Returns:
+        list: список последних глав
+    """
+    cache_key = 'recent_chapters_cache'
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute('SELECT value, updated_at FROM cache WHERE key = ?', (cache_key,))
+        row = c.fetchone()
+        if row:
+            age = (datetime.now() - datetime.fromisoformat(row['updated_at'])).total_seconds()
+            if age < ttl_seconds:
+                logger.info(f"📦 Используем кеш последних глав (возраст: {age:.0f} сек)")
+                return json.loads(row['value'])
+
+        logger.info("📄 Загружаем свежие последние главы из API...")
+        data = get_recent_chapters_from_api(21)
+        c.execute(
+            'INSERT OR REPLACE INTO cache (key, value, updated_at) VALUES (?, ?, ?)',
+            (cache_key, json.dumps(data), datetime.now().isoformat())
+        )
+        conn.commit()
+        return data
+    except Exception as e:
+        logger.error(f"❌ Ошибка кеширования последних глав: {e}")
+        return []
+    finally:
+        conn.close()
+
 def get_recent_chapters(limit=20):
     """Получить последние главы из БД"""
     conn = get_db()
@@ -1949,23 +1993,14 @@ def run_telegram_bot():
 @app.route('/')
 def index():
     user_id = session.get('user_id')
-    
-    # Популярные манги
-    popular = get_popular_manga_from_api("MONTH", 12)
-    recent = get_recent_chapters_from_api(21)  # Получаем все 21 главу из API
-    
-    # Получаем спотлайты
-    spotlights_data = get_cached_spotlights(ttl_seconds=1800)  # Кеш на 30 минут
-    spotlights = spotlights_data.get('spotlights', {})
-    all_spotlights = spotlights_data.get('all_spotlights', [])
-    
+
     reading = []
     subscriptions = []
-    
+
     if user_id:
         reading = get_user_reading(user_id, 12)
         subscriptions = get_user_subscriptions(user_id, 12)
-    
+
     # Жанры/теги для секции "Все лейблы"
     genres = [
         {'icon': '⚡', 'name': 'Система'},
@@ -1981,16 +2016,126 @@ def index():
         {'icon': '🎓', 'name': 'Школа'},
         {'icon': '👑', 'name': 'Царей'}
     ]
-    
-    return render_template('index.html', 
-                          popular=popular, 
-                          recent=recent,
+
+    return render_template('index.html',
                           reading=reading,
                           subscriptions=subscriptions,
                           user_id=user_id,
-                          spotlights=spotlights,
-                          all_spotlights=all_spotlights,
                           genres=genres)
+
+
+@app.route('/api/home/recent')
+def api_home_recent():
+    data = get_recent_chapters_from_api(21)
+    resp = make_response(jsonify(data))
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
+
+
+@app.route('/api/home/spotlights')
+def api_home_spotlights():
+    spotlights_data = get_cached_spotlights(ttl_seconds=1800)
+    resp = make_response(jsonify(spotlights_data.get('spotlights', {})))
+    resp.headers['Cache-Control'] = 'public, max-age=1800'
+    return resp
+
+
+@app.route('/api/home/popular')
+def api_home_popular():
+    period = request.args.get('period', 'MONTH').upper()
+    if period not in ('DAY', 'WEEK', 'MONTH'):
+        period = 'MONTH'
+    data = get_popular_manga_from_api(period, 12)
+    resp = make_response(jsonify(data))
+    resp.headers['Cache-Control'] = 'public, max-age=600'
+    return resp
+
+
+@app.route('/sw.js')
+def service_worker():
+    sw_content = """
+const CACHE = 'bubblemanga-v1';
+const IMG_CACHE = 'bubblemanga-images-v1';
+
+self.addEventListener('install', e => {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+    e.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(keys
+                .filter(k => k !== CACHE && k !== IMG_CACHE)
+                .map(k => caches.delete(k))
+            )
+        )
+    );
+    self.clients.claim();
+});
+
+async function cacheFirst(req, cacheName) {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    const resp = await fetch(req);
+    if (resp.ok) {
+        const cache = await caches.open(cacheName);
+        cache.put(req, resp.clone());
+    }
+    return resp;
+}
+
+async function staleWhileRevalidate(req, cacheName) {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(req);
+    const fetchPromise = fetch(req).then(resp => {
+        if (resp.ok) cache.put(req, resp.clone());
+        return resp;
+    }).catch(() => null);
+    return cached || fetchPromise;
+}
+
+async function networkFirst(req, cacheName) {
+    try {
+        const resp = await fetch(req);
+        if (resp.ok) {
+            const cache = await caches.open(cacheName);
+            cache.put(req, resp.clone());
+        }
+        return resp;
+    } catch {
+        const cached = await caches.match(req);
+        return cached || new Response('Нет подключения', { status: 503 });
+    }
+}
+
+self.addEventListener('fetch', e => {
+    const { request } = e;
+    const url = new URL(request.url);
+
+    // Картинки (обложки, страницы глав) — cache-first
+    if (request.destination === 'image') {
+        e.respondWith(cacheFirst(request, IMG_CACHE));
+        return;
+    }
+
+    // API главной — stale-while-revalidate
+    if (url.pathname.startsWith('/api/home/')) {
+        e.respondWith(staleWhileRevalidate(request, CACHE));
+        return;
+    }
+
+    // HTML страницы — network-first с fallback
+    if (request.mode === 'navigate') {
+        e.respondWith(networkFirst(request, CACHE));
+        return;
+    }
+});
+""".strip()
+    resp = make_response(sw_content, 200)
+    resp.headers['Content-Type'] = 'application/javascript'
+    resp.headers['Service-Worker-Allowed'] = '/'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
 
 @app.route('/login/<token>')
 def login_token(token):

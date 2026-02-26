@@ -1702,7 +1702,48 @@
         .manga-card:nth-child(7) { animation-delay: 0.35s; }
         .manga-card:nth-child(8) { animation-delay: 0.4s; }
 
+        /* ==================== СКЕЛЕТОН-ЗАГРУЗКА ==================== */
+        @keyframes shimmer {
+            0%   { background-position: -200% 0; }
+            100% { background-position:  200% 0; }
+        }
+        .skeleton-line {
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .skeleton-slider-card {
+            flex: 0 0 160px;
+            height: 240px;
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 12px;
+        }
+        .skeleton-update-item {
+            height: 80px;
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        .skeleton-manga-card {
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 12px;
+            aspect-ratio: 3/4;
+        }
+
     </style>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+        }
+    </script>
 </head>
 <body>
     <div class="animated-bg"></div>
@@ -1793,148 +1834,54 @@
     </section>
 
     <div class="container">
-        <!-- Самые читаемые -->
-        {% if spotlights.most_read and spotlights.most_read.mangas %}
-        <section class="section" id="trending">
-            <div class="section-header">
-                <span class="section-tag">🔥 Самые горячие</span>
-                <h2 class="section-title">{{ spotlights.most_read.title }}</h2>
-                <p class="section-description">Самые популярные манги по мнению читателей</p>
-            </div>
-
-            <div class="tabs">
-                <button class="tab active" data-filter="day">Сегодня</button>
-                <button class="tab" data-filter="week">Неделя</button>
-                <button class="tab" data-filter="month">Месяц</button>
-            </div>
-
-            <div class="slider-container">
-                <div class="slider" id="trendingSlider">
-                    {% for manga in spotlights.most_read.mangas[:8] %}
-                    <div class="slider-item" onclick="location.href='/manga/{{ manga.slug }}'">
-                        <div class="manga-cover-container">
-                            <span class="manga-badge">🔥 Топ</span>
-                            <img src="{{ manga.cover_url }}" alt="{{ manga.title }}" class="manga-cover" loading="lazy"
-                                 onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
-                        </div>
-                        <div class="manga-info">
-                            <div class="manga-title">{{ manga.title }}</div>
-                            <div class="manga-meta">
-                                <span>⭐ {{ manga.score|round(1) if manga.score else '—' }}</span>
-                                <span class="manga-type">{{ manga.type | type_ru }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+        <!-- Скелетон: Самые читаемые (заменяется JS после загрузки) -->
+        <div id="section-trending">
+            <section class="section" id="trending">
+                <div class="section-header">
+                    <span class="section-tag">🔥 Самые горячие</span>
+                    <div class="skeleton-line" style="width:220px;height:26px"></div>
+                    <div class="skeleton-line" style="width:300px;height:14px;margin-top:6px"></div>
                 </div>
-            </div>
-        </section>
-        {% endif %}
-
-        <!-- Последние обновления -->
-        {% if recent %}
-        <section class="section" id="updates">
-            <div class="section-header">
-                <span class="section-tag">🆕 Свежие обновления</span>
-                <h2 class="section-title">Последние главы</h2>
-                <p class="section-description">Новые главы из ваших любимых манг</p>
-            </div>
-
-            <div class="updates-list">
-                {% for chapter in recent[:8] %}
-                <div class="update-item{% if loop.index > 6 %} hidden{% endif %}" onclick="location.href='{{ chapter.chapter_url }}'">
-                    <img src="{{ chapter.cover_url }}" alt="{{ chapter.manga_title }}" class="update-cover" loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/60x85/1a1a1a/667eea?text=Нет'">
-                    <div class="update-info">
-                        <div class="update-title">{{ chapter.manga_title }}</div>
-                        <div class="update-chapter">
-                            Глава {{ chapter.chapter_number }}
-                            {% if chapter.chapter_name %}- {{ chapter.chapter_name }}{% endif %}
-                        </div>
-                        <div class="update-time">
-                            {% if chapter.created_at %}
-                                {{ chapter.created_at|relative_time }}
-                            {% else %}
-                                Недавно
-                            {% endif %}
-                        </div>
-                    </div>
-                    <span class="update-type">{{ chapter.manga_type | type_ru or 'Манга' }}</span>
+                <div class="tabs">
+                    <button class="tab active" data-filter="day">Сегодня</button>
+                    <button class="tab" data-filter="week">Неделя</button>
+                    <button class="tab" data-filter="month">Месяц</button>
                 </div>
-                {% endfor %}
-            </div>
-            {% if recent|length > 6 %}
-            <button class="show-more-btn" onclick="showAllItems('updates')">
-                Показать все ({{ recent|length }})
-            </button>
-            {% endif %}
-        </section>
-        {% endif %}
-
-        <!-- Новые манги -->
-        {% if spotlights.last_manga and spotlights.last_manga.mangas %}
-        <section class="section">
-            <div class="section-header">
-                <span class="section-tag">✨ Новые поступления</span>
-                <h2 class="section-title">{{ spotlights.last_manga.title }}</h2>
-                <p class="section-description">Свежие манги в коллекции</p>
-            </div>
-
-            <div class="slider-container">
-                <div class="slider" id="newMangaSlider">
-                    {% for manga in spotlights.last_manga.mangas %}
-                    <div class="slider-item" onclick="location.href='/manga/{{ manga.slug }}'">
-                        <div class="manga-cover-container">
-                            <span class="manga-badge">🆕 Новое</span>
-                            <img src="{{ manga.cover_url }}" alt="{{ manga.title }}" class="manga-cover" loading="lazy"
-                                 onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
-                        </div>
-                        <div class="manga-info">
-                            <div class="manga-title">{{ manga.title }}</div>
-                            <div class="manga-meta">
-                                <span class="manga-type">{{ manga.type | type_ru }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </section>
-        {% endif %}
-
-        <!-- Популярные новинки -->
-        {% if spotlights.popular_new and spotlights.popular_new.mangas %}
-        <section class="section" id="popular">
-            <div class="section-header">
-                <span class="section-tag">⭐ Восходящие звезды</span>
-                <h2 class="section-title">{{ spotlights.popular_new.title }}</h2>
-                <p class="section-description">Новые манги, набирающие популярность</p>
-            </div>
-
-            <div class="manga-grid limited" id="popular-manga-grid">
-                {% for manga in spotlights.popular_new.mangas[:14] %}
-                <div class="manga-card{% if loop.index > 6 %} hidden{% endif %}" onclick="location.href='/manga/{{ manga.slug }}'">
-                    <div class="manga-cover-container">
-                        <span class="manga-badge">⭐ Горячее</span>
-                        <img src="{{ manga.cover_url }}" alt="{{ manga.title }}" class="manga-cover" loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
-                    </div>
-                    <div class="manga-info">
-                        <div class="manga-title">{{ manga.title }}</div>
-                        <div class="manga-meta">
-                            <span class="manga-type">{{ manga.type }}</span>
-                        </div>
+                <div class="slider-container">
+                    <div class="slider" id="trendingSlider" style="display:flex;gap:16px">
+                        <div class="skeleton-slider-card"></div>
+                        <div class="skeleton-slider-card"></div>
+                        <div class="skeleton-slider-card"></div>
+                        <div class="skeleton-slider-card"></div>
+                        <div class="skeleton-slider-card"></div>
+                        <div class="skeleton-slider-card"></div>
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-            {% if spotlights.popular_new.mangas|length > 6 %}
-            <button class="show-more-btn" onclick="showAllManga('popular-manga-grid')">
-                Показать еще ({{ spotlights.popular_new.mangas|length - 6 }})
-            </button>
-            {% endif %}
-        </section>
-        {% endif %}
+            </section>
+        </div>
+
+        <!-- Скелетон: Последние обновления (заменяется JS после загрузки) -->
+        <div id="section-updates">
+            <section class="section" id="updates">
+                <div class="section-header">
+                    <span class="section-tag">🆕 Свежие обновления</span>
+                    <div class="skeleton-line" style="width:200px;height:26px"></div>
+                    <div class="skeleton-line" style="width:280px;height:14px;margin-top:6px"></div>
+                </div>
+                <div class="updates-list">
+                    <div class="skeleton-update-item"></div>
+                    <div class="skeleton-update-item"></div>
+                    <div class="skeleton-update-item"></div>
+                    <div class="skeleton-update-item"></div>
+                    <div class="skeleton-update-item"></div>
+                    <div class="skeleton-update-item"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Динамические секции (рендерятся JS-ом) -->
+        <div id="section-last-manga"></div>
+        <div id="section-popular-new"></div>
 
         <!-- Подписки пользователя -->
         {% if user_id and subscriptions %}
@@ -2222,7 +2169,7 @@
                 });
             }, observerOptions);
 
-            const observeElements = () => {
+            window.observeElements = () => {
                 document.querySelectorAll('.manga-card:not(.hidden), .update-item:not(.hidden)').forEach(el => {
                     if (!el.dataset.observed) {
                         el.style.opacity = '0';
@@ -2294,6 +2241,232 @@
                 // Обновить layout при необходимости
             }, 250);
         }, { passive: true });
+
+        // ==================== AJAX LAZY LOADING ====================
+
+        const TYPE_RU = {
+            'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа',
+            'OEL': 'OEL', 'NOVEL': 'Новелла', 'ONE_SHOT': 'Короткие истории',
+            'DOUJINSHI': 'Додзинси', 'COMICS': 'Комикс'
+        };
+        function typeRu(v) {
+            return TYPE_RU[(v || '').toUpperCase()] || v || '';
+        }
+
+        function relativeTime(ts) {
+            if (!ts) return 'Недавно';
+            try {
+                const cleaned = ts.split('+')[0].split('Z')[0];
+                const date = new Date(cleaned);
+                if (isNaN(date)) return 'Недавно';
+                const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+                if (diff < 60) return 'Только что';
+                if (diff < 3600) { const m = Math.floor(diff/60); return m === 1 ? '1 минуту назад' : `${m} минут назад`; }
+                if (diff < 86400) { const h = Math.floor(diff/3600); return h === 1 ? '1 час назад' : `${h} часов назад`; }
+                const days = Math.floor(diff/86400);
+                if (days === 1) return 'Вчера';
+                if (days < 7) return `${days} дн. назад`;
+                if (days < 30) { const w = Math.floor(days/7); return `${w} нед. назад`; }
+                if (days < 365) { const mo = Math.floor(days/30); return `${mo} мес. назад`; }
+                return `${Math.floor(days/365)} лет назад`;
+            } catch(e) { return 'Недавно'; }
+        }
+
+        function e(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function buildSliderItems(mangas) {
+            return mangas.slice(0, 8).map(m => `
+                <div class="slider-item" onclick="location.href='/manga/${e(m.slug)}'">
+                    <div class="manga-cover-container">
+                        <span class="manga-badge">🔥 Топ</span>
+                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
+                             onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
+                    </div>
+                    <div class="manga-info">
+                        <div class="manga-title">${e(m.title)}</div>
+                        <div class="manga-meta">
+                            <span>⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
+                            <span class="manga-type">${e(typeRu(m.type))}</span>
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function initTrendingSlider() {
+            const sl = document.getElementById('trendingSlider');
+            if (!sl || window.innerWidth < 1024) return;
+            let isAuto = true;
+            setInterval(() => {
+                if (!isAuto) return;
+                if (sl.scrollLeft >= sl.scrollWidth - sl.clientWidth - 10) {
+                    sl.scrollTo({ left: 0, behavior: 'smooth' });
+                } else {
+                    sl.scrollBy({ left: 332, behavior: 'smooth' });
+                }
+            }, 5000);
+            sl.addEventListener('mouseenter', () => { isAuto = false; });
+            sl.addEventListener('mouseleave', () => { isAuto = true; });
+            sl.addEventListener('touchstart', () => { isAuto = false; }, { passive: true });
+        }
+
+        function renderTrending(mostRead) {
+            if (!mostRead || !mostRead.mangas || !mostRead.mangas.length) return;
+            const items = buildSliderItems(mostRead.mangas);
+
+            document.getElementById('section-trending').innerHTML = `
+                <section class="section" id="trending">
+                    <div class="section-header">
+                        <span class="section-tag">🔥 Самые горячие</span>
+                        <h2 class="section-title">${e(mostRead.title || 'Самое читаемое')}</h2>
+                        <p class="section-description">Самые популярные манги по мнению читателей</p>
+                    </div>
+                    <div class="tabs">
+                        <button class="tab active" data-period="MONTH">Месяц</button>
+                        <button class="tab" data-period="WEEK">Неделя</button>
+                        <button class="tab" data-period="DAY">Сегодня</button>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider" id="trendingSlider">${items}</div>
+                    </div>
+                </section>`;
+
+            initTrendingSlider();
+
+            // Вкладки: загружают популярное по периоду
+            document.querySelectorAll('#section-trending .tab').forEach(tab => {
+                tab.addEventListener('click', async () => {
+                    if (tab.classList.contains('active')) return;
+                    document.querySelectorAll('#section-trending .tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    const period = tab.dataset.period;
+                    const slider = document.getElementById('trendingSlider');
+                    // Скелетон пока грузим
+                    slider.innerHTML = Array(6).fill(
+                        '<div class="skeleton-slider-card"></div>'
+                    ).join('');
+
+                    try {
+                        const data = await fetch(`/api/home/popular?period=${period}`).then(r => r.json());
+                        slider.innerHTML = buildSliderItems(data);
+                    } catch {
+                        slider.innerHTML = '<p style="color:#a1a1aa;padding:20px">Не удалось загрузить</p>';
+                    }
+                });
+            });
+        }
+
+        function renderRecent(recent) {
+            if (!recent || !recent.length) return;
+            const items = recent.slice(0, 8).map((ch, i) => `
+                <div class="update-item${i >= 6 ? ' hidden' : ''}" onclick="location.href='${e(ch.chapter_url)}'">
+                    <img src="${e(ch.cover_url)}" alt="${e(ch.manga_title)}" class="update-cover" loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/60x85/1a1a1a/667eea?text=Нет'">
+                    <div class="update-info">
+                        <div class="update-title">${e(ch.manga_title)}</div>
+                        <div class="update-chapter">Глава ${e(ch.chapter_number)}${ch.chapter_name ? ' — ' + e(ch.chapter_name) : ''}</div>
+                        <div class="update-time">${relativeTime(ch.created_at)}</div>
+                    </div>
+                    <span class="update-type">${e(typeRu(ch.manga_type) || 'Манга')}</span>
+                </div>`).join('');
+
+            const showMoreBtn = recent.length > 6
+                ? `<button class="show-more-btn" onclick="showAllItems('updates')">Показать все (${recent.length})</button>`
+                : '';
+
+            document.getElementById('section-updates').innerHTML = `
+                <section class="section" id="updates">
+                    <div class="section-header">
+                        <span class="section-tag">🆕 Свежие обновления</span>
+                        <h2 class="section-title">Последние главы</h2>
+                        <p class="section-description">Новые главы из ваших любимых манг</p>
+                    </div>
+                    <div class="updates-list">${items}</div>
+                    ${showMoreBtn}
+                </section>`;
+        }
+
+        function renderSliderSection(containerId, data, badge, tag, descr) {
+            if (!data || !data.mangas || !data.mangas.length) return;
+            const items = data.mangas.map(m => `
+                <div class="slider-item" onclick="location.href='/manga/${e(m.slug)}'">
+                    <div class="manga-cover-container">
+                        <span class="manga-badge">${badge}</span>
+                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
+                             onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
+                    </div>
+                    <div class="manga-info">
+                        <div class="manga-title">${e(m.title)}</div>
+                        <div class="manga-meta">
+                            <span class="manga-type">${e(typeRu(m.type))}</span>
+                        </div>
+                    </div>
+                </div>`).join('');
+
+            document.getElementById(containerId).innerHTML = `
+                <section class="section">
+                    <div class="section-header">
+                        <span class="section-tag">${tag}</span>
+                        <h2 class="section-title">${e(data.title || '')}</h2>
+                        <p class="section-description">${descr}</p>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider">${items}</div>
+                    </div>
+                </section>`;
+        }
+
+        function renderPopularNew(popularNew) {
+            if (!popularNew || !popularNew.mangas || !popularNew.mangas.length) return;
+            const mangas = popularNew.mangas.slice(0, 14);
+            const cards = mangas.map((m, i) => `
+                <div class="manga-card${i >= 6 ? ' hidden' : ''}" onclick="location.href='/manga/${e(m.slug)}'">
+                    <div class="manga-cover-container">
+                        <span class="manga-badge">⭐ Горячее</span>
+                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
+                             onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
+                    </div>
+                    <div class="manga-info">
+                        <div class="manga-title">${e(m.title)}</div>
+                        <div class="manga-meta">
+                            <span class="manga-type">${e(typeRu(m.type))}</span>
+                        </div>
+                    </div>
+                </div>`).join('');
+
+            const showMoreBtn = mangas.length > 6
+                ? `<button class="show-more-btn" onclick="showAllManga('popular-manga-grid')">Показать еще (${mangas.length - 6})</button>`
+                : '';
+
+            document.getElementById('section-popular-new').innerHTML = `
+                <section class="section" id="popular">
+                    <div class="section-header">
+                        <span class="section-tag">⭐ Восходящие звезды</span>
+                        <h2 class="section-title">${e(popularNew.title || 'Популярные новинки')}</h2>
+                        <p class="section-description">Новые манги, набирающие популярность</p>
+                    </div>
+                    <div class="manga-grid limited" id="popular-manga-grid">${cards}</div>
+                    ${showMoreBtn}
+                </section>`;
+        }
+
+        // Загрузка данных главной страницы
+        Promise.all([
+            fetch('/api/home/recent').then(r => r.json()).catch(() => []),
+            fetch('/api/home/spotlights').then(r => r.json()).catch(() => ({}))
+        ]).then(([recent, spotlights]) => {
+            renderTrending(spotlights.most_read);
+            renderRecent(recent);
+            renderSliderSection('section-last-manga', spotlights.last_manga, '🆕 Новое', '✨ Новые поступления', 'Свежие манги в коллекции');
+            renderPopularNew(spotlights.popular_new);
+
+            // Переинициализировать IntersectionObserver для новых элементов
+            if (typeof observeElements === 'function') {
+                setTimeout(observeElements, 100);
+            }
+        });
     </script>
 </body>
 </html>
