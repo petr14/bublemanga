@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+  <meta name="theme-color" content="#667eea"/>
+  <title>Магазин — BubbleManga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --accent: #667eea;
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --card2: #141414;
+      --border: rgba(255,255,255,.06);
+      --text: #ffffff;
+      --text-2: #b8b8b8;
+      --text-3: #71717a;
+    }
+    html, body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg); color: var(--text);
+      -webkit-font-smoothing: antialiased; line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* ── Шапка ─────────────────────────────────── */
+    .site-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(10,10,10,.97);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .site-header-inner {
+      max-width: 1400px; margin: 0 auto; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .site-logo {
+      font-size: 20px; font-weight: 800; text-decoration: none; letter-spacing: -.5px;
+      background: var(--primary);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .site-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .nav-btn {
+      padding: 8px 16px; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 50px;
+      color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background .2s, transform .15s;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .nav-btn:active { transform: scale(.95); }
+    .nav-btn.active { background: var(--primary); border-color: transparent; }
+    @media(min-width:1024px) {
+      .nav-btn:hover { background: rgba(255,255,255,.09); }
+      .nav-btn.active:hover { opacity: .88; }
+    }
+
+    /* ── Страница ───────────────────────────────── */
+    .page-wrap { padding-top: 60px; }
+
+    /* ── Hero ─────────────────────────────────────── */
+    .shop-hero {
+      text-align: center; padding: 4rem 1rem 2.5rem;
+      background: linear-gradient(135deg, #08081a 0%, #0f0c2a 50%, #10091e 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .shop-hero h1 {
+      font-size: 2.5rem; font-weight: 800;
+      background: var(--primary);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: .5rem;
+    }
+    .shop-hero p { color: var(--text-2); font-size: .95rem; }
+
+    .balance-chip {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.3);
+      border-radius: 20px; padding: .4rem 1.1rem; margin-top: 1rem;
+      font-weight: 700; font-size: 1rem; color: #a5b4fc;
+    }
+
+    /* ── Контейнер ─────────────────────────────── */
+    .shop-container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+
+    .section-title {
+      font-size: 1.1rem; font-weight: 700; color: #d4d4d8;
+      margin: 2rem 0 1rem; display: flex; align-items: center; gap: .5rem;
+    }
+
+    .items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    /* ── Карточка товара ───────────────────────── */
+    .item-card {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      transition: border-color .2s, transform .15s;
+      display: flex; flex-direction: column; position: relative;
+    }
+    .item-card:hover { border-color: rgba(102,126,234,.3); transform: translateY(-2px); }
+    .item-card.owned  { border-color: rgba(102,126,234,.35); }
+    .item-card.equipped { border-color: var(--accent); box-shadow: 0 0 20px rgba(102,126,234,.2); }
+
+    .item-preview {
+      height: 120px; display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; background: #0d0d0d; position: relative; overflow: hidden;
+    }
+    .item-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+    .item-badge-equipped {
+      position: absolute; top: .4rem; right: .4rem;
+      background: var(--accent); border-radius: 20px; padding: .15rem .5rem;
+      font-size: .65rem; font-weight: 700; color: #fff;
+    }
+
+    .item-body { padding: .85rem; flex: 1; display: flex; flex-direction: column; gap: .5rem; }
+    .item-name { font-weight: 700; font-size: .9rem; color: #f4f4f5; }
+    .item-desc { font-size: .75rem; color: var(--text-3); flex: 1; }
+
+    .item-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .6rem .85rem .85rem;
+    }
+    .item-price {
+      display: flex; align-items: center; gap: .3rem;
+      font-weight: 700; font-size: .9rem; color: #a5b4fc;
+    }
+    .item-price.free { color: #4ade80; }
+
+    .btn-buy, .btn-equip, .btn-unequip {
+      padding: .35rem .85rem; border-radius: 20px; font-size: .8rem; font-weight: 700;
+      cursor: pointer; border: none; transition: opacity .2s, transform .1s;
+      font-family: inherit;
+    }
+    .btn-buy { background: var(--primary); color: #fff; }
+    .btn-buy:hover { opacity: .85; transform: scale(1.03); }
+    .btn-buy:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .btn-equip {
+      background: rgba(102,126,234,.12); color: #a5b4fc;
+      border: 1px solid rgba(102,126,234,.3);
+    }
+    .btn-equip:hover { background: rgba(102,126,234,.22); }
+    .btn-unequip {
+      background: rgba(240,93,176,.1); color: #f9a8d4;
+      border: 1px solid rgba(240,93,176,.2);
+    }
+    .btn-unequip:hover { background: rgba(240,93,176,.2); }
+
+    .login-notice { text-align: center; padding: 3rem 1rem; color: var(--text-3); }
+    .login-notice a { color: var(--accent); text-decoration: none; }
+
+    /* ── Toast ─────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #18181b; border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px; padding: .7rem 1.4rem;
+      font-size: .85rem; font-weight: 600; color: #f4f4f5;
+      transition: transform .3s; z-index: 9999; pointer-events: none;
+      font-family: 'Poppins', sans-serif;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.ok  { border-color: rgba(102,126,234,.4); color: #a5b4fc; }
+    .toast.err { border-color: rgba(239,68,68,.4); color: #fca5a5; }
+  </style>
+</head>
+<body>
+
+<!-- Шапка -->
+<header class="site-header">
+  <div class="site-header-inner">
+    <a href="/" class="site-logo"><span>🫧</span><span>BubbleManga</span></a>
+    <nav class="site-nav">
+      <a href="/" class="nav-btn">Главная</a>
+      <a href="/top" class="nav-btn">Топ</a>
+      <a href="/shop" class="nav-btn active">Магазин</a>
+      {% if user_id %}
+      <a href="/profile/me" class="nav-btn">Профиль</a>
+      <a href="/logout" class="nav-btn">Выйти</a>
+      {% else %}
+      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
+        <span>🤖</span><span>Войти</span>
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div id="shop-root"></div>
+</div>
+
+<div class="toast"></div>
+
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18","react-dom/client":"https://esm.sh/react-dom@18/client"}}
+</script>
+<script type="module">
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+const {createElement:h,Fragment,useState,useCallback} = React;
+
+const ALL_ITEMS   = {{ items | tojson }};
+const OWNED_IDS   = new Set({{ owned_ids | tojson }});
+const EQUIPPED    = {{ equipped | tojson }};
+const USER_ID     = {{ user_id | tojson }};
+const INIT_COINS  = {{ coins | tojson }};
+
+const TYPE_LABELS = {
+  frame:      {icon:'🖼',  label:'Рамки'},
+  background: {icon:'🌅', label:'Фоны профиля'},
+  badge:      {icon:'🏅', label:'Значки'},
+  avatar_slot:{icon:'📷', label:'Загрузка аватара'},
+  bg_slot:    {icon:'🌄', label:'Загрузка фона'},
+};
+
+function toast(msg, type='ok'){
+  const el=document.querySelector('.toast');
+  if(!el) return;
+  el.textContent=msg;
+  el.className=`toast ${type} show`;
+  setTimeout(()=>{ el.className=`toast ${type}`; }, 2500);
+}
+
+function ItemPreview({item}){
+  if(item.preview_url)
+    return h('div',{className:'item-preview'}, h('img',{src:item.preview_url,alt:''}));
+
+  if(item.type==='frame' && item.css_value)
+    return h('div',{className:'item-preview'},
+      h('div',{style:{
+        width:64, height:64, borderRadius:'50%',
+        background:'linear-gradient(135deg,#667eea,#764ba2)',
+        border:`3px solid ${item.css_value}`,
+        boxShadow:`0 0 12px ${item.css_value}55`
+      }})
+    );
+
+  if(item.type==='background' && item.css_value)
+    return h('div',{className:'item-preview', style:{background:item.css_value}});
+
+  if(item.type==='badge' && item.css_value)
+    return h('div',{className:'item-preview'},
+      h('span',{style:{fontSize:'2.5rem'}}, item.css_value)
+    );
+
+  const typeEmojis = {avatar_slot:'📷', bg_slot:'🖼'};
+  return h('div',{className:'item-preview'},
+    h('span',{style:{fontSize:'2.5rem'}}, typeEmojis[item.type] || '🎁')
+  );
+}
+
+function ItemCard({item, coins, onBuy, onEquip}){
+  const owned    = OWNED_IDS.has(item.id);
+  const equipped = !!(EQUIPPED[item.id]);
+  const canAfford = coins >= item.price;
+
+  let cardClass = 'item-card';
+  if(equipped) cardClass += ' equipped';
+  else if(owned) cardClass += ' owned';
+
+  return h('div',{className:cardClass},
+    equipped && h('div',{className:'item-badge-equipped'}, '✓ Надето'),
+    h(ItemPreview,{item}),
+
+    h('div',{className:'item-body'},
+      h('div',{className:'item-name'}, item.name),
+      item.description && h('div',{className:'item-desc'}, item.description)
+    ),
+
+    h('div',{className:'item-footer'},
+      h('div',{className:`item-price${item.price===0?' free':''}`},
+        item.price===0 ? '🆓 Бесплатно' : h(Fragment,null,'🪙 ',item.price.toLocaleString())
+      ),
+      owned
+        ? h('button',{
+            className: equipped ? 'btn-unequip' : 'btn-equip',
+            onClick: ()=>onEquip(item)
+          }, equipped ? 'Снять' : 'Надеть')
+        : USER_ID
+          ? h('button',{
+              className:'btn-buy',
+              disabled: !canAfford,
+              title: canAfford ? '' : `Нужно ${item.price} монет`,
+              onClick: ()=>onBuy(item)
+            }, 'Купить')
+          : h('button',{className:'btn-buy',disabled:true}, 'Войти')
+    )
+  );
+}
+
+function ShopPage(){
+  const [coins, setCoins] = useState(INIT_COINS);
+  const [owned, setOwned] = useState(new Set(OWNED_IDS));
+  const [eqMap, setEqMap] = useState({...EQUIPPED});
+
+  const buy = useCallback(async(item)=>{
+    const r = await fetch(`/api/shop/buy/${item.id}`,{method:'POST'});
+    const j = await r.json();
+    if(!r.ok){ toast(j.error||'Ошибка покупки','err'); return; }
+    setOwned(s=>new Set([...s,item.id]));
+    setCoins(j.new_coins);
+    OWNED_IDS.add(item.id);
+    toast(`Куплено: ${item.name}`);
+  },[]);
+
+  const equip = useCallback(async(item)=>{
+    const r = await fetch(`/api/profile/equip/${item.id}`,{method:'POST'});
+    const j = await r.json();
+    if(!r.ok){ toast(j.error||'Ошибка','err'); return; }
+    setEqMap(prev=>{
+      const next = {...prev};
+      if(j.equipped){
+        ALL_ITEMS.filter(i=>i.type===item.type&&i.id!==item.id).forEach(i=>delete next[i.id]);
+        OWNED_IDS.forEach(id=>{
+          const it=ALL_ITEMS.find(x=>x.id===id);
+          if(it&&it.type===item.type&&it.id!==item.id) delete next[it.id];
+        });
+        next[item.id]=true; EQUIPPED[item.id]=true;
+      } else {
+        delete next[item.id]; delete EQUIPPED[item.id];
+      }
+      return next;
+    });
+    toast(j.equipped ? `Надето: ${item.name}` : `Снято: ${item.name}`);
+  },[]);
+
+  const groups = {};
+  ALL_ITEMS.forEach(item=>{ if(!groups[item.type]) groups[item.type]=[]; groups[item.type].push(item); });
+  const typeOrder = ['frame','background','badge','avatar_slot','bg_slot'];
+
+  return h(Fragment,null,
+    h('div',{className:'shop-hero'},
+      h('h1',null,'🛍 Магазин'),
+      h('p',null,'Украшай профиль — покупай за монеты, заработанные чтением'),
+      USER_ID && h('div',{className:'balance-chip'},'🪙 ',h('span',null,coins.toLocaleString(),' монет'))
+    ),
+
+    h('div',{className:'shop-container'},
+      !USER_ID && h('div',{className:'login-notice'},
+        'Чтобы покупать товары, ',
+        h('a',{href:'/'},'войди через Telegram')
+      ),
+
+      typeOrder.filter(t=>groups[t]).map(type=>{
+        const {icon,label} = TYPE_LABELS[type]||{icon:'🎁',label:type};
+        return h(Fragment,{key:type},
+          h('div',{className:'section-title'}, icon,' ',label),
+          h('div',{className:'items-grid'},
+            groups[type].map(item=>
+              h(ItemCard,{key:item.id,item,coins,onBuy:buy,onEquip:equip})
+            )
+          )
+        );
+      })
+    )
+  );
+}
+
+createRoot(document.getElementById('shop-root')).render(h(ShopPage));
+</script>
+</body>
+</html>

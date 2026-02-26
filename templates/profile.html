@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+  <meta name="theme-color" content="#667eea"/>
+  <title>{{ profile.display_name }} — BubbleManga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --accent: #667eea;
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --card2: #141414;
+      --border: rgba(255,255,255,.06);
+      --text: #ffffff;
+      --text-2: #b8b8b8;
+      --text-3: #71717a;
+    }
+    html, body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg); color: var(--text);
+      -webkit-font-smoothing: antialiased; line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* ── Шапка ─────────────────────────────────── */
+    .site-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(10,10,10,.97);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .site-header-inner {
+      max-width: 1400px; margin: 0 auto; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .site-logo {
+      font-size: 20px; font-weight: 800; text-decoration: none; letter-spacing: -.5px;
+      background: var(--primary);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .site-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .nav-btn {
+      padding: 8px 16px; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 50px;
+      color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background .2s, transform .15s;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .nav-btn:active { transform: scale(.95); }
+    .nav-btn.active { background: var(--primary); border-color: transparent; }
+    @media(min-width:1024px) {
+      .nav-btn:hover { background: rgba(255,255,255,.09); }
+      .nav-btn.active:hover { opacity: .88; }
+    }
+
+    /* ── Базовые кнопки ─────────────────────────── */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 20px; background: var(--primary); border: none; border-radius: 50px;
+      color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-primary:active { transform: scale(.95); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 20px; background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12); border-radius: 50px;
+      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: background .2s, transform .1s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.1); }
+    .btn-secondary:active { transform: scale(.95); }
+
+    /* ── Страница ───────────────────────────────── */
+    .page-wrap { padding-top: 60px; }
+
+    /* ── Профиль ─────────────────────────────────── */
+    .profile-hero {
+      min-height: 300px; position: relative;
+      display: flex; align-items: flex-end; padding: 2rem; overflow: hidden;
+    }
+    .profile-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, #0a0a1a, #1a1040, #0d0d1a);
+      z-index: 0;
+    }
+    .profile-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .4; }
+    .profile-bg::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(10,10,10,.8) 0%, transparent 60%);
+    }
+    .profile-hero-content {
+      position: relative; z-index: 1;
+      display: flex; align-items: flex-end; gap: 1.5rem; width: 100%;
+    }
+    .avatar-wrap { position: relative; flex-shrink: 0; }
+    .avatar-wrap img, .avatar-wrap .avatar-placeholder {
+      width: 110px; height: 110px; border-radius: 50%; object-fit: cover;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem;
+      background: var(--primary);
+      box-shadow: 0 8px 30px rgba(102,126,234,.35);
+    }
+    .avatar-frame { position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name { font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: .25rem; }
+    .profile-badge {
+      display: inline-block;
+      background: var(--primary);
+      padding: .2rem .7rem; border-radius: 20px;
+      font-size: .75rem; font-weight: 600; color: #fff; margin-bottom: .5rem;
+    }
+    .profile-bio { color: var(--text-2); font-size: .9rem; margin-top: .4rem; }
+
+    /* XP */
+    .xp-bar-wrap {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1rem 1.5rem;
+      display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+    }
+    .level-badge {
+      width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+      background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; font-weight: 800; color: #fff;
+      box-shadow: 0 0 20px rgba(102,126,234,.4);
+    }
+    .xp-info { flex: 1; min-width: 160px; }
+    .xp-label { font-size: .8rem; color: var(--text-3); margin-bottom: .3rem; }
+    .xp-bar { height: 10px; border-radius: 5px; background: #2a2a2a; overflow: hidden; }
+    .xp-fill {
+      height: 100%; border-radius: 5px;
+      background: var(--primary); transition: width .6s ease;
+    }
+    .xp-numbers { margin-top: .3rem; font-size: .8rem; color: var(--text-3); }
+    .stat-chips { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .stat-chip {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: .4rem .8rem;
+      font-size: .8rem; color: #d4d4d8; white-space: nowrap;
+    }
+    .stat-chip span { color: var(--accent); font-weight: 700; }
+
+    /* Секции */
+    .profile-sections {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+      padding: 1.5rem; max-width: 1200px; margin: 0 auto;
+    }
+    @media(max-width:768px) { .profile-sections { grid-template-columns: 1fr; } }
+    .profile-card {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.25rem;
+    }
+    .card-title {
+      font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+
+    /* Ачивки */
+    .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; }
+    .ach-item {
+      background: var(--card); border-radius: 12px; padding: .75rem;
+      text-align: center; border: 1px solid var(--border);
+    }
+    .ach-icon { font-size: 2rem; margin-bottom: .3rem; }
+    .ach-name { font-size: .75rem; font-weight: 600; color: #d4d4d8; }
+    .ach-desc { font-size: .65rem; color: var(--text-3); margin-top: .2rem; }
+
+    /* История */
+    .history-list { display: flex; flex-direction: column; gap: .6rem; }
+    .history-item {
+      display: flex; align-items: center; gap: .75rem;
+      background: var(--card); border-radius: 10px; padding: .5rem .75rem;
+      text-decoration: none; color: inherit; transition: background .2s;
+    }
+    .history-item:hover { background: #222; }
+    .history-cover { width: 36px; height: 50px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .history-info { flex: 1; min-width: 0; }
+    .history-title {
+      font-size: .8rem; font-weight: 600; color: #d4d4d8;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .history-ch { font-size: .72rem; color: var(--text-3); }
+
+    /* Редактирование */
+    textarea {
+      width: 100%; background: var(--card); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; color: #d4d4d8; padding: .75rem;
+      font-size: .9rem; resize: vertical; min-height: 80px; font-family: inherit;
+    }
+    .upload-btn {
+      display: inline-block; cursor: pointer;
+      background: var(--card2); border: 1px dashed rgba(255,255,255,.15);
+      border-radius: 10px; padding: .6rem 1.2rem;
+      font-size: .85rem; color: var(--text-2); margin-top: .5rem; transition: all .2s;
+    }
+    .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+    input[type=file] { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Шапка -->
+<header class="site-header">
+  <div class="site-header-inner">
+    <a href="/" class="site-logo"><span>🫧</span><span>BubbleManga</span></a>
+    <nav class="site-nav">
+      <a href="/" class="nav-btn">Главная</a>
+      <a href="/top" class="nav-btn">Топ</a>
+      <a href="/shop" class="nav-btn">Магазин</a>
+      {% if user_id %}
+      <a href="/profile/me" class="nav-btn active">Профиль</a>
+      <a href="/logout" class="nav-btn">Выйти</a>
+      {% else %}
+      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
+        <span>🤖</span><span>Войти</span>
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div id="react-profile-root"></div>
+</div>
+
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18","react-dom/client":"https://esm.sh/react-dom@18/client"}}
+</script>
+<script type="module">
+import React,{useState,useRef} from 'react';
+import {createRoot} from 'react-dom/client';
+
+const {createElement:h,Fragment} = React;
+
+// Данные из Flask
+const DATA = {
+  profile:    {{ profile | tojson }},
+  isOwn:      {{ is_own | tojson }},
+  userId:     {{ user_id | tojson }},
+  viewerCoins:{{ viewer_coins | tojson }},
+};
+
+function Avatar({url,frameCss,size=110}){
+  const style={width:size,height:size,borderRadius:'50%',objectFit:'cover',display:'block'};
+  const wrap={position:'relative',width:size,height:size,flexShrink:0};
+  return h('div',{style:wrap},
+    url
+      ? h('img',{src:url,style,alt:'avatar'})
+      : h('div',{style:{...style,background:'linear-gradient(135deg,#667eea,#764ba2)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:size*0.4,color:'#fff'}}, '👤'),
+    frameCss && h('div',{style:{position:'absolute',inset:-4,borderRadius:'50%',
+      ...(Object.fromEntries(frameCss.split(';').filter(Boolean).map(s=>{
+        const [k,...v]=s.trim().split(':');
+        return [k.trim().replace(/-([a-z])/g,(_,c)=>c.toUpperCase()),v.join(':').trim()];
+      }))
+    }})
+  );
+}
+
+function XpBar({pct,xpForNext,xp,level,chapters,coins}){
+  return h('div',{className:'xp-bar-wrap'},
+    h('div',{className:'level-badge'},level),
+    h('div',{className:'xp-info'},
+      h('div',{className:'xp-label'},`Уровень ${level}`),
+      h('div',{className:'xp-bar'},h('div',{className:'xp-fill',style:{width:`${pct}%`}})),
+      h('div',{className:'xp-numbers'},`${xpForNext} XP до следующего уровня`)
+    ),
+    h('div',{className:'stat-chips'},
+      h('div',{className:'stat-chip'},'📚 Глав: ',h('span',null,chapters)),
+      h('div',{className:'stat-chip'},'⭐ XP: ',h('span',null,xp.toLocaleString())),
+      h('div',{className:'stat-chip'},'🪙 Монеты: ',h('span',null,coins.toLocaleString()))
+    )
+  );
+}
+
+function AchGrid({achievements}){
+  if(!achievements.length) return h('p',{style:{color:'#71717a',fontSize:'.85rem'}},'Ачивок пока нет — читайте больше манги!');
+  return h('div',{className:'ach-grid'},
+    achievements.map(a=>
+      h('div',{key:a.id,className:'ach-item'},
+        h('div',{className:'ach-icon'},a.icon),
+        h('div',{className:'ach-name'},a.name),
+        h('div',{className:'ach-desc'},a.description)
+      )
+    )
+  );
+}
+
+function HistoryList({history}){
+  if(!history.length) return h('p',{style:{color:'#71717a',fontSize:'.85rem'}},'История чтения пуста');
+  return h('div',{className:'history-list'},
+    history.map((h2,i)=>
+      h('a',{key:i,href:`/read/${h2.manga_slug}/${h2.chapter_slug}`,className:'history-item'},
+        h('img',{src:h2.cover_url||'',className:'history-cover',alt:'',onError:e=>e.target.style.display='none'}),
+        h('div',{className:'history-info'},
+          h('div',{className:'history-title'},h2.manga_title),
+          h('div',{className:'history-ch'},`Глава ${h2.chapter_number}`)
+        )
+      )
+    )
+  );
+}
+
+function EditPanel({profile,onSaved}){
+  const [bio,setBio]=useState(profile.profile.bio||'');
+  const [saving,setSaving]=useState(false);
+  const avatarRef=useRef();
+  const bgRef=useRef();
+
+  async function saveBio(){
+    setSaving(true);
+    await fetch('/api/profile/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bio})});
+    setSaving(false);
+    onSaved();
+  }
+
+  async function upload(ref,endpoint){
+    const file=ref.current.files[0];
+    if(!file) return;
+    const fd=new FormData();fd.append('file',file);
+    const r=await fetch(endpoint,{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.error) alert(d.error);
+    else { onSaved(); }
+  }
+
+  return h(Fragment,null,
+    h('div',{className:'profile-card',style:{marginBottom:'1rem'}},
+      h('div',{className:'card-title'},'✏️ Редактировать профиль'),
+      h('label',{style:{color:'#b8b8b8',fontSize:'.85rem',display:'block',marginBottom:'.4rem'}},'О себе'),
+      h('textarea',{value:bio,onChange:e=>setBio(e.target.value),maxLength:300}),
+      h('button',{className:'btn-primary',style:{marginTop:'.5rem'},onClick:saveBio,disabled:saving},
+        saving?'Сохранение…':'Сохранить'),
+    ),
+    h('div',{className:'profile-card'},
+      h('div',{className:'card-title'},'🖼 Медиафайлы'),
+      h('p',{style:{color:'#71717a',fontSize:'.8rem',marginBottom:'.5rem'}},
+        'Слот аватара и фона покупаются в Магазине'),
+      h('label',{className:'upload-btn'},
+        '📷 Загрузить аватар',
+        h('input',{type:'file',ref:avatarRef,accept:'image/*',onChange:()=>upload(avatarRef,'/upload/avatar')})
+      ),
+      h('br'),
+      h('label',{className:'upload-btn',style:{marginTop:'.5rem'}},
+        '🌆 Загрузить фон профиля',
+        h('input',{type:'file',ref:bgRef,accept:'image/*',onChange:()=>upload(bgRef,'/upload/background')})
+      )
+    )
+  );
+}
+
+function ProfilePage(){
+  const {profile,isOwn}=DATA;
+  const [editMode,setEditMode]=useState(false);
+  const [data,setData]=useState(profile);
+
+  async function refresh(){
+    const r=await fetch(`/api/user/stats`);
+    const s=await r.json();
+    setData(d=>({...d,stats:{...d.stats,xp:s.xp,coins:s.coins,level:s.level},
+      level:s.level,xp:s.xp,coins:s.coins,xp_progress_pct:s.xp_progress_pct}));
+    setEditMode(false);
+    window.location.reload();
+  }
+
+  const frameCss = data.items?.find(i=>i.type==='frame'&&i.is_equipped)?.css_value;
+  const badge    = data.items?.find(i=>i.type==='badge'&&i.is_equipped)?.css_value;
+  const bgItem   = data.items?.find(i=>i.type==='background'&&i.is_equipped)?.css_value;
+  const bgStyle  = data.profile?.background_url
+    ? {backgroundImage:`url(${data.profile.background_url})`,backgroundSize:'cover',backgroundPosition:'center'}
+    : bgItem
+      ? (()=>{const s={};bgItem.split(';').filter(Boolean).forEach(kv=>{const[k,...v]=kv.trim().split(':');s[k.trim().replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=v.join(':').trim()});return s;})()
+      : {background:'linear-gradient(135deg,#0a0a1a,#1a1040,#0d0d1a)'};
+
+  return h(Fragment,null,
+    h('div',{className:'profile-hero'},
+      h('div',{className:'profile-bg',style:bgStyle}),
+      h('div',{className:'profile-hero-content'},
+        h(Avatar,{url:data.profile?.avatar_url,frameCss,size:110}),
+        h('div',{className:'profile-info'},
+          h('div',{className:'profile-name'},data.display_name),
+          badge && h('div',{className:'profile-badge'},badge),
+          data.profile?.bio && h('div',{className:'profile-bio'},data.profile.bio)
+        ),
+        isOwn && h('button',{
+          className:'btn-secondary',
+          style:{marginLeft:'auto',padding:'.5rem 1rem',fontSize:'.85rem'},
+          onClick:()=>setEditMode(e=>!e)
+        }, editMode?'✕ Закрыть':'✏️ Изменить')
+      )
+    ),
+
+    h('div',{style:{padding:'1rem 1.5rem',maxWidth:'1200px',margin:'0 auto'}},
+      h(XpBar,{
+        pct:data.xp_progress_pct,
+        xpForNext:data.xp_for_next,
+        xp:data.xp,
+        level:data.level,
+        chapters:data.stats?.total_chapters_read||0,
+        coins:data.coins
+      })
+    ),
+
+    editMode && h('div',{style:{padding:'0 1.5rem',maxWidth:'1200px',margin:'0 auto'}},
+      h(EditPanel,{profile:data,onSaved:refresh})
+    ),
+
+    h('div',{className:'profile-sections'},
+      h('div',{className:'profile-card'},
+        h('div',{className:'card-title'},'🏆 Ачивки (',data.achievements.length,')'),
+        h(AchGrid,{achievements:data.achievements})
+      ),
+      h('div',{className:'profile-card'},
+        h('div',{className:'card-title'},'📖 История чтения'),
+        h(HistoryList,{history:data.history})
+      )
+    )
+  );
+}
+
+createRoot(document.getElementById('react-profile-root')).render(h(ProfilePage));
+</script>
+</body>
+</html>

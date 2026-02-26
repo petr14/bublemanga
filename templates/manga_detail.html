@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#667eea">
+    <title>{{ manga.manga_title }} - BubbleManga</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-gradient: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #b8b8b8;
+            --bg-dark: #0a0a0a;
+            --bg-card: #1a1a1a;
+            --bg-card-hover: #252525;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Анимированный фон */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+            background: radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(245, 87, 108, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 90%, rgba(79, 172, 254, 0.3) 0%, transparent 50%);
+            animation: bgFloat 20s ease-in-out infinite;
+        }
+
+        @keyframes bgFloat {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+        }
+
+        /* ==================== ШАПКА ==================== */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(10, 10, 10, 0.98);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .header.scrolled {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            font-size: 26px;
+            filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5));
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            border-color: transparent;
+        }
+
+        .btn-subscribe {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: rgba(255, 215, 0, 0.3);
+            color: #ffd700;
+        }
+
+        .btn-subscribe.subscribed {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+
+        /* ==================== ОСНОВНОЙ КОНТЕНТ ==================== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .manga-detail-container {
+            margin-top: 88px;
+            padding: 40px 0;
+        }
+
+        /* ==================== ШАПКА МАНГИ ==================== */
+        .manga-header {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .manga-cover-container {
+            position: relative;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        .manga-cover {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+        }
+
+        .manga-status-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .manga-info {
+            padding: 0;
+        }
+
+        .manga-title {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: white;
+            line-height: 1.2;
+            text-align: center;
+            background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manga-original-title {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 24px;
+            font-style: italic;
+            text-align: center;
+        }
+
+        /* ==================== МЕТА-ИНФОРМАЦИЯ ==================== */
+        .manga-meta {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+            padding: 20px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .meta-label {
+            color: #999;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .meta-value {
+            font-weight: 700;
+            color: white;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-rating {
+            color: #ffd700;
+        }
+
+        /* ==================== ДЕЙСТВИЯ ==================== */
+        .manga-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        /* ==================== ОПИСАНИЕ ==================== */
+        .manga-description {
+            margin: 30px 0;
+            padding: 24px;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            line-height: 1.7;
+            animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .manga-description h3 {
+            color: #667eea;
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .manga-description p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        /* ==================== ТЕГИ ==================== */
+        .manga-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 24px 0;
+        }
+
+        .tag {
+            background: rgba(102, 126, 234, 0.15);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* ==================== СЕКЦИЯ ЧТЕНИЯ ==================== */
+        .read-section {
+            margin: 30px 0;
+            padding: 24px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            text-align: center;
+        }
+
+        .read-section h3 {
+            margin-bottom: 12px;
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .read-section p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .read-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        /* ==================== СЕКЦИЯ ГЛАВ ==================== */
+        .chapters-section {
+            margin: 40px 0;
+            animation: fadeIn 0.8s ease-out 0.4s both;
+        }
+
+        .section-header {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .chapters-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chapters-count {
+            color: #999;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* ==================== СПИСОК ГЛАВ ==================== */
+        .chapters-list {
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .chapters-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chapters-list::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .chapters-list::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+
+        .chapter-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            color: white;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .chapter-item:active {
+            background: var(--bg-card-hover);
+            transform: scale(0.98);
+        }
+
+        .chapter-item:last-child {
+            border-bottom: none;
+        }
+
+        .chapter-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chapter-title {
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+
+        .chapter-number {
+            color: #667eea;
+            font-weight: 800;
+        }
+
+        .chapter-volume {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .chapter-name {
+            color: #ccc;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chapter-meta {
+            color: #999;
+            font-size: 12px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .chapter-read {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        .chapter-arrow {
+            color: #667eea;
+            font-size: 20px;
+            margin-left: 12px;
+            flex-shrink: 0;
+            display: none;
+        }
+
+        /* ==================== ЗАГРУЗКА ==================== */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .loading p {
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        /* ==================== КНОПКА "НАВЕРХ" ==================== */
+        .scroll-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 999;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:active {
+            transform: scale(0.9);
+        }
+
+        /* ==================== АДАПТИВНОСТЬ ДЛЯ ПЛАНШЕТОВ ==================== */
+        @media (min-width: 600px) {
+            .manga-cover-container {
+                max-width: 320px;
+            }
+
+            .manga-title {
+                font-size: 32px;
+            }
+
+            .manga-meta {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .manga-actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .read-buttons {
+                flex-direction: row;
+                justify-content: center;
+            }
+
+            .chapter-arrow {
+                display: block;
+            }
+        }
+
+        /* ==================== АДАПТИВНОСТЬ ДЛЯ ДЕСКТОПА ==================== */
+        @media (min-width: 1024px) {
+            .header-container {
+                padding: 20px 40px;
+                flex-wrap: nowrap;
+            }
+
+            .logo {
+                font-size: 28px;
+                gap: 10px;
+            }
+
+            .logo-icon {
+                font-size: 32px;
+            }
+
+            .nav-buttons {
+                gap: 12px;
+            }
+
+            .btn {
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+
+            .btn:hover {
+                background: rgba(255, 255, 255, 0.08);
+                transform: translateY(-2px);
+            }
+
+            .btn-primary:hover {
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            }
+
+            .container {
+                padding: 0 40px;
+            }
+
+            .manga-detail-container {
+                margin-top: 100px;
+                padding: 60px 0;
+            }
+
+            .manga-header {
+                grid-template-columns: 350px 1fr;
+                gap: 60px;
+            }
+
+            .manga-cover-container {
+                max-width: 100%;
+            }
+
+            .manga-title {
+                font-size: 48px;
+                text-align: left;
+                margin-bottom: 16px;
+            }
+
+            .manga-original-title {
+                font-size: 16px;
+                margin-bottom: 28px;
+                text-align: left;
+            }
+
+            .manga-meta {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 20px;
+                padding: 24px;
+            }
+
+            .meta-label {
+                font-size: 12px;
+            }
+
+            .meta-value {
+                font-size: 16px;
+            }
+
+            .manga-actions {
+                flex-direction: row;
+                gap: 16px;
+            }
+
+            .manga-description {
+                padding: 30px;
+            }
+
+            .manga-description h3 {
+                font-size: 22px;
+                margin-bottom: 20px;
+            }
+
+            .manga-description p {
+                font-size: 16px;
+            }
+
+            .manga-tags {
+                gap: 12px;
+            }
+
+            .tag {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+
+            .read-section {
+                padding: 40px;
+            }
+
+            .read-section h3 {
+                font-size: 24px;
+                margin-bottom: 16px;
+            }
+
+            .read-section p {
+                font-size: 16px;
+            }
+
+            .chapters-section {
+                margin: 60px 0;
+            }
+
+            .section-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .section-title {
+                font-size: 32px;
+            }
+
+            .chapters-count {
+                font-size: 15px;
+            }
+
+            .chapters-list {
+                border-radius: 20px;
+            }
+
+            .chapter-item {
+                padding: 20px 28px;
+            }
+
+            .chapter-item:hover {
+                background: var(--bg-card-hover);
+                transform: translateX(8px);
+            }
+
+            .chapter-title {
+                font-size: 16px;
+            }
+
+            .chapter-volume {
+                font-size: 13px;
+            }
+
+            .chapter-name {
+                font-size: 14px;
+            }
+
+            .chapter-meta {
+                font-size: 13px;
+            }
+
+            .scroll-top {
+                bottom: 40px;
+                right: 40px;
+            }
+
+            .scroll-top:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            }
+        }
+
+        /* ==================== ОПТИМИЗАЦИИ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ ==================== */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        .chapter-item,
+        .btn {
+            will-change: transform;
+        }
+
+        /* ==================== СОРТИРОВКА ==================== */
+        .btn-sort {
+            background: rgba(102, 126, 234, 0.12);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 7px 16px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+
+        .btn-sort:active {
+            transform: scale(0.95);
+        }
+
+        .btn-sort[data-order="asc"] {
+            background: rgba(79, 172, 254, 0.12);
+            border-color: rgba(79, 172, 254, 0.3);
+            color: #4facfe;
+        }
+
+        @media (min-width: 1024px) {
+            .btn-sort:hover {
+                background: rgba(102, 126, 234, 0.22);
+            }
+            .btn-sort[data-order="asc"]:hover {
+                background: rgba(79, 172, 254, 0.22);
+            }
+        }
+
+        /* ==================== СЕНТИНЕЛ ЗАГРУЗКИ ==================== */
+        .chapters-sentinel {
+            padding: 14px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg"></div>
+
+    <!-- Шапка -->
+    <header class="header" id="header">
+        <div class="header-container">
+            <a href="/" class="logo">
+                <span class="logo-icon">🫧</span>
+                <span>BubbleManga</span>
+            </a>
+            
+            <div class="nav-buttons">
+                <a href="/" class="btn">Главная</a>
+                <a href="/top" class="btn">Топ</a>
+                <a href="/shop" class="btn">Магазин</a>
+
+                {% if user_id %}
+                <a href="/profile/me" class="btn">Профиль</a>
+                <button id="subscribeBtn" class="btn btn-subscribe {% if subscribed %}subscribed{% endif %}"
+                        onclick="toggleSubscribe('{{ manga.manga_id }}')">
+                    {% if subscribed %}
+                    <span>Подписан</span>
+                    {% else %}
+                    <span>Подписаться</span>
+                    {% endif %}
+                </button>
+
+                {% if reading_history %}
+                <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
+                    Продолжить
+                </a>
+                {% endif %}
+
+                <a href="/logout" class="btn">
+                    <span>Выйти</span>
+                </a>
+                {% else %}
+                <a href="https://t.me/hookah_p_bot" target="_blank" class="btn btn-primary">
+                    <span>🤖</span>
+                    <span>Войти</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <div class="container">
+        <div class="manga-detail-container">
+            <!-- Шапка манги -->
+            <div class="manga-header">
+                <div class="manga-cover-container">
+                    <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="eager"
+                         onerror="this.src='https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки'">
+                    
+                    {% if manga.manga_status %}
+                    <div class="manga-status-badge">
+                        {% if manga.manga_status == 'ONGOING' %}
+                        🟢 Онгоинг
+                        {% elif manga.manga_status == 'FINISHED' %}
+                        ✅ Завершена
+                        {% elif manga.manga_status == 'HIATUS' %}
+                        ⏸️ Пауза
+                        {% elif manga.manga_status == 'CANCELLED' %}
+                        ❌ Отменена
+                        {% else %}
+                        {{ manga.manga_status }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="manga-info">
+                    <h1 class="manga-title">{{ manga.manga_title }}</h1>
+                    
+                    {% if manga.original_name and manga.original_name != manga.manga_title %}
+                    <div class="manga-original-title">{{ manga.original_name }}</div>
+                    {% endif %}
+                    
+                    <!-- Мета-информация -->
+                    <div class="manga-meta">
+                        {% if manga.manga_type %}
+                        <div class="meta-item">
+                            <span class="meta-label">Тип</span>
+                            <span class="meta-value">
+                                {% if manga.manga_type == 'MANGA' %}
+                                📘 Манга
+                                {% elif manga.manga_type == 'MANHWA' %}
+                                📙 Манхва
+                                {% elif manga.manga_type == 'MANHUA' %}
+                                📗 Маньхуа
+                                {% elif manga.manga_type == 'COMICS' %}
+                                📕 Комикс
+                                {% else %}
+                                {{ manga.manga_type }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if manga.rating or manga.score %}
+                        <div class="meta-item">
+                            <span class="meta-label">Рейтинг</span>
+                            <span class="meta-value meta-rating">
+                                ⭐ {{ "%.1f"|format(manga.score|float) if manga.score else 'N/A' }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if manga.views %}
+                        <div class="meta-item">
+                            <span class="meta-label">Просмотры</span>
+                            <span class="meta-value">
+                                👁️ {{ "{:,}".format(manga.views|int).replace(",", " ") }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if manga.chapters_count %}
+                        <div class="meta-item">
+                            <span class="meta-label">Глав</span>
+                            <span class="meta-value">
+                                📚 {{ manga.chapters_count }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if manga.translation_status %}
+                        <div class="meta-item">
+                            <span class="meta-label">Перевод</span>
+                            <span class="meta-value">
+                                {% if manga.translation_status == 'IN_PROGRESS' %}
+                                🔄 В процессе
+                                {% elif manga.translation_status == 'COMPLETED' %}
+                                ✅ Завершен
+                                {% elif manga.translation_status == 'ABANDONED' %}
+                                ❌ Заброшен
+                                {% else %}
+                                {{ manga.translation_status }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Кнопки действий -->
+                    <div class="manga-actions">
+                        {% if chapters %}
+                            <!-- Чтение с начала (самая старая глава) -->
+                            {% set first_chapter = chapters[-1] if chapters else None %}
+                            {% if first_chapter %}
+                            <a href="/read/{{ manga.manga_slug }}/{{ first_chapter.chapter_slug }}" 
+                               class="btn btn-primary">
+                                <span>📖</span>
+                                <span>Читать с начала</span>
+                            </a>
+                            {% endif %}
+                            
+                            <!-- Чтение последней главы -->
+                            {% set last_chapter = chapters[0] if chapters else None %}
+                            {% if last_chapter %}
+                            <a href="/read/{{ manga.manga_slug }}/{{ last_chapter.chapter_slug }}" 
+                               class="btn btn-primary">
+                                <span>🆕</span>
+                                <span>Последняя глава</span>
+                            </a>
+                            {% endif %}
+                        {% endif %}
+                            
+                        <a href="/search?q={{ manga.manga_title|urlencode }}" class="btn">
+                            <span>🔍</span>
+                            <span>Похожие</span>
+                        </a>
+                        
+                        <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn">
+                            <span>🔄</span>
+                            <span>Обновить</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Описание -->
+            {% if manga.description %}
+            <div class="manga-description">
+                <h3>📝 Описание</h3>
+                <p>{{ manga.description }}</p>
+            </div>
+            {% endif %}
+            
+            <!-- Теги -->
+            {% if manga.tags %}
+            <div class="manga-tags">
+                {% for tag in manga.tags %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Секция чтения -->
+            {% if reading_history %}
+            <div class="read-section">
+                <h3>Продолжить чтение</h3>
+                <p>Вы остановились на главе {{ reading_history.chapter_number }}</p>
+                <div class="read-buttons">
+                    <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
+                        <span>📖</span>
+                        <span>Продолжить чтение</span>
+                    </a>
+                    <a href="/read/{{ manga.manga_slug }}/{{ chapters[0].chapter_slug if chapters else '' }}" class="btn">
+                        <span>🆕</span>
+                        <span>Последняя глава</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Главы -->
+            <div class="chapters-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span>📚</span>
+                        Список глав
+                    </h2>
+                    
+                    <div class="chapters-controls">
+                        <span class="chapters-count">
+                            {% if chapters %}
+                            Всего: {{ manga.chapters_count or chapters|length }} глав
+                            {% else %}
+                            Нет глав
+                            {% endif %}
+                        </span>
+                        {% if chapters %}
+                        <button id="sort-toggle-btn" class="btn-sort" data-order="desc">
+                            ↓ С последних
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if chapters %}
+                <div class="chapters-list" id="chapters-list"
+                     data-manga-slug="{{ manga.manga_slug }}"
+                     data-loaded="{{ chapters|length }}"
+                     data-total="{{ manga.chapters_count or 0 }}"
+                     data-is-loading="{{ 'true' if is_loading_more else 'false' }}">
+                    {% for chapter in chapters %}
+                    <a href="/read/{{ manga.manga_slug }}/{{ chapter.chapter_slug }}" class="chapter-item">
+                        <div class="chapter-info">
+                            <div class="chapter-title">
+                                <span class="chapter-number">Глава {{ chapter.chapter_number }}</span>
+                                {% if chapter.chapter_volume %}
+                                <span class="chapter-volume">(Том {{ chapter.chapter_volume }})</span>
+                                {% endif %}
+                                {% if chapter.chapter_name %}
+                                <span class="chapter-name">- {{ chapter.chapter_name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="chapter-meta">
+                                <span>{{ chapter.created_at[:10] if chapter.created_at else '' }}</span>
+                                {% if reading_history and reading_history.chapter_id == chapter.chapter_id %}
+                                <span class="chapter-read">✓ Читали</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="chapter-arrow">→</div>
+                    </a>
+                    {% endfor %}
+                    <div id="chapters-sentinel" class="chapters-sentinel"></div>
+                </div>
+                {% else %}
+                <div class="loading">
+                    <p>Главы загружаются или пока отсутствуют...</p>
+                    <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn btn-primary">
+                        <span>🔄</span>
+                        <span>Обновить страницу</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка "Наверх" -->
+    <div class="scroll-top" id="scrollTop" aria-label="Наверх">
+        <span style="font-size: 20px;">↑</span>
+    </div>
+
+    <script>
+        // ==================== ЭФФЕКТ ПРОКРУТКИ ДЛЯ ШАПКИ ====================
+        const header = document.getElementById('header');
+        const scrollTop = document.getElementById('scrollTop');
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 100) {
+                header.classList.add('scrolled');
+                scrollTop.classList.add('visible');
+            } else {
+                header.classList.remove('scrolled');
+                scrollTop.classList.remove('visible');
+            }
+        }, { passive: true });
+
+        // ==================== ПРОКРУТКА НАВЕРХ ====================
+        scrollTop.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // ==================== ПОДПИСКА/ОТПИСКА ====================
+        async function toggleSubscribe(mangaId) {
+            try {
+                const btn = document.getElementById('subscribeBtn');
+                btn.disabled = true;
+                
+                const response = await fetch(`/api/subscribe/${mangaId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.subscribed) {
+                    btn.classList.add('subscribed');
+                    btn.innerHTML = '<span>✓</span><span>Подписан</span>';
+                } else {
+                    btn.classList.remove('subscribed');
+                    btn.innerHTML = '<span>⭐</span><span>Подписаться</span>';
+                }
+                
+                btn.disabled = false;
+            } catch (error) {
+                console.error('Ошибка подписки:', error);
+                alert('Ошибка при изменении подписки');
+                document.getElementById('subscribeBtn').disabled = false;
+            }
+        }
+        
+        // ==================== АВТОПРОКРУТКА К ПОСЛЕДНЕЙ ПРОЧИТАННОЙ ГЛАВЕ ====================
+        window.addEventListener('DOMContentLoaded', function() {
+            const readChapter = document.querySelector('.chapter-read');
+            if (readChapter && window.innerWidth >= 1024) {
+                setTimeout(() => {
+                    readChapter.closest('.chapter-item').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }, 500);
+            }
+        });
+        
+        // ==================== КЛАВИШИ БЫСТРОГО ДОСТУПА ====================
+        document.addEventListener('keydown', function(e) {
+            // ESC - вернуться на главную
+            if (e.key === 'Escape') {
+                window.location.href = '/';
+            }
+            
+            // Ctrl+S - подписка/отписка
+            if (e.key === 's' && e.ctrlKey) {
+                const subscribeBtn = document.getElementById('subscribeBtn');
+                if (subscribeBtn) {
+                    e.preventDefault();
+                    const mangaId = subscribeBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    toggleSubscribe(mangaId);
+                }
+            }
+            
+            // R - читать с начала
+            if (e.key === 'r' || e.key === 'к') {
+                const firstChapter = document.querySelector('.chapter-item:last-child');
+                if (firstChapter) {
+                    firstChapter.click();
+                }
+            }
+            
+            // L - читать последнюю главу
+            if (e.key === 'l' || e.key === 'д') {
+                const lastChapter = document.querySelector('.chapter-item:first-child');
+                if (lastChapter) {
+                    lastChapter.click();
+                }
+            }
+        });
+        
+        // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            const coverImage = document.querySelector('.manga-cover');
+            if (coverImage) {
+                if (coverImage.complete) {
+                    if (coverImage.naturalHeight === 0) {
+                        coverImage.src = 'https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки';
+                    }
+                } else {
+                    coverImage.onerror = function() {
+                        this.src = 'https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки';
+                    };
+                }
+            }
+        });
+
+        // ==================== СОХРАНЕНИЕ ПОЗИЦИИ ПРОКРУТКИ ====================
+        // Сохраняем прокрутку страницы при переходе на чтение
+        document.querySelectorAll('.chapter-item').forEach(link => {
+            link.addEventListener('click', () => {
+                sessionStorage.setItem('mangaPageScroll', window.scrollY);
+            });
+        });
+
+        // Восстанавливаем прокрутку страницы при возврате
+        window.addEventListener('load', () => {
+            const savedPosition = sessionStorage.getItem('mangaPageScroll');
+            if (savedPosition) {
+                window.scrollTo(0, parseInt(savedPosition, 10));
+                sessionStorage.removeItem('mangaPageScroll');
+            }
+        });
+
+        // ==================== ОПТИМИЗАЦИЯ ПРОИЗВОДИТЕЛЬНОСТИ ====================
+        // Debounce для resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                // Обновить layout при необходимости
+            }, 250);
+        }, { passive: true });
+
+        // ==================== ИНФИНИТИ-СКРОЛЛ И СОРТИРОВКА ГЛАВ ====================
+        (function() {
+            const list = document.getElementById('chapters-list');
+            if (!list) return;
+
+            const mangaSlug = list.dataset.mangaSlug;
+            const sentinel = document.getElementById('chapters-sentinel');
+            const sortBtn = document.getElementById('sort-toggle-btn');
+            const BATCH = 50;
+
+            let loaded = parseInt(list.dataset.loaded, 10) || 0;
+            let currentOrder = 'desc'; // сервер рендерит DESC
+            let isFetching = false;
+            let hasMore = true;
+            let bgLoading = list.dataset.isLoading === 'true';
+            const totalExpected = parseInt(list.dataset.total, 10) || 0;
+
+            // Если всё уже показано и фон не грузит — ничего подгружать не нужно
+            if (!bgLoading && totalExpected > 0 && loaded >= totalExpected) {
+                hasMore = false;
+                if (sentinel) sentinel.style.display = 'none';
+            }
+
+            function makeChapterEl(ch) {
+                const a = document.createElement('a');
+                a.href = `/read/${mangaSlug}/${ch.chapter_slug}`;
+                a.className = 'chapter-item';
+                const date = ch.created_at ? String(ch.created_at).slice(0, 10) : '';
+                const vol  = ch.chapter_volume ? `<span class="chapter-volume">(Том ${ch.chapter_volume})</span>` : '';
+                const name = ch.chapter_name   ? `<span class="chapter-name">- ${ch.chapter_name}</span>`       : '';
+                a.innerHTML = `
+                    <div class="chapter-info">
+                        <div class="chapter-title">
+                            <span class="chapter-number">Глава ${ch.chapter_number}</span>
+                            ${vol}${name}
+                        </div>
+                        <div class="chapter-meta"><span>${date}</span></div>
+                    </div>
+                    <div class="chapter-arrow">→</div>`;
+                a.addEventListener('click', () => {
+                    sessionStorage.setItem('chapListScroll', list.scrollTop);
+                });
+                return a;
+            }
+
+            async function fetchBatch() {
+                if (isFetching) return;
+                isFetching = true;
+                if (sentinel) sentinel.textContent = '⏳ Загрузка...';
+                try {
+                    const url = `/api/manga/${mangaSlug}/chapters?offset=${loaded}&limit=${BATCH}&order=${currentOrder}`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+
+                    if (data.chapters && data.chapters.length > 0) {
+                        const frag = document.createDocumentFragment();
+                        data.chapters.forEach(ch => frag.appendChild(makeChapterEl(ch)));
+                        if (sentinel) list.insertBefore(frag, sentinel);
+                        else list.appendChild(frag);
+                        loaded += data.chapters.length;
+                    }
+
+                    bgLoading = data.is_loading;
+
+                    if (!data.has_more && !bgLoading) {
+                        // Всё загружено
+                        hasMore = false;
+                        if (sentinel) sentinel.style.display = 'none';
+                        isFetching = false;
+                    } else if (!data.has_more && bgLoading) {
+                        // Фоновая загрузка ещё идёт — ждём и пробуем снова
+                        if (sentinel) sentinel.textContent = '⏳ Ожидание новых глав...';
+                        setTimeout(() => { isFetching = false; fetchBatch(); }, 2000);
+                        return; // не сбрасываем isFetching здесь
+                    } else {
+                        // Есть ещё страницы — ждём прокрутки
+                        if (sentinel) sentinel.textContent = '';
+                        isFetching = false;
+                    }
+                } catch (e) {
+                    console.error('Ошибка подгрузки:', e);
+                    if (sentinel) sentinel.textContent = '⚠️ Ошибка. Прокрутите вниз снова.';
+                    isFetching = false;
+                }
+            }
+
+            // IntersectionObserver следит за sentinel внутри прокручиваемого списка
+            if (sentinel && window.IntersectionObserver) {
+                const observer = new IntersectionObserver(entries => {
+                    if (entries[0].isIntersecting && hasMore) fetchBatch();
+                }, { root: list, threshold: 0 });
+                observer.observe(sentinel);
+            }
+
+            // Кнопка переключения порядка сортировки
+            if (sortBtn) {
+                sortBtn.addEventListener('click', () => {
+                    currentOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+                    sortBtn.dataset.order = currentOrder;
+                    sortBtn.textContent = currentOrder === 'desc' ? '↓ С последних' : '↑ С первых';
+
+                    // Очищаем только chapter-item элементы, сентинел остаётся
+                    list.querySelectorAll('.chapter-item').forEach(el => el.remove());
+                    loaded = 0;
+                    hasMore = true;
+                    isFetching = false;
+                    if (sentinel) {
+                        sentinel.style.display = 'flex';
+                        sentinel.textContent = '';
+                    }
+                    fetchBatch();
+                });
+            }
+
+            // Восстановить позицию прокрутки внутри списка
+            const savedScroll = sessionStorage.getItem('chapListScroll');
+            if (savedScroll) {
+                list.scrollTop = parseInt(savedScroll, 10);
+                sessionStorage.removeItem('chapListScroll');
+            }
+        })();
+    </script>
+</body>
+</html>

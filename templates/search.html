@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск манги</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f0f;
+            color: white;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Шапка */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.5);
+            box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-button {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.3s;
+        }
+
+        .search-button:hover {
+            transform: scale(1.05);
+        }
+
+        .suggestions-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-radius: 10px;
+            margin-top: 5px;
+            overflow: hidden;
+            display: none;
+            z-index: 1001;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .suggestion-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .suggestion-item:hover {
+            background: #2a2a2a;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .username {
+            font-weight: 500;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Результаты поиска */
+        .search-results {
+            margin-top: 30px;
+        }
+
+        .search-info {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #1a1a1a;
+            border-radius: 10px;
+        }
+
+        .search-info h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .search-query {
+            font-weight: bold;
+            color: #fff;
+            background: #2a2a2a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+
+        .results-count {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .manga-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+        }
+
+        .manga-card {
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .manga-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+        }
+
+        .manga-cover {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .manga-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+
+        .manga-info {
+            padding: 15px;
+        }
+
+        .manga-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 2.8em;
+        }
+
+        .manga-meta {
+            font-size: 0.8em;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .manga-status {
+            padding: 4px 9px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .status-ongoing {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .status-finished {
+            background: rgba(156, 39, 176, 0.2);
+            color: #9c27b0;
+        }
+
+        .rating-badge {
+            padding: 4px 9px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .rating-general {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196f3;
+        }
+
+        .rating-sensitive {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
+
+        .rating-questionable {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        /* Состояние без результатов */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            margin-top: 40px;
+        }
+
+        .empty-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h2 {
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .telegram-link {
+            display: inline-block;
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #0088cc 0%, #00acee 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: transform 0.3s;
+        }
+
+        .telegram-link:hover {
+            transform: scale(1.05);
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .search-container {
+                max-width: 100%;
+            }
+            
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .manga-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+            }
+            
+            .manga-cover {
+                height: 225px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <a href="/" class="logo">BubbleManga</a>
+            
+            <div class="search-container">
+                <form method="GET" action="/search" class="search-box" onsubmit="return validateSearch()">
+                    <input type="text" 
+                           name="q" 
+                           value="{{ query }}"
+                           class="search-input" 
+                           placeholder="Поиск манги..."
+                           autocomplete="off"
+                           id="searchInput">
+                    <button type="submit" class="search-button">Поиск</button>
+                </form>
+                <div class="suggestions-box" id="suggestionsBox"></div>
+            </div>
+            
+            <div class="user-section">
+                <a href="/" class="btn">Главная</a>
+                <a href="/top" class="btn">Топ</a>
+                <a href="/shop" class="btn">Магазин</a>
+                {% if user_id %}
+                <a href="/profile/me" class="btn">Профиль</a>
+                <a href="/logout" class="btn">Выйти</a>
+                {% else %}
+                <a href="https://t.me/hookah_p_bot" target="_blank" class="btn">Войти</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="search-results">
+            {% if query %}
+            <div class="search-info">
+                <h1>Результаты поиска</h1>
+                <p>
+                    По запросу <span class="search-query">"{{ query }}"</span>
+                    {% if results %}
+                    <span class="results-count">найдено {{ results|length }} манг</span>
+                    {% else %}
+                    <span class="results-count">ничего не найдено</span>
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+
+            {% if results %}
+            <div class="manga-grid">
+                {% for manga in results %}
+                <div class="manga-card" onclick="location.href='/manga/{{ manga.manga_slug }}'">
+                    {% if manga.manga_type %}
+                    <div class="manga-badge">{{ manga.manga_type | type_ru }}</div>
+                    {% endif %}
+                    
+                    <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" 
+                         onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
+                    
+                    <div class="manga-info">
+                        <div class="manga-title">{{ manga.manga_title }}</div>
+                        
+                        <div class="manga-meta">
+                            {% if manga.manga_status %}
+                            <span class="manga-status status-{{ manga.manga_status|lower }}">
+                                {{ manga.manga_status | status_ru }}
+                            </span>
+                            {% endif %}
+
+                            {% if manga.rating %}
+                            <span class="rating-badge rating-{{ manga.rating|lower }}">
+                                {{ manga.rating | rating_ru }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% elif query %}
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <h2>Ничего не найдено</h2>
+                <p>Попробуйте изменить поисковый запрос или проверьте написание.</p>
+                
+                {% if not user_id %}
+                <p>Для подписки на мангу войдите через Telegram бота:</p>
+                <a href="https://t.me/your_bot" target="_blank" class="telegram-link">
+                    🤖 Открыть Telegram бота
+                </a>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <h2>Поиск манги</h2>
+                <p>Введите название манги в поисковую строку выше</p>
+                <p>Или используйте Telegram бота для удобного поиска и подписки:</p>
+                <a href="https://t.me/your_bot" target="_blank" class="telegram-link">
+                    🤖 Открыть Telegram бота
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const suggestionsBox = document.getElementById('suggestionsBox');
+        
+        // Автодополнение
+        let debounceTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(fetchSuggestions, 300);
+        });
+        
+        searchInput.addEventListener('focus', function() {
+            if (this.value.length >= 2) {
+                fetchSuggestions();
+            }
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+        
+        async function fetchSuggestions() {
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
+                const suggestions = await response.json();
+                
+                if (suggestions.length > 0) {
+                    suggestionsBox.innerHTML = '';
+                    suggestions.forEach(suggestion => {
+                        const item = document.createElement('div');
+                        item.className = 'suggestion-item';
+                        item.textContent = suggestion;
+                        item.onclick = () => {
+                            searchInput.value = suggestion;
+                            suggestionsBox.style.display = 'none';
+                            searchInput.form.submit();
+                        };
+                        suggestionsBox.appendChild(item);
+                    });
+                    suggestionsBox.style.display = 'block';
+                } else {
+                    suggestionsBox.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки предложений:', error);
+            }
+        }
+        
+        function validateSearch() {
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                alert('Введите минимум 2 символа для поиска');
+                return false;
+            }
+            return true;
+        }
+        
+        // Обработка клавиш
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && suggestionsBox.style.display === 'block') {
+                const firstSuggestion = suggestionsBox.querySelector('.suggestion-item');
+                if (firstSuggestion) {
+                    e.preventDefault();
+                    firstSuggestion.click();
+                }
+            }
+            
+            if (e.key === 'Escape') {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

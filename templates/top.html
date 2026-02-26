@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+  <meta name="theme-color" content="#667eea"/>
+  <title>Топ читателей — BubbleManga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --accent: #667eea;
+      --bg: #0a0a0a;
+      --card: #1a1a1a;
+      --card2: #141414;
+      --border: rgba(255,255,255,.06);
+      --text: #ffffff;
+      --text-2: #b8b8b8;
+      --text-3: #71717a;
+    }
+    html, body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg); color: var(--text);
+      -webkit-font-smoothing: antialiased; line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* ── Шапка ─────────────────────────────────── */
+    .site-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(10,10,10,.97);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .site-header-inner {
+      max-width: 1400px; margin: 0 auto; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .site-logo {
+      font-size: 20px; font-weight: 800; text-decoration: none; letter-spacing: -.5px;
+      background: var(--primary);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .site-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .nav-btn {
+      padding: 8px 16px; background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1); border-radius: 50px;
+      color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background .2s, transform .15s;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .nav-btn:active { transform: scale(.95); }
+    .nav-btn.active { background: var(--primary); border-color: transparent; }
+    @media(min-width:1024px) {
+      .nav-btn:hover { background: rgba(255,255,255,.09); }
+      .nav-btn.active:hover { opacity: .88; }
+    }
+
+    /* ── Страница ───────────────────────────────── */
+    .page-wrap { padding-top: 60px; }
+
+    /* ── Hero ─────────────────────────────────────── */
+    .top-hero {
+      text-align: center; padding: 4rem 1rem 2.5rem;
+      background: linear-gradient(135deg, #08081a 0%, #0f0c2a 50%, #10091e 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .top-hero h1 {
+      font-size: 2.5rem; font-weight: 800;
+      background: var(--primary);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: .5rem;
+    }
+    .top-hero p { color: var(--text-2); font-size: .95rem; }
+
+    /* ── Контейнер ─────────────────────────────── */
+    .top-container { max-width: 860px; margin: 0 auto; padding: 1.5rem; }
+
+    /* ── Пьедестал ─────────────────────────────── */
+    .podium {
+      display: flex; justify-content: center; align-items: flex-end;
+      gap: 1rem; margin-bottom: 2.5rem;
+    }
+    .podium-item { text-align: center; flex: 1; max-width: 180px; text-decoration: none; }
+    .podium-avatar {
+      width: 72px; height: 72px; border-radius: 50%;
+      margin: 0 auto .5rem;
+      background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; overflow: hidden;
+      box-shadow: 0 4px 24px rgba(102,126,234,.35);
+    }
+    .podium-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .podium-name {
+      font-size: .85rem; font-weight: 600; color: #d4d4d8;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .podium-xp { font-size: .75rem; color: var(--text-3); margin-top: .15rem; }
+    .podium-stand {
+      border-radius: 8px 8px 0 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 800; color: #fff; margin-top: .5rem;
+    }
+    .stand-1 { height: 90px; background: linear-gradient(135deg, #FFD700, #FFA500); }
+    .stand-2 { height: 70px; background: linear-gradient(135deg, #C0C0C0, #909090); }
+    .stand-3 { height: 55px; background: linear-gradient(135deg, #CD7F32, #8B4513); }
+
+    /* ── Таблица ───────────────────────────────── */
+    .leaderboard {
+      background: var(--card2); border-radius: 16px;
+      border: 1px solid var(--border); overflow: hidden;
+    }
+    .lb-row {
+      display: flex; align-items: center; gap: 1rem;
+      padding: .85rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      transition: background .15s; text-decoration: none; color: inherit;
+    }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row:hover { background: var(--card); }
+    .lb-row.me { background: rgba(102,126,234,.08); }
+
+    .lb-rank {
+      width: 36px; text-align: center; font-weight: 700; font-size: 1rem;
+      color: var(--text-3); flex-shrink: 0;
+    }
+    .lb-rank.top3 { color: #FFD700; }
+
+    .lb-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0; overflow: hidden;
+    }
+    .lb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .lb-name {
+      flex: 1; font-weight: 600; font-size: .9rem; color: #d4d4d8;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .lb-level {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: .2rem .6rem;
+      font-size: .75rem; font-weight: 700; color: var(--accent); flex-shrink: 0;
+    }
+    .lb-xp { text-align: right; flex-shrink: 0; }
+    .lb-xp-val { font-weight: 700; font-size: .9rem; color: #fff; }
+    .lb-xp-label { font-size: .7rem; color: var(--text-3); }
+
+    .lb-chapters { text-align: right; flex-shrink: 0; display: none; }
+    @media(min-width:500px) { .lb-chapters { display: block; } }
+    .lb-chapters-val { font-weight: 600; font-size: .85rem; color: var(--text-2); }
+    .lb-chapters-label { font-size: .7rem; color: var(--text-3); }
+  </style>
+</head>
+<body>
+
+<!-- Шапка -->
+<header class="site-header">
+  <div class="site-header-inner">
+    <a href="/" class="site-logo"><span>🫧</span><span>BubbleManga</span></a>
+    <nav class="site-nav">
+      <a href="/" class="nav-btn">Главная</a>
+      <a href="/top" class="nav-btn active">Топ</a>
+      <a href="/shop" class="nav-btn">Магазин</a>
+      {% if user_id %}
+      <a href="/profile/me" class="nav-btn">Профиль</a>
+      <a href="/logout" class="nav-btn">Выйти</a>
+      {% else %}
+      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
+        <span>🤖</span><span>Войти</span>
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<div class="page-wrap">
+  <div id="top-root"></div>
+</div>
+
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18","react-dom/client":"https://esm.sh/react-dom@18/client"}}
+</script>
+<script type="module">
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+const {createElement:h,Fragment} = React;
+
+const LEADERS = {{ leaders | tojson }};
+const MY_ID   = {{ user_id | tojson }};
+
+function Av({url, size=40, fontSize='1rem'}){
+  const s = {
+    width:size, height:size, borderRadius:'50%',
+    background:'linear-gradient(135deg,#667eea,#764ba2)',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    fontSize, flexShrink:0, overflow:'hidden'
+  };
+  return h('div',{style:s},
+    url ? h('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},alt:''}) : '👤'
+  );
+}
+
+function Podium(){
+  const top3 = LEADERS.slice(0,3);
+  if(top3.length < 1) return null;
+  const order  = top3.length >= 3 ? [top3[1],top3[0],top3[2]] : [top3[0]];
+  const stands = top3.length >= 3 ? ['stand-2','stand-1','stand-3'] : ['stand-1'];
+  const medals = top3.length >= 3 ? ['🥈','🥇','🥉'] : ['🥇'];
+
+  return h('div',{className:'podium'},
+    order.map((u,i)=>
+      h('a',{key:u.id, className:'podium-item', href:`/profile/${u.id}`},
+        h('div',{className:'podium-avatar'}, h(Av,{url:u.avatar_url,size:72,fontSize:'1.8rem'})),
+        h('div',{className:'podium-name'}, u.telegram_first_name||u.telegram_username||`#${u.id}`),
+        h('div',{className:'podium-xp'}, `${(u.xp||0).toLocaleString()} XP`),
+        h('div',{className:`podium-stand ${stands[i]}`}, medals[i])
+      )
+    )
+  );
+}
+
+function LbRow({u, rank}){
+  const name = u.telegram_first_name||u.telegram_username||`Пользователь #${u.id}`;
+  const isMe = u.id === MY_ID;
+  return h('a',{className:`lb-row${isMe?' me':''}`, href:`/profile/${u.id}`},
+    h('div',{className:`lb-rank${rank<=3?' top3':''}`},
+      rank===1?'🥇': rank===2?'🥈': rank===3?'🥉': rank
+    ),
+    h('div',{className:'lb-avatar'}, h(Av,{url:u.avatar_url,size:40})),
+    h('div',{className:'lb-name'},
+      name,
+      isMe && h('span',{style:{marginLeft:'.4rem',color:'#667eea',fontSize:'.75rem'}},'(вы)')
+    ),
+    h('div',{className:'lb-level'}, `Lv.${u.level||1}`),
+    h('div',{className:'lb-chapters'},
+      h('div',{className:'lb-chapters-val'}, u.total_chapters_read||0),
+      h('div',{className:'lb-chapters-label'}, 'глав')
+    ),
+    h('div',{className:'lb-xp'},
+      h('div',{className:'lb-xp-val'}, (u.xp||0).toLocaleString()),
+      h('div',{className:'lb-xp-label'}, 'XP')
+    )
+  );
+}
+
+function TopPage(){
+  return h(Fragment,null,
+    h('div',{className:'top-hero'},
+      h('h1',null,'🏆 Топ читателей'),
+      h('p',null,'Читай больше — зарабатывай XP — попади в топ')
+    ),
+    h('div',{className:'top-container'},
+      h(Podium),
+      LEADERS.length === 0
+        ? h('p',{style:{textAlign:'center',color:'#71717a',padding:'2rem'}},
+            'Пока никого нет. Будь первым!')
+        : h('div',{className:'leaderboard'},
+            LEADERS.map((u,i)=>h(LbRow,{key:u.id,u,rank:i+1}))
+          )
+    )
+  );
+}
+
+createRoot(document.getElementById('top-root')).render(h(TopPage));
+</script>
+</body>
+</html>

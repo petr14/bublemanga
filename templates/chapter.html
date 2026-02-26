@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#000000">
+    <title>{{ chapter.manga_title }} - Глава {{ chapter.chapter_number }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --text-primary: #ffffff;
+            --text-secondary: #b8b8b8;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            color: white;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ==================== ПРОГРЕСС БАР ==================== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--primary-gradient);
+            z-index: 1002;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        /* ==================== ШАПКА (появляется при прокрутке вверх) ==================== */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 16px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .header.visible {
+            transform: translateY(0);
+        }
+
+        .header-content {
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-section {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .manga-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .chapter-info {
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            border-color: transparent;
+        }
+
+        .btn-subscribe {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: rgba(255, 215, 0, 0.3);
+            color: #ffd700;
+        }
+
+        .btn-subscribe.subscribed {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+
+        /* ==================== КОНТЕЙНЕР СТРАНИЦ ==================== */
+        .pages-container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: #000;
+            line-height: 0;
+            padding-top: 3px;
+        }
+
+        .page-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            vertical-align: top;
+            background: #0a0a0a;
+        }
+
+        /* Скелетон для загрузки */
+        .page-image.loading {
+            min-height: 100vh;
+            background: linear-gradient(90deg, #0a0a0a 25%, #1a1a1a 50%, #0a0a0a 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ==================== СЧЕТЧИК СТРАНИЦ ==================== */
+        .page-counter {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 999;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            user-select: none;
+        }
+
+        .page-counter span {
+            color: #667eea;
+        }
+
+        /* ==================== КНОПКА "НАВЕРХ" ==================== */
+        .scroll-top {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 999;
+            font-size: 20px;
+            user-select: none;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:active {
+            transform: scale(0.9);
+        }
+
+        /* ==================== НАВИГАЦИЯ МЕЖДУ ГЛАВАМИ ==================== */
+        .chapter-navigation {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            opacity: 1;
+            visibility: visible;
+            transition: all 0.3s ease;
+            z-index: 998;
+        }
+
+        .nav-chapter-btn {
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .nav-chapter-btn:active {
+            transform: scale(0.95);
+        }
+
+        .nav-chapter-btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* ==================== ТУЛТИП ДЛЯ ПОДСКАЗОК ==================== */
+        .tooltip {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1003;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* ==================== АДАПТИВНОСТЬ ДЛЯ ПЛАНШЕТОВ ==================== */
+        @media (min-width: 600px) {
+            .pages-container {
+                max-width: 700px;
+            }
+
+            .manga-title {
+                font-size: 16px;
+            }
+
+            .chapter-info {
+                font-size: 12px;
+            }
+
+            .btn {
+                padding: 10px 18px;
+                font-size: 13px;
+            }
+
+            .page-counter {
+                font-size: 14px;
+                padding: 12px 24px;
+            }
+
+            .nav-chapter-btn {
+                font-size: 15px;
+                padding: 14px 24px;
+            }
+        }
+
+        /* ==================== АДАПТИВНОСТЬ ДЛЯ ДЕСКТОПА ==================== */
+        @media (min-width: 1024px) {
+            .pages-container {
+                max-width: 900px;
+            }
+
+            .header {
+                padding: 16px 40px;
+            }
+
+            .manga-title {
+                font-size: 18px;
+            }
+
+            .chapter-info {
+                font-size: 13px;
+            }
+
+            .btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                transform: translateY(-2px);
+            }
+
+            .btn-primary:hover {
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            }
+
+            .scroll-top {
+                bottom: 90px;
+                right: 40px;
+                width: 56px;
+                height: 56px;
+                font-size: 24px;
+            }
+
+            .scroll-top:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+            }
+
+            .page-counter {
+                font-size: 15px;
+                padding: 12px 28px;
+                bottom: 30px;
+            }
+
+            .chapter-navigation {
+                bottom: 100px;
+            }
+
+            .nav-chapter-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                transform: translateY(-2px);
+            }
+        }
+
+        /* ==================== РЕЖИМ ПОЛНОЭКРАННОГО ЧТЕНИЯ ==================== */
+        body.reading-mode .header {
+            transform: translateY(-100%);
+        }
+
+        body.reading-mode .page-counter,
+        body.reading-mode .scroll-top,
+        body.reading-mode .chapter-navigation {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* ==================== ОПТИМИЗАЦИИ ==================== */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        .page-image {
+            will-change: auto;
+        }
+
+        /* ==================== ИНДИКАТОР ЗАГРУЗКИ ==================== */
+        .loading-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 1004;
+            display: none;
+        }
+
+        .loading-indicator.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(102, 126, 234, 0.2);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- Шапка (появляется при прокрутке вверх) -->
+    <header class="header" id="header">
+        <div class="header-content">
+            <div class="title-section">
+                <div class="manga-title">{{ chapter.manga_title }}</div>
+                <div class="chapter-info">
+                    Глава {{ chapter.chapter_number }}
+                    {% if chapter.chapter_volume %}(Том {{ chapter.chapter_volume }}){% endif %}
+                    {% if chapter.chapter_name %}- {{ chapter.chapter_name }}{% endif %}
+                    · 📄 {{ chapter.pages|length }} стр.
+                </div>
+            </div>
+            <div class="nav-buttons">
+                {% if prev_chapter %}
+                <a href="/read/{{ chapter.manga_slug }}/{{ prev_chapter.chapter_slug }}" class="btn">← {{ prev_chapter.chapter_number }}</a>
+                {% endif %}
+                {% if next_chapter %}
+                <a href="/read/{{ chapter.manga_slug }}/{{ next_chapter.chapter_slug }}" class="btn">{{ next_chapter.chapter_number }} →</a>
+                {% endif %}
+                <a href="/manga/{{ chapter.manga_slug }}" class="btn btn-primary">К манге</a>
+                <a href="/" class="btn">Главная</a>
+                {% if session.user_id %}
+                <button id="subscribeBtn" class="btn btn-subscribe {% if subscribed %}subscribed{% endif %}"
+                        onclick="toggleSubscribe('{{ chapter.manga_id }}')">
+                    {% if subscribed %}Подписан{% else %}Подписаться{% endif %}
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- Контейнер страниц -->
+    <div class="pages-container" id="pagesContainer">
+        {% for page_url in chapter.pages %}
+        <img 
+            src="{{ page_url }}" 
+            alt="Страница {{ loop.index }}" 
+            class="page-image" 
+            loading="lazy"
+            data-page="{{ loop.index }}"
+            onerror="this.style.display='none'"
+        >
+        {% endfor %}
+    </div>
+
+    <!-- Счетчик страниц -->
+    <div class="page-counter" id="pageCounter">
+        Стр. <span id="currentPage">1</span> / {{ chapter.pages|length }}
+    </div>
+
+    <!-- Навигация между главами -->
+    <div class="chapter-navigation" id="chapterNavigation">
+        {% if prev_chapter %}
+        <a href="/read/{{ chapter.manga_slug }}/{{ prev_chapter.chapter_slug }}"
+           class="nav-chapter-btn" id="prevChapterBtn">
+            <span>←</span>
+            <span>Гл. {{ prev_chapter.chapter_number }}</span>
+        </a>
+        {% else %}
+        <a class="nav-chapter-btn disabled" id="prevChapterBtn">
+            <span>←</span>
+            <span>Начало</span>
+        </a>
+        {% endif %}
+
+        {% if next_chapter %}
+        <a href="/read/{{ chapter.manga_slug }}/{{ next_chapter.chapter_slug }}"
+           class="nav-chapter-btn" id="nextChapterBtn">
+            <span>Гл. {{ next_chapter.chapter_number }}</span>
+            <span>→</span>
+        </a>
+        {% else %}
+        <a class="nav-chapter-btn disabled" id="nextChapterBtn">
+            <span>Конец</span>
+            <span>→</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Кнопка "Наверх" -->
+    <div class="scroll-top" id="scrollTop" onclick="scrollToTop()" aria-label="Наверх">
+        ↑
+    </div>
+
+    <!-- Тултип -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Индикатор загрузки -->
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
+        const totalPages = {{ chapter.pages|length }};
+        let currentPage = 1;
+        let lastScrollTop = 0;
+        let scrollTimeout;
+        let isReadingMode = false;
+        let hideControlsTimeout;
+
+        const header = document.getElementById('header');
+        const progressBar = document.getElementById('progressBar');
+        const scrollTopBtn = document.getElementById('scrollTop');
+        const pageCounter = document.getElementById('pageCounter');
+        const chapterNavigation = document.getElementById('chapterNavigation');
+        const currentPageSpan = document.getElementById('currentPage');
+
+        // ==================== ОПРЕДЕЛЕНИЕ НАПРАВЛЕНИЯ ПРОКРУТКИ ====================
+        let ticking = false;
+        
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        }, { passive: true });
+
+        function handleScroll() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // Показ/скрытие шапки на основе направления прокрутки
+            if (scrollTop > lastScrollTop && scrollTop > 100) {
+                // Прокрутка вниз - скрываем шапку
+                header.classList.remove('visible');
+            } else if (scrollTop < lastScrollTop) {
+                // Прокрутка вверх - показываем шапку
+                header.classList.add('visible');
+            }
+            
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+
+            // Показ кнопки "Наверх"
+            if (scrollTop > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+
+            // Обновление прогресс-бара
+            updateProgressBar();
+            
+            // Автоскрытие элементов управления
+            resetHideControlsTimer();
+        }
+
+        // ==================== ПРОГРЕСС-БАР ====================
+        function updateProgressBar() {
+            const scrollPercentage = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+            progressBar.style.width = Math.min(scrollPercentage, 100) + '%';
+        }
+
+        // ==================== ПРОКРУТКА НАВЕРХ ====================
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+            showTooltip('Возврат к началу');
+        }
+
+        // ==================== ПОДПИСКА/ОТПИСКА ====================
+        async function toggleSubscribe(mangaId) {
+            try {
+                const btn = document.getElementById('subscribeBtn');
+                btn.disabled = true;
+                
+                const response = await fetch(`/api/subscribe/${mangaId}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.subscribed) {
+                    btn.classList.add('subscribed');
+                    btn.innerHTML = '<span>✓</span>';
+                    showTooltip('Подписка оформлена!');
+                } else {
+                    btn.classList.remove('subscribed');
+                    btn.innerHTML = '<span>⭐</span>';
+                    showTooltip('Подписка отменена');
+                }
+                
+                btn.disabled = false;
+            } catch (error) {
+                console.error('Ошибка подписки:', error);
+                showTooltip('Ошибка подписки');
+                document.getElementById('subscribeBtn').disabled = false;
+            }
+        }
+
+        // ==================== ТУЛТИП ====================
+        function showTooltip(message, duration = 2000) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.textContent = message;
+            tooltip.classList.add('show');
+            
+            setTimeout(() => {
+                tooltip.classList.remove('show');
+            }, duration);
+        }
+
+        // ==================== КЛАВИАТУРНЫЕ СОКРАЩЕНИЯ ====================
+        const prevChapterUrl = {{ ('"/read/' + chapter.manga_slug + '/' + prev_chapter.chapter_slug + '"') if prev_chapter else 'null' }};
+        const nextChapterUrl = {{ ('"/read/' + chapter.manga_slug + '/' + next_chapter.chapter_slug + '"') if next_chapter else 'null' }};
+
+        document.addEventListener('keydown', function(e) {
+            // Стрелка влево - предыдущая глава
+            if (e.key === 'ArrowLeft') {
+                if (prevChapterUrl) window.location.href = prevChapterUrl;
+            }
+            // Стрелка вправо - следующая глава
+            else if (e.key === 'ArrowRight') {
+                if (nextChapterUrl) window.location.href = nextChapterUrl;
+            }
+            // Стрелка вверх или W - прокрутка вверх
+            else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'ц') {
+                e.preventDefault();
+                window.scrollBy({ top: -window.innerHeight * 0.8, behavior: 'smooth' });
+            }
+            // Стрелка вниз или S - прокрутка вниз
+            else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'ы') {
+                e.preventDefault();
+                window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+            }
+            // End - в конец
+            else if (e.key === 'End') {
+                e.preventDefault();
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }
+            // F - полноэкранный режим
+            else if (e.key === 'f' || e.key === 'а') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+            // Escape - к странице манги
+            else if (e.key === 'Escape') {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    window.location.href = '/manga/{{ chapter.manga_slug }}';
+                }
+            }
+            // Space - пролистать страницу
+            else if (e.key === ' ') {
+                e.preventDefault();
+                window.scrollBy({ top: window.innerHeight * 0.9, behavior: 'smooth' });
+            }
+            // H - показать/скрыть элементы управления
+            else if (e.key === 'h' || e.key === 'р') {
+                e.preventDefault();
+                toggleReadingMode();
+            }
+        });
+
+        // ==================== РЕЖИМ ПОЛНОЭКРАННОГО ЧТЕНИЯ ====================
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Ошибка перехода в полноэкранный режим:', err);
+                });
+                showTooltip('Полноэкранный режим');
+            } else {
+                document.exitFullscreen();
+                showTooltip('Обычный режим');
+            }
+        }
+
+        // ==================== РЕЖИМ ЧТЕНИЯ (СКРЫТИЕ ЭЛЕМЕНТОВ) ====================
+        function toggleReadingMode() {
+            isReadingMode = !isReadingMode;
+            document.body.classList.toggle('reading-mode', isReadingMode);
+            showTooltip(isReadingMode ? 'Режим чтения включен' : 'Режим чтения выключен');
+        }
+
+        // ==================== АВТОСКРЫТИЕ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ ====================
+        // Авто-скрытие убрано — кнопки не исчезают сами по себе.
+        // Режим чтения (H) скрывает элементы вручную.
+        function resetHideControlsTimer() {
+            if (!isReadingMode) {
+                document.body.classList.remove('reading-mode');
+            }
+        }
+
+        // ==================== СОХРАНЕНИЕ ПРОГРЕССА ЧТЕНИЯ ====================
+        function saveReadingProgress(page) {
+            try {
+                localStorage.setItem('reading_{{ chapter.manga_slug }}_{{ chapter.chapter_number }}', page);
+            } catch (e) {
+                console.log('Не удалось сохранить прогресс:', e);
+            }
+        }
+
+        // ==================== ВОССТАНОВЛЕНИЕ ПРОГРЕССА ====================
+        window.addEventListener('load', () => {
+            try {
+                const savedPage = localStorage.getItem('reading_{{ chapter.manga_slug }}_{{ chapter.chapter_number }}');
+                if (savedPage && savedPage > 1) {
+                    const images = document.querySelectorAll('.page-image');
+                    const targetImage = images[savedPage - 1];
+                    if (targetImage) {
+                        setTimeout(() => {
+                            targetImage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            showTooltip(`Продолжаем со стр. ${savedPage}`);
+                        }, 500);
+                    }
+                }
+            } catch (e) {
+                console.log('Не удалось восстановить прогресс:', e);
+            }
+        });
+
+        // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ + СЧЁТЧИК СТРАНИЦ ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            const images = document.querySelectorAll('.page-image');
+
+            // Intersection Observer для ленивой загрузки
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            img.classList.add('loading');
+
+                            img.addEventListener('load', () => {
+                                img.classList.remove('loading');
+                            }, { once: true });
+
+                            observer.unobserve(img);
+                        }
+                    });
+                }, {
+                    rootMargin: '200px 0px'
+                });
+
+                images.forEach(img => imageObserver.observe(img));
+
+                // Счётчик страниц: узкая полоса в центре экрана определяет текущую страницу.
+                // Работает даже для lazy-загруженных изображений — не зависит от их высоты.
+                const pageObserver = new IntersectionObserver((entries) => {
+                    const intersecting = entries.filter(e => e.isIntersecting);
+                    if (!intersecting.length) return;
+                    // Берём самое верхнее из видимых в центральной полосе
+                    intersecting.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+                    const pageNum = parseInt(intersecting[0].target.dataset.page);
+                    if (pageNum && pageNum !== currentPage) {
+                        currentPage = pageNum;
+                        currentPageSpan.textContent = pageNum;
+                        saveReadingProgress(pageNum);
+                    }
+                }, {
+                    threshold: 0,
+                    // Центральная 20%-я полоса экрана: обрезаем 40% сверху и 40% снизу
+                    rootMargin: '-40% 0px -40% 0px'
+                });
+
+                images.forEach(img => pageObserver.observe(img));
+            }
+        });
+
+        // ==================== ОТСЛЕЖИВАНИЕ ЗАВЕРШЕНИЯ ГЛАВЫ ====================
+        window.addEventListener('scroll', () => {
+            const scrollPercentage = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+            
+            // Если прочитано более 95% главы
+            if (scrollPercentage > 95 && currentPage === totalPages) {
+                // Можно здесь добавить логику автоперехода к следующей главе
+                // или показать уведомление
+            }
+        }, { passive: true });
+
+        // ==================== ПРЕДЗАГРУЗКА СЛЕДУЮЩЕЙ ГЛАВЫ ====================
+        // Можно добавить предзагрузку для более быстрого перехода
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+        // Показываем шапку при загрузке на 2 секунды
+        window.addEventListener('load', () => {
+            header.classList.add('visible');
+            setTimeout(() => {
+                if (window.pageYOffset > 100) {
+                    header.classList.remove('visible');
+                }
+            }, 2000);
+        });
+
+
+        // ==================== ЖЕСТЫ ДЛЯ МОБИЛЬНЫХ ====================
+        let touchStartY = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartY - touchEndY;
+            
+            // Свайп вниз на верху страницы - показать шапку
+            if (diff < -swipeThreshold && window.pageYOffset < 100) {
+                header.classList.add('visible');
+                setTimeout(() => {
+                    header.classList.remove('visible');
+                }, 3000);
+            }
+        }
+
+        // ==================== ПОКАЗ ПОДСКАЗОК ПРИ ПЕРВОМ ИСПОЛЬЗОВАНИИ ====================
+        window.addEventListener('load', () => {
+            const firstTime = !localStorage.getItem('reader_tips_shown');
+            if (firstTime) {
+                setTimeout(() => {
+                    showTooltip('💡 Прокрутите вверх чтобы увидеть меню', 4000);
+                    localStorage.setItem('reader_tips_shown', 'true');
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
