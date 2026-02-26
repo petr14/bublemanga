@@ -3013,4 +3013,4 @@ if __name__ == "__main__":
     
     print("🌐 Веб-сервер запущен на http://144.31.49.103:5000")
     app.run(debug=True, use_reloader=False,
-            host='0.0.0.0', port=5000)
+            host='0.0.0.0', port=5500)
