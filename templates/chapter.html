@@ -26,7 +26,6 @@
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #000;
             color: white;
-            overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -54,13 +53,13 @@
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding: 12px 16px;
-            transform: translateY(-100%);
+            transform: translateY(0);
             transition: transform 0.3s ease;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
         }
 
-        .header.visible {
-            transform: translateY(0);
+        .header.hidden {
+            transform: translateY(-100%);
         }
 
         .header-content {
@@ -391,7 +390,7 @@
 
         /* ==================== РЕЖИМ ПОЛНОЭКРАННОГО ЧТЕНИЯ ==================== */
         body.reading-mode .header {
-            transform: translateY(-100%);
+            transform: translateY(-100%) !important;
         }
 
         body.reading-mode .page-counter,
@@ -444,7 +443,319 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+
+
+        /* ==================== НАСТРОЙКИ — ОВЕРЛЕЙ И ПАНЕЛЬ ==================== */
+        .settings-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 1100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .settings-overlay.open { opacity: 1; visibility: visible; }
+
+        .settings-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 80vh;
+            background: #111;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px 16px 0 0;
+            z-index: 1101;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .settings-panel.open { transform: translateY(0); }
+
+        .sp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            position: sticky;
+            top: 0;
+            background: #111;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+        .sp-title {
+            font-size: 15px;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .sp-close {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .sp-close:active { background: rgba(255,255,255,0.15); }
+
+        .sp-body { padding: 4px 0 20px; }
+
+        .sp-section { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 4px 0; }
+
+        .sp-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 16px;
+            gap: 12px;
+        }
+        .sp-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.9);
+            flex: 1;
+        }
+        .sp-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,0.38);
+            margin-top: 2px;
+        }
+
+        /* Toggle */
+        .sp-toggle {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .sp-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .sp-knob {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.14);
+            border-radius: 22px;
+            cursor: pointer;
+            transition: background 0.25s;
+        }
+        .sp-knob::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.25s;
+        }
+        .sp-toggle input:checked + .sp-knob { background: #667eea; }
+        .sp-toggle input:checked + .sp-knob::before { transform: translateX(20px); }
+
+        /* Radio group */
+        .sp-radios {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            padding: 2px 16px 10px;
+        }
+        .sp-radio {
+            flex: 1;
+            min-width: 56px;
+            padding: 6px 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.55);
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-family: 'Poppins', sans-serif;
+            white-space: nowrap;
+        }
+        .sp-radio.active {
+            background: rgba(102,126,234,0.25);
+            border-color: #667eea;
+            color: white;
+        }
+        .sp-radio:active { transform: scale(0.95); }
+
+        /* Slider */
+        .sp-slider-wrap { padding: 2px 16px 10px; }
+        .sp-slider-row { display: flex; align-items: center; gap: 10px; }
+        .sp-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.14);
+            outline: none;
+            cursor: pointer;
+        }
+        .sp-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+        .sp-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+        .sp-val {
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            min-width: 52px;
+            text-align: right;
+        }
+
+        /* Action button */
+        .sp-action {
+            margin: 6px 16px;
+            padding: 10px;
+            background: rgba(102,126,234,0.12);
+            border: 1px solid rgba(102,126,234,0.28);
+            color: #667eea;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            width: calc(100% - 32px);
+            text-align: center;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.2s;
+            display: block;
+        }
+        .sp-action:active { background: rgba(102,126,234,0.28); }
+        .sp-action.active-btn {
+            background: rgba(102,126,234,0.3);
+            border-color: #667eea;
+            color: white;
+        }
+
+        /* ==================== СВЕТЛАЯ ТЕМА ==================== */
+        body.theme-light { background: #f2f2f2; color: #1a1a1a; }
+        body.theme-light .pages-container { background: #f2f2f2; }
+        body.theme-light .page-image { background: #e5e5e5; }
+        body.theme-light .header { background: rgba(242,242,242,0.97); border-bottom-color: rgba(0,0,0,0.1); }
+        body.theme-light .manga-title { background: linear-gradient(135deg,#1a1a1a,#555); -webkit-background-clip: text; background-clip: text; }
+        body.theme-light .chapter-info { color: #666; }
+        body.theme-light .btn { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.14); color: #1a1a1a; }
+        body.theme-light .page-counter { background: rgba(242,242,242,0.97); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+        body.theme-light .page-counter span { color: #667eea; }
+        body.theme-light .nav-chapter-btn { background: rgba(242,242,242,0.97); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+        body.theme-light .settings-panel { background: #fff; border-top-color: rgba(0,0,0,0.1); }
+        body.theme-light .sp-header { background: #fff; border-bottom-color: rgba(0,0,0,0.08); }
+        body.theme-light .sp-label { color: #1a1a1a; }
+        body.theme-light .sp-sub { color: #999; }
+        body.theme-light .sp-knob { background: rgba(0,0,0,0.14); }
+        body.theme-light .sp-knob::before { background: #666; }
+        body.theme-light .sp-toggle input:checked + .sp-knob { background: #667eea; }
+        body.theme-light .sp-toggle input:checked + .sp-knob::before { background: white; }
+        body.theme-light .sp-radio { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #666; }
+        body.theme-light .sp-radio.active { background: rgba(102,126,234,0.15); border-color: #667eea; color: #4a5fc4; }
+        body.theme-light .sp-slider { background: rgba(0,0,0,0.14); }
+        body.theme-light .sp-close { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+        body.theme-light .tooltip { background: rgba(242,242,242,0.97); color: #1a1a1a; border-color: rgba(0,0,0,0.1); }
+        body.theme-light .progress-bar { background: var(--primary-gradient); }
+
+        /* ==================== АВТОПРОКРУТКА — ИНДИКАТОР ==================== */
+        .autoscroll-fab {
+            position: fixed;
+            bottom: 160px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 999;
+            font-size: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(102,126,234,0.55);
+            user-select: none;
+        }
+        .autoscroll-fab.visible { opacity: 1; visibility: visible; }
+        .autoscroll-fab:active { transform: scale(0.9); }
+
+        /* ==================== КНОПКА НАСТРОЕК (ПЛАВАЮЩАЯ) ==================== */
+        .settings-fab {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(60, 60, 60, 0.45);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-right: none;
+            color: rgba(255,255,255,0.8);
+            width: 32px;
+            height: 54px;
+            border-radius: 10px 0 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 998;
+            font-size: 17px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            opacity: 0.55;
+            transition: opacity 0.2s, background 0.2s;
+            user-select: none;
+        }
+        .settings-fab:active {
+            opacity: 1;
+            background: rgba(80, 80, 80, 0.75);
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        /* ==================== ЗОНЫ КЛИКА ==================== */
+        .click-zone {
+            position: fixed;
+            top: 0;
+            height: 100%;
+            width: 22%;
+            z-index: 49;
+            cursor: pointer;
+            opacity: 0;
+        }
+        .click-zone-left { left: 0; }
+        .click-zone-right { right: 0; }
     </style>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+        }
+    </script>
 </head>
 <body>
     <div class="progress-bar" id="progressBar"></div>
@@ -462,12 +773,7 @@
                 </div>
             </div>
             <div class="nav-buttons">
-                {% if prev_chapter %}
-                <a href="/read/{{ chapter.manga_slug }}/{{ prev_chapter.chapter_slug }}" class="btn">← {{ prev_chapter.chapter_number }}</a>
-                {% endif %}
-                {% if next_chapter %}
-                <a href="/read/{{ chapter.manga_slug }}/{{ next_chapter.chapter_slug }}" class="btn">{{ next_chapter.chapter_number }} →</a>
-                {% endif %}
+               
                 <a href="/manga/{{ chapter.manga_slug }}" class="btn btn-primary">К манге</a>
                 <a href="/" class="btn">Главная</a>
                 {% if session.user_id %}
@@ -483,13 +789,17 @@
     <!-- Контейнер страниц -->
     <div class="pages-container" id="pagesContainer">
         {% for page_url in chapter.pages %}
-        <img 
-            src="{{ page_url }}" 
-            alt="Страница {{ loop.index }}" 
-            class="page-image" 
-            loading="lazy"
+        <img
+            {% if loop.index <= 3 %}
+            src="{{ page_url }}"
+            {% else %}
+            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+            data-src="{{ page_url }}"
+            {% endif %}
+            alt="Страница {{ loop.index }}"
+            class="page-image{% if loop.index > 3 %} loading{% endif %}"
             data-page="{{ loop.index }}"
-            onerror="this.style.display='none'"
+            onerror="if(this.dataset.src||this.src.length>100)this.style.display='none'"
         >
         {% endfor %}
     </div>
@@ -505,24 +815,24 @@
         <a href="/read/{{ chapter.manga_slug }}/{{ prev_chapter.chapter_slug }}"
            class="nav-chapter-btn" id="prevChapterBtn">
             <span>←</span>
-            <span>Гл. {{ prev_chapter.chapter_number }}</span>
+            <span>Предыдущая глава</span>
         </a>
         {% else %}
         <a class="nav-chapter-btn disabled" id="prevChapterBtn">
             <span>←</span>
-            <span>Начало</span>
+            <span>Предыдущая глава</span>
         </a>
         {% endif %}
 
         {% if next_chapter %}
         <a href="/read/{{ chapter.manga_slug }}/{{ next_chapter.chapter_slug }}"
            class="nav-chapter-btn" id="nextChapterBtn">
-            <span>Гл. {{ next_chapter.chapter_number }}</span>
+            <span>Следующая глава</span>
             <span>→</span>
         </a>
         {% else %}
         <a class="nav-chapter-btn disabled" id="nextChapterBtn">
-            <span>Конец</span>
+            <span>Следующая глава</span>
             <span>→</span>
         </a>
         {% endif %}
@@ -540,6 +850,116 @@
     <div class="loading-indicator" id="loadingIndicator">
         <div class="spinner"></div>
     </div>
+
+    <!-- Кнопка настроек (плавающая, посередине справа) -->
+    <div class="settings-fab" id="settingsFab" onclick="toggleSettings()" title="Настройки">⚙</div>
+
+    <!-- Оверлей настроек -->
+    <div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+
+    <!-- Панель настроек -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="sp-header">
+            <div class="sp-title">Настройки читалки</div>
+            <button class="sp-close" onclick="closeSettings()">✕</button>
+        </div>
+        <div class="sp-body">
+
+            <!-- Режим чтения -->
+            <div class="sp-section">
+                <div class="sp-row">
+                    <div>
+                        <div class="sp-label">Все главы подряд</div>
+                        <div class="sp-sub">Автопереход к следующей главе</div>
+                    </div>
+                    <label class="sp-toggle">
+                        <input type="checkbox" id="s-consecutive" onchange="applySetting('consecutive',this.checked)">
+                        <span class="sp-knob"></span>
+                    </label>
+                </div>
+                <div class="sp-row">
+                    <div class="sp-label">Нумерация страниц</div>
+                    <label class="sp-toggle">
+                        <input type="checkbox" id="s-pagenums" onchange="applySetting('pagenums',this.checked)" checked>
+                        <span class="sp-knob"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Тема -->
+            <div class="sp-section">
+                <div class="sp-row"><div class="sp-label">Тема</div></div>
+                <div class="sp-radios">
+                    <button class="sp-radio" id="sr-theme-dark"   onclick="setRadio('theme','dark',this)">Тёмная</button>
+                    <button class="sp-radio" id="sr-theme-light"  onclick="setRadio('theme','light',this)">Светлая</button>
+                    <button class="sp-radio" id="sr-theme-system" onclick="setRadio('theme','system',this)">Системная</button>
+                </div>
+            </div>
+
+            <!-- Показ меню -->
+            <div class="sp-section">
+                <div class="sp-row"><div class="sp-label">Показать меню</div></div>
+                <div class="sp-radios">
+                    <button class="sp-radio" id="sr-menu-scroll" onclick="setRadio('menu','scroll',this)">Скроллом</button>
+                    <button class="sp-radio" id="sr-menu-click"  onclick="setRadio('menu','click',this)">Только кликом</button>
+                </div>
+            </div>
+
+            <!-- Изображения -->
+            <div class="sp-section">
+                <div class="sp-row"><div class="sp-label">Область переключения страниц</div></div>
+                <div class="sp-radios">
+                    <button class="sp-radio" id="sr-clickarea-off"    onclick="setRadio('clickarea','off',this)">Выкл</button>
+                    <button class="sp-radio" id="sr-clickarea-screen" onclick="setRadio('clickarea','screen',this)">Весь экран</button>
+                    <button class="sp-radio" id="sr-clickarea-image"  onclick="setRadio('clickarea','image',this)">Изображение</button>
+                </div>
+
+                <div class="sp-row"><div class="sp-label">Вмещать изображения</div></div>
+                <div class="sp-radios">
+                    <button class="sp-radio" id="sr-fit-width"  onclick="setRadio('fit','width',this)">По ширине</button>
+                    <button class="sp-radio" id="sr-fit-height" onclick="setRadio('fit','height',this)">По высоте</button>
+                </div>
+
+                <div class="sp-row"><div class="sp-label">Ширина контейнера</div></div>
+                <div class="sp-slider-wrap">
+                    <div class="sp-slider-row">
+                        <input type="range" class="sp-slider" id="s-width" min="400" max="1200" step="20" value="720"
+                               oninput="applySetting('width',this.value)">
+                        <span class="sp-val" id="sv-width">720 px</span>
+                    </div>
+                </div>
+
+                <div class="sp-row"><div class="sp-label">Яркость изображений</div></div>
+                <div class="sp-slider-wrap">
+                    <div class="sp-slider-row">
+                        <input type="range" class="sp-slider" id="s-brightness" min="30" max="150" step="5" value="100"
+                               oninput="applySetting('brightness',this.value)">
+                        <span class="sp-val" id="sv-brightness">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Автопрокрутка -->
+            <div class="sp-section">
+                <div class="sp-row"><div class="sp-label">Скорость автопрокрутки</div></div>
+                <div class="sp-radios">
+                    <button class="sp-radio" id="sr-speed-slow"   onclick="setRadio('speed','slow',this)">Медленно</button>
+                    <button class="sp-radio" id="sr-speed-medium" onclick="setRadio('speed','medium',this)">Средне</button>
+                    <button class="sp-radio" id="sr-speed-fast"   onclick="setRadio('speed','fast',this)">Быстро</button>
+                </div>
+                <button class="sp-action" id="autoscrollBtn" onclick="toggleAutoScroll()">▶ Запустить автопрокрутку</button>
+            </div>
+
+            <!-- Полноэкранный режим -->
+            <div class="sp-section">
+                <button class="sp-action" onclick="toggleFullscreen(); closeSettings()">⛶ Полноэкранный режим</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Кнопка управления автопрокруткой (поверх страниц) -->
+    <div class="autoscroll-fab" id="autoscrollFab" onclick="toggleAutoScroll()">⏸</div>
 
     <script>
         // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
@@ -572,15 +992,18 @@
 
         function handleScroll() {
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            
-            // Показ/скрытие шапки на основе направления прокрутки
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
-                // Прокрутка вниз - скрываем шапку
-                header.classList.remove('visible');
-            } else if (scrollTop < lastScrollTop) {
-                // Прокрутка вверх - показываем шапку
-                header.classList.add('visible');
+
+            // Показ/скрытие шапки на основе направления прокрутки (только в режиме scroll)
+            if (readerSettings.menu === 'scroll') {
+                if (scrollTop > lastScrollTop && scrollTop > 100) {
+                    header.classList.add('hidden');
+                } else if (scrollTop < lastScrollTop) {
+                    header.classList.remove('hidden');
+                }
             }
+
+            // Проверка «все главы подряд»
+            checkConsecutive();
             
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
 
@@ -593,9 +1016,34 @@
 
             // Обновление прогресс-бара
             updateProgressBar();
-            
+
+            // Обновление счётчика страниц
+            updateCurrentPage();
+
             // Автоскрытие элементов управления
             resetHideControlsTimer();
+        }
+
+        // ==================== СЧЁТЧИК СТРАНИЦ ====================
+        function updateCurrentPage() {
+            const imgs = document.querySelectorAll('.page-image');
+            if (!imgs.length) return;
+            const center = window.innerHeight * 0.5;
+            let page = 1;
+            for (let i = 0; i < imgs.length; i++) {
+                const rect = imgs[i].getBoundingClientRect();
+                if (rect.height === 0) continue; // не загружено — пропускаем
+                if (rect.top < center) {
+                    page = parseInt(imgs[i].dataset.page) || (i + 1);
+                } else {
+                    break;
+                }
+            }
+            if (page !== currentPage) {
+                currentPage = page;
+                currentPageSpan.textContent = page;
+                saveReadingProgress(page);
+            }
         }
 
         // ==================== ПРОГРЕСС-БАР ====================
@@ -764,29 +1212,36 @@
         });
 
         // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ + СЧЁТЧИК СТРАНИЦ ====================
-        document.addEventListener('DOMContentLoaded', function() {
+      // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ + СЧЁТЧИК СТРАНИЦ ====================
+      document.addEventListener('DOMContentLoaded', function() {
             const images = document.querySelectorAll('.page-image');
 
-            // Intersection Observer для ленивой загрузки
+            // Intersection Observer для ленивой загрузки (data-src → src)
             if ('IntersectionObserver' in window) {
                 const imageObserver = new IntersectionObserver((entries, observer) => {
                     entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const img = entry.target;
-                            img.classList.add('loading');
-
+                        if (!entry.isIntersecting) return;
+                        const img = entry.target;
+                        if (img.dataset.src) {
+                            img.src = img.dataset.src;
+                            delete img.dataset.src;
                             img.addEventListener('load', () => {
                                 img.classList.remove('loading');
                             }, { once: true });
-
-                            observer.unobserve(img);
+                            img.addEventListener('error', () => {
+                                img.classList.remove('loading');
+                                img.style.display = 'none';
+                            }, { once: true });
                         }
+                        observer.unobserve(img);
                     });
                 }, {
-                    rootMargin: '200px 0px'
+                    rootMargin: '400px 0px'  // Загружаем за 400px до появления
                 });
 
-                images.forEach(img => imageObserver.observe(img));
+                images.forEach(img => {
+                    if (img.dataset.src) imageObserver.observe(img);
+                });
 
                 // Счётчик страниц: узкая полоса в центре экрана определяет текущую страницу.
                 // Работает даже для lazy-загруженных изображений — не зависит от их высоты.
@@ -810,7 +1265,6 @@
                 images.forEach(img => pageObserver.observe(img));
             }
         });
-
         // ==================== ОТСЛЕЖИВАНИЕ ЗАВЕРШЕНИЯ ГЛАВЫ ====================
         window.addEventListener('scroll', () => {
             const scrollPercentage = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
@@ -826,15 +1280,7 @@
         // Можно добавить предзагрузку для более быстрого перехода
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        // Показываем шапку при загрузке на 2 секунды
-        window.addEventListener('load', () => {
-            header.classList.add('visible');
-            setTimeout(() => {
-                if (window.pageYOffset > 100) {
-                    header.classList.remove('visible');
-                }
-            }, 2000);
-        });
+        // Шапка видна по умолчанию; скрывается при прокрутке вниз.
 
 
         // ==================== ЖЕСТЫ ДЛЯ МОБИЛЬНЫХ ====================
@@ -853,13 +1299,10 @@
         function handleSwipe() {
             const swipeThreshold = 50;
             const diff = touchStartY - touchEndY;
-            
-            // Свайп вниз на верху страницы - показать шапку
-            if (diff < -swipeThreshold && window.pageYOffset < 100) {
-                header.classList.add('visible');
-                setTimeout(() => {
-                    header.classList.remove('visible');
-                }, 3000);
+
+            // Свайп вниз (палец вниз) - показать шапку с любого места
+            if (diff < -swipeThreshold) {
+                header.classList.remove('hidden');
             }
         }
 
@@ -868,10 +1311,233 @@
             const firstTime = !localStorage.getItem('reader_tips_shown');
             if (firstTime) {
                 setTimeout(() => {
-                    showTooltip('💡 Прокрутите вверх чтобы увидеть меню', 4000);
+                    showTooltip('💡 Нажмите ⚙ для настроек читалки', 4000);
                     localStorage.setItem('reader_tips_shown', 'true');
                 }, 1000);
             }
+        });
+
+        // ==================== НАСТРОЙКИ ЧИТАЛКИ ====================
+        const SETTINGS_KEY = 'reader_settings_v2';
+        const defaultSettings = {
+            consecutive: false,
+            pagenums: true,
+            menu: 'scroll',
+            theme: 'dark',
+            clickarea: 'off',
+            fit: 'width',
+            width: 720,
+            brightness: 100,
+            speed: 'slow',
+        };
+        let readerSettings = { ...defaultSettings };
+
+        function loadReaderSettings() {
+            try {
+                const s = localStorage.getItem(SETTINGS_KEY);
+                if (s) readerSettings = { ...defaultSettings, ...JSON.parse(s) };
+            } catch(e) {}
+        }
+
+        function saveReaderSettings() {
+            try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(readerSettings)); } catch(e) {}
+        }
+
+        function applyAllSettings() {
+            applyTheme(readerSettings.theme);
+            applyPageNums(readerSettings.pagenums);
+            applyWidth(readerSettings.width);
+            applyBrightness(readerSettings.brightness);
+            applyFit(readerSettings.fit);
+            applyClickArea(readerSettings.clickarea);
+
+            document.getElementById('s-consecutive').checked = readerSettings.consecutive;
+            document.getElementById('s-pagenums').checked    = readerSettings.pagenums;
+            document.getElementById('s-width').value         = readerSettings.width;
+            document.getElementById('sv-width').textContent  = readerSettings.width + ' px';
+            document.getElementById('s-brightness').value    = readerSettings.brightness;
+            document.getElementById('sv-brightness').textContent = readerSettings.brightness + '%';
+
+            ['theme','menu','clickarea','fit','speed'].forEach(g => setActiveRadio(g, readerSettings[g]));
+        }
+
+        function applySetting(key, value) {
+            readerSettings[key] = key === 'width' || key === 'brightness' ? Number(value) : value;
+            saveReaderSettings();
+            if (key === 'pagenums')    applyPageNums(value);
+            else if (key === 'width')  { applyWidth(value); document.getElementById('sv-width').textContent = value + ' px'; }
+            else if (key === 'brightness') { applyBrightness(value); document.getElementById('sv-brightness').textContent = value + '%'; }
+        }
+
+        function setRadio(group, value, btn) {
+            readerSettings[group] = value;
+            saveReaderSettings();
+            setActiveRadio(group, value);
+            if (group === 'theme')     applyTheme(value);
+            else if (group === 'fit')       applyFit(value);
+            else if (group === 'clickarea') applyClickArea(value);
+        }
+
+        function setActiveRadio(group, value) {
+            document.querySelectorAll(`[id^="sr-${group}-"]`).forEach(b => {
+                b.classList.toggle('active', b.id === `sr-${group}-${value}`);
+            });
+        }
+
+        // — Тема —
+        function applyTheme(theme) {
+            document.body.classList.remove('theme-dark','theme-light');
+            if (theme === 'system') {
+                document.body.classList.add(
+                    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'theme-dark' : 'theme-light'
+                );
+            } else {
+                document.body.classList.add('theme-' + theme);
+            }
+        }
+
+        // — Нумерация страниц —
+        function applyPageNums(show) {
+            pageCounter.style.display = show ? '' : 'none';
+        }
+
+        // — Ширина контейнера —
+        function applyWidth(val) {
+            document.getElementById('pagesContainer').style.maxWidth = val + 'px';
+        }
+
+        // — Яркость —
+        function applyBrightness(val) {
+            document.documentElement.style.setProperty('--img-brightness', val + '%');
+        }
+
+        // — Вмещать изображения —
+        function applyFit(fit) {
+            document.querySelectorAll('.page-image').forEach(img => {
+                if (fit === 'height') {
+                    img.style.cssText = 'width:auto;max-width:100%;height:100vh;object-fit:contain;display:block;margin:0 auto;';
+                } else {
+                    img.style.cssText = '';
+                }
+            });
+        }
+
+        // — Область переключения страниц —
+        let _clickZonesMode = 'off';
+        function applyClickArea(mode) {
+            document.querySelectorAll('.click-zone').forEach(z => z.remove());
+            _clickZonesMode = mode;
+            if (mode === 'off') return;
+
+            const scrollAmt = window.innerHeight * 0.88;
+            const left  = document.createElement('div');
+            const right = document.createElement('div');
+            left.className  = 'click-zone click-zone-left';
+            right.className = 'click-zone click-zone-right';
+            left.onclick  = () => window.scrollBy({ top: -scrollAmt, behavior: 'smooth' });
+            right.onclick = () => window.scrollBy({ top:  scrollAmt, behavior: 'smooth' });
+
+            if (mode === 'screen') {
+                document.body.appendChild(left);
+                document.body.appendChild(right);
+            } else if (mode === 'image') {
+                // Клик в пределах контейнера страниц
+                left.style.cssText  = 'position:absolute;top:0;left:0;width:25%;height:100%;z-index:10;cursor:pointer;';
+                right.style.cssText = 'position:absolute;top:0;right:0;width:25%;height:100%;z-index:10;cursor:pointer;';
+                const container = document.getElementById('pagesContainer');
+                container.style.position = 'relative';
+                container.appendChild(left);
+                container.appendChild(right);
+            }
+        }
+
+        // Применяем brightness к новым изображениям через CSS-переменную
+        (function addBrightnessStyle() {
+            const st = document.createElement('style');
+            st.textContent = '.page-image { filter: brightness(var(--img-brightness, 100%)); }';
+            document.head.appendChild(st);
+        })();
+
+        // — Панель настроек —
+        function toggleSettings() {
+            const panel   = document.getElementById('settingsPanel');
+            const overlay = document.getElementById('settingsOverlay');
+            if (panel.classList.contains('open')) {
+                closeSettings();
+            } else {
+                panel.classList.add('open');
+                overlay.classList.add('open');
+            }
+        }
+        function closeSettings() {
+            document.getElementById('settingsPanel').classList.remove('open');
+            document.getElementById('settingsOverlay').classList.remove('open');
+        }
+
+        // — Клик в центре для режима «только кликом» —
+        document.getElementById('pagesContainer').addEventListener('click', function(e) {
+            if (readerSettings.menu !== 'click') return;
+            // Не реагируем на клики по зонам переключения страниц
+            if (e.target.classList.contains('click-zone')) return;
+            header.classList.toggle('hidden');
+        });
+
+        // ==================== АВТОПРОКРУТКА ====================
+        let autoScrollActive = false;
+        let autoScrollRaf    = null;
+        let autoScrollLast   = null;
+        const autoScrollSpeeds = { slow: 28, medium: 70, fast: 140 }; // px/s
+
+        function toggleAutoScroll() {
+            autoScrollActive = !autoScrollActive;
+            const btn = document.getElementById('autoscrollBtn');
+            const fab = document.getElementById('autoscrollFab');
+            if (autoScrollActive) {
+                btn.textContent = '⏸ Остановить автопрокрутку';
+                btn.classList.add('active-btn');
+                fab.classList.add('visible');
+                autoScrollLast = null;
+                autoScrollRaf = requestAnimationFrame(autoScrollStep);
+            } else {
+                btn.textContent = '▶ Запустить автопрокрутку';
+                btn.classList.remove('active-btn');
+                fab.classList.remove('visible');
+                if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+            }
+        }
+
+        function autoScrollStep(ts) {
+            if (!autoScrollActive) return;
+            if (autoScrollLast === null) autoScrollLast = ts;
+            const elapsed = ts - autoScrollLast;
+            autoScrollLast = ts;
+            const speed   = autoScrollSpeeds[readerSettings.speed] || 28;
+            window.scrollBy(0, (speed * elapsed) / 1000);
+
+            const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 4;
+            if (atBottom) { toggleAutoScroll(); return; }
+            autoScrollRaf = requestAnimationFrame(autoScrollStep);
+        }
+
+        // ==================== ВСЕ ГЛАВЫ ПОДРЯД ====================
+        let _consecutiveTimer = null;
+        function checkConsecutive() {
+            if (!readerSettings.consecutive) return;
+            const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 30;
+            if (atBottom && nextChapterUrl) {
+                if (!_consecutiveTimer) {
+                    _consecutiveTimer = setTimeout(() => { window.location.href = nextChapterUrl; }, 1800);
+                }
+            } else {
+                if (_consecutiveTimer) { clearTimeout(_consecutiveTimer); _consecutiveTimer = null; }
+            }
+        }
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ НАСТРОЕК ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReaderSettings();
+            applyAllSettings();
+            updateCurrentPage();
         });
     </script>
 </body>
