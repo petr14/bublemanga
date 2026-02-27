@@ -146,6 +146,32 @@
         .btn-bg { padding: 8px 18px; border-radius: 20px; background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; }
         .btn-bg:hover { border-color: var(--primary); color: var(--primary); }
         .level-badge { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--primary), var(--primary2)); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+        .premium-badge { display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-left: 8px; color: #fff; vertical-align: middle; }
+        .avatar-edit-btn.locked { background: #4b5563; cursor: pointer; }
+        .avatar-edit-btn.locked:hover { background: var(--gold); transform: scale(1.1); }
+
+        /* ── Premium crown on avatar ─────────────────── */
+        .avatar-premium-crown {
+            position: absolute; bottom: 2px; left: 2px;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: linear-gradient(135deg, #f59e0b, #fbbf24, #d97706);
+            border: 2px solid var(--bg);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; line-height: 1;
+            box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(245,158,11,.3);
+            animation: crownPulse 3s ease-in-out infinite;
+            z-index: 3;
+        }
+        @keyframes crownPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(245,158,11,.3); }
+            50%       { box-shadow: 0 0 16px rgba(251,191,36,.9), 0 0 32px rgba(245,158,11,.5); }
+        }
+        .btn-bg.locked { color: var(--text2); opacity: 0.7; }
+        .btn-bg.locked:hover { border-color: var(--gold); color: var(--gold); opacity: 1; }
+        .premium-modal-icon { font-size: 52px; margin-bottom: 16px; }
+        .premium-features { list-style: none; text-align: left; margin: 16px 0; }
+        .premium-features li { padding: 6px 0; font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+        .premium-features li::before { content: '✦'; color: var(--gold); font-size: 10px; flex-shrink: 0; }
 
         /* ─── TABS ───────────────────────────────────── */
         .tabs-bar {
@@ -335,13 +361,23 @@
                 {{ profile.display_name[0]|upper }}
                 {% endif %}
             </div>
+            {% if profile.user.is_premium %}
+            <div class="avatar-premium-crown" title="Premium">👑</div>
+            {% endif %}
             {% if is_own %}
+            {% if profile.user.is_premium %}
             <button class="avatar-edit-btn" onclick="openModal('avatarModal')" title="Сменить аватар">📷</button>
+            {% else %}
+            <button class="avatar-edit-btn locked" onclick="openModal('premiumModal')" title="Доступно с Premium">🔒</button>
+            {% endif %}
             {% endif %}
         </div>
 
         <div class="hero-info">
-            <div class="level-badge">⚡ Уровень {{ profile.level }}</div>
+            <div>
+                <span class="level-badge">⚡ Уровень {{ profile.level }}</span>
+                {% if profile.user.is_premium %}<span class="premium-badge">⭐ Premium</span>{% endif %}
+            </div>
             <h1 class="profile-name">{{ profile.display_name }}</h1>
             <p class="profile-bio" id="heroBio">{{ profile.profile.bio if profile.profile and profile.profile.bio else 'Нет описания' }}</p>
             <div class="profile-stats">
@@ -361,7 +397,11 @@
             {% if is_own %}
             <div class="hero-actions">
                 <button class="btn-edit" onclick="openModal('editModal')">✏️ Редактировать</button>
+                {% if profile.user.is_premium %}
                 <button class="btn-bg" onclick="openModal('bgModal')">🖼 Фон</button>
+                {% else %}
+                <button class="btn-bg locked" onclick="openModal('premiumModal')">🔒 Фон</button>
+                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -485,6 +525,27 @@
     </div>
 </div>
 
+<!-- Premium Required -->
+<div class="modal-overlay" id="premiumModal">
+    <div class="modal">
+        <div class="modal-title">⭐ Premium подписка <button class="modal-close" onclick="closeModal('premiumModal')">✕</button></div>
+        <div style="text-align:center;padding:12px 0 4px">
+            <div class="premium-modal-icon">👑</div>
+            <p style="font-size:15px;font-weight:700;margin-bottom:6px">Это Premium функция</p>
+            <p style="font-size:13px;color:var(--text2);line-height:1.6">Загрузка собственного аватара и фона профиля доступна только для Premium пользователей.</p>
+            <ul class="premium-features">
+                <li>Кастомный аватар</li>
+                <li>Кастомный фон профиля</li>
+                <li>Значок ⭐ Premium на профиле</li>
+            </ul>
+            <p style="font-size:12px;color:var(--text2)">Обратитесь к администратору в Telegram для получения подписки.</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-primary-m" onclick="closeModal('premiumModal')">Понятно</button>
+        </div>
+    </div>
+</div>
+
 <!-- Коллекция -->
 <div class="modal-overlay" id="collModal">
     <div class="modal">
@@ -509,6 +570,7 @@
 
 <script>
     const IS_OWN = {{ 'true' if is_own else 'false' }};
+    const IS_PREMIUM = {{ 'true' if profile.user.is_premium else 'false' }};
     const XP_PCT = {{ profile.xp_progress_pct }};
 
     // Particles
@@ -730,6 +792,8 @@
         if (d.avatar_url) {
             document.getElementById('avatarEl').innerHTML = `<img src="${d.avatar_url}" alt="Avatar">`;
             toast('Аватар обновлён!', 'success'); closeModal('avatarModal');
+        } else if (d.premium_required) {
+            closeModal('avatarModal'); openModal('premiumModal');
         } else toast(d.error || 'Ошибка', 'error');
     }
 
@@ -743,6 +807,8 @@
             const el = document.getElementById('heroBgImg');
             el.style.backgroundImage = `url('${d.background_url}')`;
             toast('Фон обновлён!', 'success'); closeModal('bgModal');
+        } else if (d.premium_required) {
+            closeModal('bgModal'); openModal('premiumModal');
         } else toast(d.error || 'Ошибка', 'error');
     }
 

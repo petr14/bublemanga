@@ -136,7 +136,7 @@
     }
     .item-price.free { color: #4ade80; }
 
-    .btn-buy, .btn-equip, .btn-unequip {
+    .btn-buy, .btn-equip, .btn-unequip, .btn-activate, .btn-buy-perm {
       padding: .35rem .85rem; border-radius: 20px; font-size: .8rem; font-weight: 700;
       cursor: pointer; border: none; transition: opacity .2s, transform .1s;
       font-family: inherit;
@@ -154,6 +154,31 @@
       border: 1px solid rgba(240,93,176,.2);
     }
     .btn-unequip:hover { background: rgba(240,93,176,.2); }
+    .btn-activate {
+      background: linear-gradient(135deg,#f59e0b,#d97706); color: #fff;
+    }
+    .btn-activate:hover { opacity: .85; transform: scale(1.03); }
+    .btn-buy-perm {
+      background: rgba(102,126,234,.12); color: #a5b4fc;
+      border: 1px solid rgba(102,126,234,.3); font-size: .72rem;
+    }
+    .btn-buy-perm:hover { background: rgba(102,126,234,.22); }
+    .btn-buy-perm:disabled { opacity: .4; cursor: not-allowed; }
+    .loan-badge {
+      position: absolute; top: .4rem; left: .4rem;
+      background: linear-gradient(135deg,#f59e0b,#d97706); border-radius: 20px; padding: .15rem .5rem;
+      font-size: .6rem; font-weight: 700; color: #fff;
+    }
+    .item-footer-col {
+      display: flex; flex-direction: column; align-items: flex-end; gap: .35rem;
+    }
+    .premium-banner {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1));
+      border: 1px solid rgba(245,158,11,.4);
+      border-radius: 20px; padding: .4rem 1.1rem; margin-top: .75rem;
+      font-weight: 700; font-size: .9rem; color: #fcd34d;
+    }
 
     .login-notice { text-align: center; padding: 3rem 1rem; color: var(--text-3); }
     .login-notice a { color: var(--accent); text-decoration: none; }
@@ -209,11 +234,14 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 const {createElement:h,Fragment,useState,useCallback} = React;
 
-const ALL_ITEMS   = {{ items | tojson }};
-const OWNED_IDS   = new Set({{ owned_ids | tojson }});
-const EQUIPPED    = {{ equipped | tojson }};
-const USER_ID     = {{ user_id | tojson }};
-const INIT_COINS  = {{ coins | tojson }};
+const ALL_ITEMS       = {{ items | tojson }};
+const OWNED_IDS       = new Set({{ owned_ids | tojson }});
+const EQUIPPED        = {{ equipped | tojson }};
+const USER_ID         = {{ user_id | tojson }};
+const INIT_COINS      = {{ coins | tojson }};
+const IS_PREMIUM      = {{ is_premium | tojson }};
+const PREMIUM_EXPIRES = {{ premium_expires_at | tojson }};
+const LOANED_IDS      = new Set({{ loaned_ids | tojson }});
 
 const TYPE_LABELS = {
   frame:      {icon:'',  label:'Рамки'},
@@ -259,8 +287,9 @@ function ItemPreview({item}){
   );
 }
 
-function ItemCard({item, coins, onBuy, onEquip}){
+function ItemCard({item, coins, onBuy, onEquip, onActivate}){
   const owned    = OWNED_IDS.has(item.id);
+  const loaned   = LOANED_IDS.has(item.id);
   const equipped = !!(EQUIPPED[item.id]);
   const canAfford = coins >= item.price;
 
@@ -268,8 +297,56 @@ function ItemCard({item, coins, onBuy, onEquip}){
   if(equipped) cardClass += ' equipped';
   else if(owned) cardClass += ' owned';
 
+  // Кнопки для footer
+  let footerButtons;
+  if(owned && !loaned){
+    // Постоянное владение
+    footerButtons = h('button',{
+      className: equipped ? 'btn-unequip' : 'btn-equip',
+      onClick: ()=>onEquip(item)
+    }, equipped ? 'Снять' : 'Надеть');
+  } else if(loaned){
+    // Временная активация (Premium loan)
+    footerButtons = h('div',{className:'item-footer-col'},
+      h('button',{
+        className: equipped ? 'btn-unequip' : 'btn-equip',
+        onClick: ()=>onEquip(item)
+      }, equipped ? 'Снять' : 'Надеть'),
+      h('button',{
+        className:'btn-buy-perm',
+        disabled: !canAfford,
+        title: canAfford ? 'Купить навсегда' : `Нужно ${item.price} монет`,
+        onClick: ()=>onBuy(item)
+      }, `Купить (${item.price.toLocaleString()})`)
+    );
+  } else if(USER_ID && IS_PREMIUM){
+    // Не куплено, есть Premium — показать два варианта
+    footerButtons = h('div',{className:'item-footer-col'},
+      h('button',{
+        className:'btn-activate',
+        onClick: ()=>onActivate(item)
+      }, 'Активировать'),
+      h('button',{
+        className:'btn-buy-perm',
+        disabled: !canAfford,
+        title: canAfford ? 'Купить навсегда' : `Нужно ${item.price} монет`,
+        onClick: ()=>onBuy(item)
+      }, `Купить (${item.price.toLocaleString()})`)
+    );
+  } else if(USER_ID){
+    footerButtons = h('button',{
+      className:'btn-buy',
+      disabled: !canAfford,
+      title: canAfford ? '' : `Нужно ${item.price} монет`,
+      onClick: ()=>onBuy(item)
+    }, 'Купить');
+  } else {
+    footerButtons = h('button',{className:'btn-buy',disabled:true}, 'Войти');
+  }
+
   return h('div',{className:cardClass},
     equipped && h('div',{className:'item-badge-equipped'}, '✓ Надето'),
+    loaned && h('div',{className:'loan-badge'}, '✨ Premium'),
     h(ItemPreview,{item}),
 
     h('div',{className:'item-body'},
@@ -281,19 +358,7 @@ function ItemCard({item, coins, onBuy, onEquip}){
       h('div',{className:`item-price${item.price===0?' free':''}`},
         item.price===0 ? 'Бесплатно' : h(Fragment,null,'',item.price.toLocaleString())
       ),
-      owned
-        ? h('button',{
-            className: equipped ? 'btn-unequip' : 'btn-equip',
-            onClick: ()=>onEquip(item)
-          }, equipped ? 'Снять' : 'Надеть')
-        : USER_ID
-          ? h('button',{
-              className:'btn-buy',
-              disabled: !canAfford,
-              title: canAfford ? '' : `Нужно ${item.price} монет`,
-              onClick: ()=>onBuy(item)
-            }, 'Купить')
-          : h('button',{className:'btn-buy',disabled:true}, 'Войти')
+      footerButtons
     )
   );
 }
@@ -301,6 +366,7 @@ function ItemCard({item, coins, onBuy, onEquip}){
 function ShopPage(){
   const [coins, setCoins] = useState(INIT_COINS);
   const [owned, setOwned] = useState(new Set(OWNED_IDS));
+  const [loaned, setLoaned] = useState(new Set(LOANED_IDS));
   const [eqMap, setEqMap] = useState({...EQUIPPED});
 
   const buy = useCallback(async(item)=>{
@@ -308,7 +374,8 @@ function ShopPage(){
     const j = await r.json();
     if(!r.ok){ toast(j.error||'Ошибка покупки','err'); return; }
     setOwned(s=>new Set([...s,item.id]));
-    setCoins(j.new_coins);
+    setLoaned(s=>{ const n=new Set(s); n.delete(item.id); LOANED_IDS.delete(item.id); return n; });
+    setCoins(j.coins);
     OWNED_IDS.add(item.id);
     toast(`Куплено: ${item.name}`);
   },[]);
@@ -334,15 +401,36 @@ function ShopPage(){
     toast(j.equipped ? `Надето: ${item.name}` : `Снято: ${item.name}`);
   },[]);
 
+  const activate = useCallback(async(item)=>{
+    const r = await fetch(`/api/shop/activate/${item.id}`,{method:'POST'});
+    const j = await r.json();
+    if(!r.ok){ toast(j.error||'Ошибка активации','err'); return; }
+    setOwned(s=>new Set([...s,item.id]));
+    setLoaned(s=>{ const n=new Set(s); n.add(item.id); LOANED_IDS.add(item.id); OWNED_IDS.add(item.id); return n; });
+    toast(`Активировано: ${item.name}`);
+  },[]);
+
   const groups = {};
   ALL_ITEMS.forEach(item=>{ if(!groups[item.type]) groups[item.type]=[]; groups[item.type].push(item); });
   const typeOrder = ['frame','background','badge','avatar_slot','bg_slot'];
+
+  // Форматируем дату истечения Premium
+  let premiumExpStr = null;
+  if(IS_PREMIUM && PREMIUM_EXPIRES){
+    try {
+      const ds = PREMIUM_EXPIRES.includes('+') || PREMIUM_EXPIRES.endsWith('Z') ? PREMIUM_EXPIRES : PREMIUM_EXPIRES+'Z';
+      premiumExpStr = new Date(ds).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+    } catch(e){ premiumExpStr = PREMIUM_EXPIRES.slice(0,10); }
+  }
 
   return h(Fragment,null,
     h('div',{className:'shop-hero'},
       h('h1',null,'Магазин'),
       h('p',null,'Украшай профиль — покупай за монеты, заработанные чтением'),
-      USER_ID && h('div',{className:'balance-chip'},'',h('span',null,coins.toLocaleString(),' монет'))
+      USER_ID && h('div',{className:'balance-chip'},'',h('span',null,coins.toLocaleString(),' монет')),
+      IS_PREMIUM && premiumExpStr && h('div',{className:'premium-banner'},
+        '✨ Premium активен до ',premiumExpStr
+      )
     ),
 
     h('div',{className:'shop-container'},
@@ -357,7 +445,7 @@ function ShopPage(){
           h('div',{className:'section-title'}, icon,' ',label),
           h('div',{className:'items-grid'},
             groups[type].map(item=>
-              h(ItemCard,{key:item.id,item,coins,onBuy:buy,onEquip:equip})
+              h(ItemCard,{key:item.id,item,coins,onBuy:buy,onEquip:equip,onActivate:activate})
             )
           )
         );
