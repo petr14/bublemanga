@@ -117,10 +117,26 @@ def init_db():
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         views INTEGER DEFAULT 0,
         rating TEXT DEFAULT 'GENERAL',
-        branch_id TEXT,  
-        chapters_count INTEGER DEFAULT 0  
+        branch_id TEXT,
+        chapters_count INTEGER DEFAULT 0
     )''')
-    
+
+    # Добавляем недостающие колонки для полных данных манги (миграция)
+    _manga_extra_cols = [
+        ('description',        'TEXT DEFAULT ""'),
+        ('score',              'REAL DEFAULT 0'),
+        ('tags',               'TEXT DEFAULT "[]"'),
+        ('original_name',      'TEXT DEFAULT ""'),
+        ('translation_status', 'TEXT DEFAULT ""'),
+        ('is_licensed',        'INTEGER DEFAULT 0'),
+        ('formats',            'TEXT DEFAULT "[]"'),
+    ]
+    for col_name, col_def in _manga_extra_cols:
+        try:
+            c.execute(f'ALTER TABLE manga ADD COLUMN {col_name} {col_def}')
+        except Exception:
+            pass  # колонка уже существует
+
     c.execute('''CREATE TABLE IF NOT EXISTS chapters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         manga_id TEXT NOT NULL,
@@ -1113,41 +1129,67 @@ def get_manga_details_api(manga_slug):
     return manga_data
 
 def save_manga_details_to_db(manga_data):
-    """Сохранить детали манги в БД"""
+    """Сохранить детали манги в БД (все поля включая описание, теги, оценку)"""
+    import json as _json
     conn = get_db()
     c = conn.cursor()
-    
+
     try:
-        # Проверяем, существует ли манга
-        c.execute('SELECT manga_id FROM manga WHERE manga_id = ?', (manga_data['manga_id'],))
-        existing = c.fetchone()
-        
-        if existing:
-            # Обновляем существующую запись
-            c.execute('''UPDATE manga SET 
-                        manga_title = ?, manga_type = ?, manga_status = ?,
-                        rating = ?, views = ?, cover_url = ?,
-                        branch_id = ?, chapters_count = ?, last_updated = ?
-                        WHERE manga_id = ?''',
-                      (manga_data['manga_title'], manga_data['manga_type'],
-                       manga_data['manga_status'], manga_data['rating'],
-                       manga_data['views'], manga_data['cover_url'],
-                       manga_data.get('branch_id'), manga_data.get('chapters_count', 0),
-                       datetime.now(), manga_data['manga_id']))
-        else:
-            # Создаем новую запись
-            c.execute('''INSERT INTO manga 
-                        (manga_id, manga_slug, manga_title, manga_type, 
-                         manga_status, rating, views, cover_url, 
-                         branch_id, chapters_count, last_updated) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                      (manga_data['manga_id'], manga_data['manga_slug'],
-                       manga_data['manga_title'], manga_data['manga_type'],
-                       manga_data['manga_status'], manga_data['rating'],
-                       manga_data['views'], manga_data['cover_url'],
-                       manga_data.get('branch_id'), manga_data.get('chapters_count', 0),
-                       datetime.now()))
-        
+        tags_json    = _json.dumps(manga_data.get('tags', []),    ensure_ascii=False)
+        formats_json = _json.dumps(manga_data.get('formats', []), ensure_ascii=False)
+
+        c.execute(
+            '''INSERT INTO manga
+                   (manga_id, manga_slug, manga_title, original_name,
+                    manga_type, manga_status, rating, views, score,
+                    cover_url, branch_id, chapters_count,
+                    description, tags, formats, is_licensed, translation_status,
+                    last_updated)
+               VALUES
+                   (:manga_id, :manga_slug, :manga_title, :original_name,
+                    :manga_type, :manga_status, :rating, :views, :score,
+                    :cover_url, :branch_id, :chapters_count,
+                    :description, :tags, :formats, :is_licensed, :translation_status,
+                    :now)
+               ON CONFLICT(manga_id) DO UPDATE SET
+                   manga_slug         = excluded.manga_slug,
+                   manga_title        = excluded.manga_title,
+                   original_name      = excluded.original_name,
+                   manga_type         = excluded.manga_type,
+                   manga_status       = excluded.manga_status,
+                   rating             = excluded.rating,
+                   views              = excluded.views,
+                   score              = excluded.score,
+                   cover_url          = excluded.cover_url,
+                   branch_id          = excluded.branch_id,
+                   chapters_count     = excluded.chapters_count,
+                   description        = excluded.description,
+                   tags               = excluded.tags,
+                   formats            = excluded.formats,
+                   is_licensed        = excluded.is_licensed,
+                   translation_status = excluded.translation_status,
+                   last_updated       = excluded.last_updated''',
+            {
+                'manga_id':          manga_data['manga_id'],
+                'manga_slug':        manga_data['manga_slug'],
+                'manga_title':       manga_data['manga_title'],
+                'original_name':     manga_data.get('original_name', ''),
+                'manga_type':        manga_data.get('manga_type'),
+                'manga_status':      manga_data.get('manga_status'),
+                'rating':            manga_data.get('rating'),
+                'views':             manga_data.get('views', 0),
+                'score':             manga_data.get('score', 0),
+                'cover_url':         manga_data.get('cover_url', ''),
+                'branch_id':         manga_data.get('branch_id'),
+                'chapters_count':    manga_data.get('chapters_count', 0),
+                'description':       manga_data.get('description', ''),
+                'tags':              tags_json,
+                'formats':           formats_json,
+                'is_licensed':       1 if manga_data.get('is_licensed') else 0,
+                'translation_status': manga_data.get('translation_status', ''),
+                'now':               datetime.now().isoformat(),
+            }
+        )
         conn.commit()
         logger.info(f"✅ Сохранена манга в БД: {manga_data['manga_title']}")
     except Exception as e:
@@ -2624,56 +2666,49 @@ def api_read_chapters(manga_slug):
 
 
 def _refresh_manga_worker(slugs):
-    """Фоновый поток: обновить данные манг по slug-ам (TTL 24 ч)"""
+    """Фоновый поток: загрузить/обновить полные данные манг по slug-ам.
+
+    Обновляем если:
+      - манги нет в БД вообще, или
+      - описание пустое (данные неполные), или
+      - прошло больше 24 ч с последнего обновления.
+    """
     threshold = datetime.now() - timedelta(hours=24)
-    conn = get_db()
-    c = conn.cursor()
     for slug in slugs:
         try:
+            conn = get_db()
+            c = conn.cursor()
             c.execute(
-                'SELECT manga_id, last_updated FROM manga WHERE manga_slug = ?', (slug,)
+                'SELECT manga_id, last_updated, description FROM manga WHERE manga_slug = ?',
+                (slug,)
             )
             row = c.fetchone()
-            if row and row['last_updated']:
-                last_upd = datetime.fromisoformat(row['last_updated'])
-                if last_upd > threshold:
-                    continue  # ещё свежая, пропускаем
+            conn.close()
+
+            needs_refresh = True
+            if row:
+                # Пропускаем только если описание есть и данные свежие
+                has_desc = bool((row['description'] or '').strip())
+                if has_desc and row['last_updated']:
+                    try:
+                        last_upd = datetime.fromisoformat(row['last_updated'])
+                        if last_upd > threshold:
+                            needs_refresh = False
+                    except Exception:
+                        pass
+
+            if not needs_refresh:
+                continue
+
             fresh = api.fetch_manga(slug)
             if not fresh:
                 continue
-            c.execute(
-                '''INSERT INTO manga (manga_id, manga_slug, manga_title, manga_type,
-                       manga_status, rating, cover_url, chapters_count, branch_id, last_updated)
-                   VALUES (:manga_id, :manga_slug, :manga_title, :manga_type,
-                       :manga_status, :rating, :cover_url, :chapters_count, :branch_id, :now)
-                   ON CONFLICT(manga_id) DO UPDATE SET
-                       manga_slug       = excluded.manga_slug,
-                       manga_title      = excluded.manga_title,
-                       manga_type       = excluded.manga_type,
-                       manga_status     = excluded.manga_status,
-                       rating           = excluded.rating,
-                       cover_url        = excluded.cover_url,
-                       chapters_count   = excluded.chapters_count,
-                       branch_id        = excluded.branch_id,
-                       last_updated     = excluded.last_updated''',
-                {
-                    'manga_id':       fresh['manga_id'],
-                    'manga_slug':     fresh['manga_slug'],
-                    'manga_title':    fresh['manga_title'],
-                    'manga_type':     fresh.get('manga_type'),
-                    'manga_status':   fresh.get('manga_status'),
-                    'rating':         fresh.get('rating'),
-                    'cover_url':      fresh.get('cover_url'),
-                    'chapters_count': fresh.get('chapters_count', 0),
-                    'branch_id':      fresh.get('branch_id'),
-                    'now':            datetime.now().isoformat(),
-                }
-            )
-            conn.commit()
+
+            # Сохраняем полные данные через общую функцию
+            save_manga_details_to_db(fresh)
             logger.info(f"[bulk-refresh] обновлена манга {slug}")
         except Exception as e:
             logger.warning(f"[bulk-refresh] ошибка для {slug}: {e}")
-    conn.close()
 
 
 @app.route('/api/manga/bulk-refresh', methods=['POST'])
@@ -2705,14 +2740,19 @@ def manga_detail(manga_slug):
     # Проверяем свежесть данных
     need_api_update = force_refresh
     if manga_db and not force_refresh:
-        last_updated = manga_db['last_updated']
-        if last_updated:
-            try:
-                if datetime.now() - datetime.fromisoformat(last_updated) > timedelta(hours=1):
+        # Если описание отсутствует — данные неполные, обновляем
+        if not (manga_db['description'] or '').strip():
+            need_api_update = True
+            logger.info(f"Описание отсутствует для {manga_slug}, обновляем через API...")
+        else:
+            last_updated = manga_db['last_updated']
+            if last_updated:
+                try:
+                    if datetime.now() - datetime.fromisoformat(last_updated) > timedelta(hours=1):
+                        need_api_update = True
+                        logger.info(f"Данные устарели для {manga_slug}, обновляем...")
+                except Exception:
                     need_api_update = True
-                    logger.info(f"Данные устарели для {manga_slug}, обновляем...")
-            except Exception:
-                need_api_update = True
     elif not manga_db:
         need_api_update = True
 
@@ -2731,6 +2771,18 @@ def manga_detail(manga_slug):
     else:
         logger.info(f"📦 Используем закешированные данные для {manga_slug}")
         manga_data = dict(manga_db)
+
+    # Десериализуем JSON-поля если они пришли из БД (строки)
+    import json as _json
+    for _field in ('tags', 'formats'):
+        val = manga_data.get(_field)
+        if isinstance(val, str):
+            try:
+                manga_data[_field] = _json.loads(val)
+            except Exception:
+                manga_data[_field] = []
+        elif val is None:
+            manga_data[_field] = []
 
     manga_id = manga_data.get('manga_id')
 
