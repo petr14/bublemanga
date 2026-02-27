@@ -212,7 +212,7 @@
 <!-- Шапка -->
 <header class="site-header">
   <div class="site-header-inner">
-    <a href="/" class="site-logo"><span>🫧</span><span>BubbleManga</span></a>
+    <a href="/" class="site-logo"><span>B</span><span>BubbleManga</span></a>
     <nav class="site-nav">
       <a href="/" class="nav-btn">Главная</a>
       <a href="/top" class="nav-btn">Топ</a>
@@ -222,7 +222,7 @@
       <a href="/logout" class="nav-btn">Выйти</a>
       {% else %}
       <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span>🤖</span><span>Войти</span>
+        <span></span><span>Войти</span>
       </a>
       {% endif %}
     </nav>
@@ -258,7 +258,7 @@ function Avatar({url,frameCss,size=110}){
       ? h('img',{src:url,style,alt:'avatar'})
       : h('div',{style:{...style,background:'linear-gradient(135deg,#667eea,#764ba2)',
           display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:size*0.4,color:'#fff'}}, '👤'),
+          fontSize:size*0.4,color:'#fff'}}, ''),
     frameCss && h('div',{style:{position:'absolute',inset:-4,borderRadius:'50%',
       ...(Object.fromEntries(frameCss.split(';').filter(Boolean).map(s=>{
         const [k,...v]=s.trim().split(':');
@@ -277,9 +277,9 @@ function XpBar({pct,xpForNext,xp,level,chapters,coins}){
       h('div',{className:'xp-numbers'},`${xpForNext} XP до следующего уровня`)
     ),
     h('div',{className:'stat-chips'},
-      h('div',{className:'stat-chip'},'📚 Глав: ',h('span',null,chapters)),
-      h('div',{className:'stat-chip'},'⭐ XP: ',h('span',null,xp.toLocaleString())),
-      h('div',{className:'stat-chip'},'🪙 Монеты: ',h('span',null,coins.toLocaleString()))
+      h('div',{className:'stat-chip'},'Глав: ',h('span',null,chapters)),
+      h('div',{className:'stat-chip'},'XP: ',h('span',null,xp.toLocaleString())),
+      h('div',{className:'stat-chip'},'Монеты: ',h('span',null,coins.toLocaleString()))
     )
   );
 }
@@ -337,23 +337,23 @@ function EditPanel({profile,onSaved}){
 
   return h(Fragment,null,
     h('div',{className:'profile-card',style:{marginBottom:'1rem'}},
-      h('div',{className:'card-title'},'✏️ Редактировать профиль'),
+      h('div',{className:'card-title'},'Редактировать профиль'),
       h('label',{style:{color:'#b8b8b8',fontSize:'.85rem',display:'block',marginBottom:'.4rem'}},'О себе'),
       h('textarea',{value:bio,onChange:e=>setBio(e.target.value),maxLength:300}),
       h('button',{className:'btn-primary',style:{marginTop:'.5rem'},onClick:saveBio,disabled:saving},
         saving?'Сохранение…':'Сохранить'),
     ),
     h('div',{className:'profile-card'},
-      h('div',{className:'card-title'},'🖼 Медиафайлы'),
+      h('div',{className:'card-title'},'Медиафайлы'),
       h('p',{style:{color:'#71717a',fontSize:'.8rem',marginBottom:'.5rem'}},
         'Слот аватара и фона покупаются в Магазине'),
       h('label',{className:'upload-btn'},
-        '📷 Загрузить аватар',
+        'Загрузить аватар',
         h('input',{type:'file',ref:avatarRef,accept:'image/*',onChange:()=>upload(avatarRef,'/upload/avatar')})
       ),
       h('br'),
       h('label',{className:'upload-btn',style:{marginTop:'.5rem'}},
-        '🌆 Загрузить фон профиля',
+        'Загрузить фон профиля',
         h('input',{type:'file',ref:bgRef,accept:'image/*',onChange:()=>upload(bgRef,'/upload/background')})
       )
     )
@@ -397,7 +397,7 @@ function ProfilePage(){
           className:'btn-secondary',
           style:{marginLeft:'auto',padding:'.5rem 1rem',fontSize:'.85rem'},
           onClick:()=>setEditMode(e=>!e)
-        }, editMode?'✕ Закрыть':'✏️ Изменить')
+        }, editMode?'✕ Закрыть':'Изменить')
       )
     ),
 
@@ -418,11 +418,11 @@ function ProfilePage(){
 
     h('div',{className:'profile-sections'},
       h('div',{className:'profile-card'},
-        h('div',{className:'card-title'},'🏆 Ачивки (',data.achievements.length,')'),
+        h('div',{className:'card-title'},'Ачивки (',data.achievements.length,')'),
         h(AchGrid,{achievements:data.achievements})
       ),
       h('div',{className:'profile-card'},
-        h('div',{className:'card-title'},'📖 История чтения'),
+        h('div',{className:'card-title'},'История чтения'),
         h(HistoryList,{history:data.history})
       )
     )

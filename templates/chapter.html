@@ -767,7 +767,7 @@
                     Глава {{ chapter.chapter_number }}
                     {% if chapter.chapter_volume %}(Том {{ chapter.chapter_volume }}){% endif %}
                     {% if chapter.chapter_name %}- {{ chapter.chapter_name }}{% endif %}
-                    · 📄 {{ chapter.pages|length }} стр.
+                    · {{ chapter.pages|length }} стр.
                 </div>
             </div>
             <div class="nav-buttons">
@@ -1067,7 +1067,7 @@
                     showTooltip('Подписка оформлена!');
                 } else {
                     btn.classList.remove('subscribed');
-                    btn.innerHTML = '<span>⭐</span>';
+                    btn.innerHTML = '<span></span>';
                     showTooltip('Подписка отменена');
                 }
 
@@ -1245,7 +1245,7 @@
         window.addEventListener('load', () => {
             if (!localStorage.getItem('reader_tips_shown')) {
                 setTimeout(() => {
-                    showTooltip('💡 Нажмите ⚙ для настроек читалки', 4000);
+                    showTooltip('Нажмите ⚙ для настроек читалки', 4000);
                     localStorage.setItem('reader_tips_shown', 'true');
                 }, 1000);
             }

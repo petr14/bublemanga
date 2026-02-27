@@ -1752,7 +1752,7 @@
     <header class="header" id="header">
         <div class="header-container">
             <a href="/" class="logo">
-                <span class="logo-icon">🫧</span>
+                <span class="logo-icon">B</span>
                 <span>BubbleManga</span>
             </a>
 
@@ -1812,17 +1812,17 @@
                 <div class="hero-buttons">
                     {% if user_id %}
                     <a href="#subscriptions" class="btn-primary">
-                        <span>⭐</span>
+                        <span></span>
                         <span>Мои подписки</span>
                     </a>
                     {% else %}
                     <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                        <span>🤖</span>
+                        <span></span>
                         <span>Начать</span>
                     </a>
                     {% endif %}
                     <a href="#trending" class="btn-secondary">
-                        <span>🔥</span>
+                        <span></span>
                         <span>Популярное</span>
                     </a>
                 </div>
@@ -1838,7 +1838,7 @@
         <div id="section-trending">
             <section class="section" id="trending">
                 <div class="section-header">
-                    <span class="section-tag">🔥 Самые горячие</span>
+                    <span class="section-tag">Самые горячие</span>
                     <div class="skeleton-line" style="width:220px;height:26px"></div>
                     <div class="skeleton-line" style="width:300px;height:14px;margin-top:6px"></div>
                 </div>
@@ -1864,7 +1864,7 @@
         <div id="section-updates">
             <section class="section" id="updates">
                 <div class="section-header">
-                    <span class="section-tag">🆕 Свежие обновления</span>
+                    <span class="section-tag">Свежие обновления</span>
                     <div class="skeleton-line" style="width:200px;height:26px"></div>
                     <div class="skeleton-line" style="width:280px;height:14px;margin-top:6px"></div>
                 </div>
@@ -1887,7 +1887,7 @@
         {% if user_id and subscriptions %}
         <section class="section" id="subscriptions">
             <div class="section-header">
-                <span class="section-tag">📚 Ваша библиотека</span>
+                <span class="section-tag">Ваша библиотека</span>
                 <h2 class="section-title">Мои подписки</h2>
                 <p class="section-description">Следите за любимыми мангами</p>
             </div>
@@ -1905,7 +1905,7 @@
                     <div class="manga-info">
                         <div class="manga-title">{{ manga.manga_title }}</div>
                         <div class="manga-meta">
-                            <span>👁️ {{ manga.views or 0 }}</span>
+                            <span>{{ manga.views or 0 }}</span>
                             <span style="color: #4caf50;">✓</span>
                         </div>
                     </div>
@@ -1930,7 +1930,7 @@
                 Присоединяйтесь к тысячам фанатов. Получайте уведомления о новых главах!
             </p>
             <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary" style="font-size: 16px; padding: 16px 40px;">
-                <span>🚀</span>
+                <span></span>
                 <span>Начать в Telegram</span>
             </a>
         </div>
@@ -1941,12 +1941,12 @@
         <div class="footer-container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <div class="footer-logo">🫧 BubbleManga</div>
+                    <div class="footer-logo">BubbleManga</div>
                     <p class="footer-description">
                         Ваша лучшая платформа для чтения манги с мгновенными уведомлениями о новых главах.
                     </p>
                     <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                        <span>🤖</span>
+                        <span></span>
                         <span>Telegram Бот</span>
                     </a>
                 </div>
@@ -2280,14 +2280,14 @@
             return mangas.slice(0, 8).map(m => `
                 <div class="slider-item" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
-                        <span class="manga-badge">🔥 Топ</span>
+                        <span class="manga-badge">Топ</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
                     </div>
                     <div class="manga-info">
                         <div class="manga-title">${e(m.title)}</div>
                         <div class="manga-meta">
-                            <span>⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
+                            <span>${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
                             <span class="manga-type">${e(typeRu(m.type))}</span>
                         </div>
                     </div>
@@ -2318,7 +2318,7 @@
             document.getElementById('section-trending').innerHTML = `
                 <section class="section" id="trending">
                     <div class="section-header">
-                        <span class="section-tag">🔥 Самые горячие</span>
+                        <span class="section-tag">Самые горячие</span>
                         <h2 class="section-title">${e(mostRead.title || 'Самое читаемое')}</h2>
                         <p class="section-description">Самые популярные манги по мнению читателей</p>
                     </div>
@@ -2379,7 +2379,7 @@
             document.getElementById('section-updates').innerHTML = `
                 <section class="section" id="updates">
                     <div class="section-header">
-                        <span class="section-tag">🆕 Свежие обновления</span>
+                        <span class="section-tag">Свежие обновления</span>
                         <h2 class="section-title">Последние главы</h2>
                         <p class="section-description">Новые главы из ваших любимых манг</p>
                     </div>
@@ -2424,7 +2424,7 @@
             const cards = mangas.map((m, i) => `
                 <div class="manga-card${i >= 6 ? ' hidden' : ''}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
-                        <span class="manga-badge">⭐ Горячее</span>
+                        <span class="manga-badge">Горячее</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
                     </div>
@@ -2443,7 +2443,7 @@
             document.getElementById('section-popular-new').innerHTML = `
                 <section class="section" id="popular">
                     <div class="section-header">
-                        <span class="section-tag">⭐ Восходящие звезды</span>
+                        <span class="section-tag">Восходящие звезды</span>
                         <h2 class="section-title">${e(popularNew.title || 'Популярные новинки')}</h2>
                         <p class="section-description">Новые манги, набирающие популярность</p>
                     </div>
@@ -2459,7 +2459,7 @@
         ]).then(([recent, spotlights]) => {
             renderTrending(spotlights.most_read);
             renderRecent(recent);
-            renderSliderSection('section-last-manga', spotlights.last_manga, '🆕 Новое', '✨ Новые поступления', 'Свежие манги в коллекции');
+            renderSliderSection('section-last-manga', spotlights.last_manga, 'Новое', 'Новые поступления', 'Свежие манги в коллекции');
             renderPopularNew(spotlights.popular_new);
 
             // Переинициализировать IntersectionObserver для новых элементов

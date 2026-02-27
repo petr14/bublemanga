@@ -815,7 +815,7 @@
     <header class="header" id="header">
         <div class="header-container">
             <a href="/" class="logo">
-                <span class="logo-icon">🫧</span>
+                <span class="logo-icon">B</span>
                 <span>BubbleManga</span>
             </a>
             
@@ -846,7 +846,7 @@
                 </a>
                 {% else %}
                 <a href="https://t.me/hookah_p_bot" target="_blank" class="btn btn-primary">
-                    <span>🤖</span>
+                    <span></span>
                     <span>Войти</span>
                 </a>
                 {% endif %}
@@ -866,13 +866,13 @@
                     {% if manga.manga_status %}
                     <div class="manga-status-badge">
                         {% if manga.manga_status == 'ONGOING' %}
-                        🟢 Онгоинг
+                        Онгоинг
                         {% elif manga.manga_status == 'FINISHED' %}
-                        ✅ Завершена
+                        Завершена
                         {% elif manga.manga_status == 'HIATUS' %}
-                        ⏸️ Пауза
+                        Пауза
                         {% elif manga.manga_status == 'CANCELLED' %}
-                        ❌ Отменена
+                        Отменена
                         {% else %}
                         {{ manga.manga_status }}
                         {% endif %}
@@ -894,13 +894,13 @@
                             <span class="meta-label">Тип</span>
                             <span class="meta-value">
                                 {% if manga.manga_type == 'MANGA' %}
-                                📘 Манга
+                                Манга
                                 {% elif manga.manga_type == 'MANHWA' %}
-                                📙 Манхва
+                                Манхва
                                 {% elif manga.manga_type == 'MANHUA' %}
-                                📗 Маньхуа
+                                Маньхуа
                                 {% elif manga.manga_type == 'COMICS' %}
-                                📕 Комикс
+                                Комикс
                                 {% else %}
                                 {{ manga.manga_type }}
                                 {% endif %}
@@ -912,7 +912,7 @@
                         <div class="meta-item">
                             <span class="meta-label">Рейтинг</span>
                             <span class="meta-value meta-rating">
-                                ⭐ {{ "%.1f"|format(manga.score|float) if manga.score else 'N/A' }}
+                                {{ "%.1f"|format(manga.score|float) if manga.score else 'N/A' }}
                             </span>
                         </div>
                         {% endif %}
@@ -921,7 +921,7 @@
                         <div class="meta-item">
                             <span class="meta-label">Просмотры</span>
                             <span class="meta-value">
-                                👁️ {{ "{:,}".format(manga.views|int).replace(",", " ") }}
+                                {{ "{:,}".format(manga.views|int).replace(",", " ") }}
                             </span>
                         </div>
                         {% endif %}
@@ -930,7 +930,7 @@
                         <div class="meta-item">
                             <span class="meta-label">Глав</span>
                             <span class="meta-value">
-                                📚 {{ manga.chapters_count }}
+                                {{ manga.chapters_count }}
                             </span>
                         </div>
                         {% endif %}
@@ -940,11 +940,11 @@
                             <span class="meta-label">Перевод</span>
                             <span class="meta-value">
                                 {% if manga.translation_status == 'IN_PROGRESS' %}
-                                🔄 В процессе
+                                В процессе
                                 {% elif manga.translation_status == 'COMPLETED' %}
-                                ✅ Завершен
+                                Завершен
                                 {% elif manga.translation_status == 'ABANDONED' %}
-                                ❌ Заброшен
+                                Заброшен
                                 {% else %}
                                 {{ manga.translation_status }}
                                 {% endif %}
@@ -959,9 +959,9 @@
                             <!-- Чтение с начала (самая старая глава) -->
                             {% set first_chapter = chapters[-1] if chapters else None %}
                             {% if first_chapter %}
-                            <a href="/read/{{ manga.manga_slug }}/{{ first_chapter.chapter_slug }}" 
+                            <a href="/read/{{ manga.manga_slug }}/{{ first_chapter.chapter_slug }}"
                                class="btn btn-primary">
-                                <span>📖</span>
+                                <span></span>
                                 <span>Читать с начала</span>
                             </a>
                             {% endif %}
@@ -969,21 +969,21 @@
                             <!-- Чтение последней главы -->
                             {% set last_chapter = chapters[0] if chapters else None %}
                             {% if last_chapter %}
-                            <a href="/read/{{ manga.manga_slug }}/{{ last_chapter.chapter_slug }}" 
+                            <a href="/read/{{ manga.manga_slug }}/{{ last_chapter.chapter_slug }}"
                                class="btn btn-primary">
-                                <span>🆕</span>
+                                <span></span>
                                 <span>Последняя глава</span>
                             </a>
                             {% endif %}
                         {% endif %}
                             
                         <a href="/search?q={{ manga.manga_title|urlencode }}" class="btn">
-                            <span>🔍</span>
+                            <span></span>
                             <span>Похожие</span>
                         </a>
                         
                         <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn">
-                            <span>🔄</span>
+                            <span></span>
                             <span>Обновить</span>
                         </a>
                     </div>
@@ -993,7 +993,7 @@
             <!-- Описание -->
             {% if manga.description %}
             <div class="manga-description">
-                <h3>📝 Описание</h3>
+                <h3>Описание</h3>
                 <p>{{ manga.description }}</p>
             </div>
             {% endif %}
@@ -1014,11 +1014,11 @@
                 <p>Вы остановились на главе {{ reading_history.chapter_number }}</p>
                 <div class="read-buttons">
                     <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
-                        <span>📖</span>
+                        <span></span>
                         <span>Продолжить чтение</span>
                     </a>
                     <a href="/read/{{ manga.manga_slug }}/{{ chapters[0].chapter_slug if chapters else '' }}" class="btn">
-                        <span>🆕</span>
+                        <span></span>
                         <span>Последняя глава</span>
                     </a>
                 </div>
@@ -1029,7 +1029,7 @@
             <div class="chapters-section">
                 <div class="section-header">
                     <h2 class="section-title">
-                        <span>📚</span>
+                        <span></span>
                         Список глав
                     </h2>
                     
@@ -1083,7 +1083,7 @@
                 <div class="loading">
                     <p>Главы загружаются или пока отсутствуют...</p>
                     <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn btn-primary">
-                        <span>🔄</span>
+                        <span></span>
                         <span>Обновить страницу</span>
                     </a>
                 </div>
@@ -1136,7 +1136,7 @@
                     btn.innerHTML = '<span>✓</span><span>Подписан</span>';
                 } else {
                     btn.classList.remove('subscribed');
-                    btn.innerHTML = '<span>⭐</span><span>Подписаться</span>';
+                    btn.innerHTML = '<span></span><span>Подписаться</span>';
                 }
                 
                 btn.disabled = false;
@@ -1285,7 +1285,7 @@
             async function fetchBatch() {
                 if (isFetching) return;
                 isFetching = true;
-                if (sentinel) sentinel.textContent = '⏳ Загрузка...';
+                if (sentinel) sentinel.textContent = 'Загрузка...';
                 try {
                     const url = `/api/manga/${mangaSlug}/chapters?offset=${loaded}&limit=${BATCH}&order=${currentOrder}`;
                     const res = await fetch(url);
@@ -1309,7 +1309,7 @@
                         isFetching = false;
                     } else if (!data.has_more && bgLoading) {
                         // Фоновая загрузка ещё идёт — ждём и пробуем снова
-                        if (sentinel) sentinel.textContent = '⏳ Ожидание новых глав...';
+                        if (sentinel) sentinel.textContent = 'Ожидание новых глав...';
                         setTimeout(() => { isFetching = false; fetchBatch(); }, 2000);
                         return; // не сбрасываем isFetching здесь
                     } else {
@@ -1319,7 +1319,7 @@
                     }
                 } catch (e) {
                     console.error('Ошибка подгрузки:', e);
-                    if (sentinel) sentinel.textContent = '⚠️ Ошибка. Прокрутите вниз снова.';
+                    if (sentinel) sentinel.textContent = 'Ошибка. Прокрутите вниз снова.';
                     isFetching = false;
                 }
             }

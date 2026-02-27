@@ -178,7 +178,7 @@
 <!-- Шапка -->
 <header class="site-header">
   <div class="site-header-inner">
-    <a href="/" class="site-logo"><span>🫧</span><span>BubbleManga</span></a>
+    <a href="/" class="site-logo"><span>B</span><span>BubbleManga</span></a>
     <nav class="site-nav">
       <a href="/" class="nav-btn">Главная</a>
       <a href="/top" class="nav-btn">Топ</a>
@@ -188,7 +188,7 @@
       <a href="/logout" class="nav-btn">Выйти</a>
       {% else %}
       <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span>🤖</span><span>Войти</span>
+        <span></span><span>Войти</span>
       </a>
       {% endif %}
     </nav>
@@ -216,11 +216,11 @@ const USER_ID     = {{ user_id | tojson }};
 const INIT_COINS  = {{ coins | tojson }};
 
 const TYPE_LABELS = {
-  frame:      {icon:'🖼',  label:'Рамки'},
-  background: {icon:'🌅', label:'Фоны профиля'},
-  badge:      {icon:'🏅', label:'Значки'},
-  avatar_slot:{icon:'📷', label:'Загрузка аватара'},
-  bg_slot:    {icon:'🌄', label:'Загрузка фона'},
+  frame:      {icon:'',  label:'Рамки'},
+  background: {icon:'', label:'Фоны профиля'},
+  badge:      {icon:'', label:'Значки'},
+  avatar_slot:{icon:'', label:'Загрузка аватара'},
+  bg_slot:    {icon:'', label:'Загрузка фона'},
 };
 
 function toast(msg, type='ok'){
@@ -253,9 +253,9 @@ function ItemPreview({item}){
       h('span',{style:{fontSize:'2.5rem'}}, item.css_value)
     );
 
-  const typeEmojis = {avatar_slot:'📷', bg_slot:'🖼'};
+  const typeEmojis = {avatar_slot:'', bg_slot:''};
   return h('div',{className:'item-preview'},
-    h('span',{style:{fontSize:'2.5rem'}}, typeEmojis[item.type] || '🎁')
+    h('span',{style:{fontSize:'2.5rem'}}, typeEmojis[item.type] || '')
   );
 }
 
@@ -279,7 +279,7 @@ function ItemCard({item, coins, onBuy, onEquip}){
 
     h('div',{className:'item-footer'},
       h('div',{className:`item-price${item.price===0?' free':''}`},
-        item.price===0 ? '🆓 Бесплатно' : h(Fragment,null,'🪙 ',item.price.toLocaleString())
+        item.price===0 ? 'Бесплатно' : h(Fragment,null,'',item.price.toLocaleString())
       ),
       owned
         ? h('button',{
@@ -340,9 +340,9 @@ function ShopPage(){
 
   return h(Fragment,null,
     h('div',{className:'shop-hero'},
-      h('h1',null,'🛍 Магазин'),
+      h('h1',null,'Магазин'),
       h('p',null,'Украшай профиль — покупай за монеты, заработанные чтением'),
-      USER_ID && h('div',{className:'balance-chip'},'🪙 ',h('span',null,coins.toLocaleString(),' монет'))
+      USER_ID && h('div',{className:'balance-chip'},'',h('span',null,coins.toLocaleString(),' монет'))
     ),
 
     h('div',{className:'shop-container'},
@@ -352,7 +352,7 @@ function ShopPage(){
       ),
 
       typeOrder.filter(t=>groups[t]).map(type=>{
-        const {icon,label} = TYPE_LABELS[type]||{icon:'🎁',label:type};
+        const {icon,label} = TYPE_LABELS[type]||{icon:'',label:type};
         return h(Fragment,{key:type},
           h('div',{className:'section-title'}, icon,' ',label),
           h('div',{className:'items-grid'},

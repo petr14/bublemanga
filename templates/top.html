@@ -163,7 +163,7 @@
 <!-- Шапка -->
 <header class="site-header">
   <div class="site-header-inner">
-    <a href="/" class="site-logo"><span>🫧</span><span>BubbleManga</span></a>
+    <a href="/" class="site-logo"><span>B</span><span>BubbleManga</span></a>
     <nav class="site-nav">
       <a href="/" class="nav-btn">Главная</a>
       <a href="/top" class="nav-btn active">Топ</a>
@@ -173,7 +173,7 @@
       <a href="/logout" class="nav-btn">Выйти</a>
       {% else %}
       <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span>🤖</span><span>Войти</span>
+        <span></span><span>Войти</span>
       </a>
       {% endif %}
     </nav>
@@ -203,7 +203,7 @@ function Av({url, size=40, fontSize='1rem'}){
     fontSize, flexShrink:0, overflow:'hidden'
   };
   return h('div',{style:s},
-    url ? h('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},alt:''}) : '👤'
+    url ? h('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},alt:''}) : ''
   );
 }
 
@@ -212,7 +212,7 @@ function Podium(){
   if(top3.length < 1) return null;
   const order  = top3.length >= 3 ? [top3[1],top3[0],top3[2]] : [top3[0]];
   const stands = top3.length >= 3 ? ['stand-2','stand-1','stand-3'] : ['stand-1'];
-  const medals = top3.length >= 3 ? ['🥈','🥇','🥉'] : ['🥇'];
+  const medals = top3.length >= 3 ? ['2','1','3'] : ['1'];
 
   return h('div',{className:'podium'},
     order.map((u,i)=>
@@ -231,7 +231,7 @@ function LbRow({u, rank}){
   const isMe = u.id === MY_ID;
   return h('a',{className:`lb-row${isMe?' me':''}`, href:`/profile/${u.id}`},
     h('div',{className:`lb-rank${rank<=3?' top3':''}`},
-      rank===1?'🥇': rank===2?'🥈': rank===3?'🥉': rank
+      rank
     ),
     h('div',{className:'lb-avatar'}, h(Av,{url:u.avatar_url,size:40})),
     h('div',{className:'lb-name'},
@@ -253,7 +253,7 @@ function LbRow({u, rank}){
 function TopPage(){
   return h(Fragment,null,
     h('div',{className:'top-hero'},
-      h('h1',null,'🏆 Топ читателей'),
+      h('h1',null,'Топ читателей'),
       h('p',null,'Читай больше — зарабатывай XP — попади в топ')
     ),
     h('div',{className:'top-container'},
