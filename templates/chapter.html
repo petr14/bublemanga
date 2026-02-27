@@ -942,19 +942,19 @@
                     <button class="sp-radio" id="sr-speed-medium" onclick="setRadio('speed','medium',this)">Средне</button>
                     <button class="sp-radio" id="sr-speed-fast"   onclick="setRadio('speed','fast',this)">Быстро</button>
                 </div>
-                <button class="sp-action" id="autoscrollBtn" onclick="toggleAutoScroll()">▶ Запустить автопрокрутку</button>
+                <button class="sp-action" id="autoscrollBtn" onclick="toggleAutoScroll()"> Запустить автопрокрутку</button>
             </div>
 
             <!-- Полноэкранный режим -->
             <div class="sp-section">
-                <button class="sp-action" onclick="toggleFullscreen(); closeSettings()">⛶ Полноэкранный режим</button>
+                <button class="sp-action" onclick="toggleFullscreen(); closeSettings()"> Полноэкранный режим</button>
             </div>
 
         </div>
     </div>
 
     <!-- Кнопка управления автопрокруткой -->
-    <div class="autoscroll-fab" id="autoscrollFab" onclick="toggleAutoScroll()">⏸</div>
+    <div class="autoscroll-fab" id="autoscrollFab" onclick="toggleAutoScroll()"></div>
 
     <script>
         // ==================== БЕЗОПАСНЫЕ ДАННЫЕ ИЗ ШАБЛОНА ====================
@@ -1422,13 +1422,13 @@
             const btn = document.getElementById('autoscrollBtn');
             const fab = document.getElementById('autoscrollFab');
             if (autoScrollActive) {
-                btn.textContent = '⏸ Остановить автопрокрутку';
+                btn.textContent = ' Остановить автопрокрутку';
                 btn.classList.add('active-btn');
                 fab.classList.add('visible');
                 autoScrollLast = null;
                 autoScrollRaf = requestAnimationFrame(autoScrollStep);
             } else {
-                btn.textContent = '▶ Запустить автопрокрутку';
+                btn.textContent = ' Запустить автопрокрутку';
                 btn.classList.remove('active-btn');
                 fab.classList.remove('visible');
                 if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);

@@ -348,12 +348,20 @@ function EditPanel({profile,onSaved}){
       h('p',{style:{color:'#71717a',fontSize:'.8rem',marginBottom:'.5rem'}},
         'Слот аватара и фона покупаются в Магазине'),
       h('label',{className:'upload-btn'},
+<<<<<<< HEAD
         'Загрузить аватар',
+=======
+        ' Загрузить аватар',
+>>>>>>> master
         h('input',{type:'file',ref:avatarRef,accept:'image/*',onChange:()=>upload(avatarRef,'/upload/avatar')})
       ),
       h('br'),
       h('label',{className:'upload-btn',style:{marginTop:'.5rem'}},
+<<<<<<< HEAD
         'Загрузить фон профиля',
+=======
+        ' Загрузить фон профиля',
+>>>>>>> master
         h('input',{type:'file',ref:bgRef,accept:'image/*',onChange:()=>upload(bgRef,'/upload/background')})
       )
     )

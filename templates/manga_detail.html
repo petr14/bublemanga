@@ -866,6 +866,7 @@
                     {% if manga.manga_status %}
                     <div class="manga-status-badge">
                         {% if manga.manga_status == 'ONGOING' %}
+<<<<<<< HEAD
                         Онгоинг
                         {% elif manga.manga_status == 'FINISHED' %}
                         Завершена
@@ -873,6 +874,15 @@
                         Пауза
                         {% elif manga.manga_status == 'CANCELLED' %}
                         Отменена
+=======
+                         Онгоинг
+                        {% elif manga.manga_status == 'FINISHED' %}
+                         Завершена
+                        {% elif manga.manga_status == 'HIATUS' %}
+                         Пауза
+                        {% elif manga.manga_status == 'CANCELLED' %}
+                         Отменена
+>>>>>>> master
                         {% else %}
                         {{ manga.manga_status }}
                         {% endif %}
@@ -894,11 +904,19 @@
                             <span class="meta-label">Тип</span>
                             <span class="meta-value">
                                 {% if manga.manga_type == 'MANGA' %}
+<<<<<<< HEAD
                                 Манга
                                 {% elif manga.manga_type == 'MANHWA' %}
                                 Манхва
                                 {% elif manga.manga_type == 'MANHUA' %}
                                 Маньхуа
+=======
+                                 Манга
+                                {% elif manga.manga_type == 'MANHWA' %}
+                                 Манхва
+                                {% elif manga.manga_type == 'MANHUA' %}
+                                 Маньхуа
+>>>>>>> master
                                 {% elif manga.manga_type == 'COMICS' %}
                                 Комикс
                                 {% else %}
@@ -921,7 +939,11 @@
                         <div class="meta-item">
                             <span class="meta-label">Просмотры</span>
                             <span class="meta-value">
+<<<<<<< HEAD
                                 {{ "{:,}".format(manga.views|int).replace(",", " ") }}
+=======
+                                 {{ "{:,}".format(manga.views|int).replace(",", " ") }}
+>>>>>>> master
                             </span>
                         </div>
                         {% endif %}
@@ -930,7 +952,11 @@
                         <div class="meta-item">
                             <span class="meta-label">Глав</span>
                             <span class="meta-value">
+<<<<<<< HEAD
                                 {{ manga.chapters_count }}
+=======
+                                 {{ manga.chapters_count }}
+>>>>>>> master
                             </span>
                         </div>
                         {% endif %}
@@ -940,11 +966,19 @@
                             <span class="meta-label">Перевод</span>
                             <span class="meta-value">
                                 {% if manga.translation_status == 'IN_PROGRESS' %}
+<<<<<<< HEAD
                                 В процессе
                                 {% elif manga.translation_status == 'COMPLETED' %}
                                 Завершен
                                 {% elif manga.translation_status == 'ABANDONED' %}
                                 Заброшен
+=======
+                                 В процессе
+                                {% elif manga.translation_status == 'COMPLETED' %}
+                                 Завершен
+                                {% elif manga.translation_status == 'ABANDONED' %}
+                                 Заброшен
+>>>>>>> master
                                 {% else %}
                                 {{ manga.translation_status }}
                                 {% endif %}
@@ -993,7 +1027,11 @@
             <!-- Описание -->
             {% if manga.description %}
             <div class="manga-description">
+<<<<<<< HEAD
                 <h3>Описание</h3>
+=======
+                <h3> Описание</h3>
+>>>>>>> master
                 <p>{{ manga.description }}</p>
             </div>
             {% endif %}
