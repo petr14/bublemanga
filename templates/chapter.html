@@ -42,7 +42,7 @@
             transition: width 0.1s ease;
         }
 
-        /* ==================== ШАПКА (появляется при прокрутке вверх) ==================== */
+        /* ==================== ШАПКА ==================== */
         .header {
             position: fixed;
             top: 0;
@@ -270,7 +270,7 @@
             pointer-events: none;
         }
 
-        /* ==================== ТУЛТИП ДЛЯ ПОДСКАЗОК ==================== */
+        /* ==================== ТУЛТИП ==================== */
         .tooltip {
             position: fixed;
             top: 50%;
@@ -443,8 +443,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-
 
         /* ==================== НАСТРОЙКИ — ОВЕРЛЕЙ И ПАНЕЛЬ ==================== */
         .settings-overlay {
@@ -760,7 +758,7 @@
 <body>
     <div class="progress-bar" id="progressBar"></div>
 
-    <!-- Шапка (появляется при прокрутке вверх) -->
+    <!-- Шапка -->
     <header class="header" id="header">
         <div class="header-content">
             <div class="title-section">
@@ -773,12 +771,11 @@
                 </div>
             </div>
             <div class="nav-buttons">
-               
                 <a href="/manga/{{ chapter.manga_slug }}" class="btn btn-primary">К манге</a>
                 <a href="/" class="btn">Главная</a>
                 {% if session.user_id %}
                 <button id="subscribeBtn" class="btn btn-subscribe {% if subscribed %}subscribed{% endif %}"
-                        onclick="toggleSubscribe('{{ chapter.manga_id }}')">
+                        onclick="toggleSubscribe({{ chapter.manga_id | tojson }})">
                     {% if subscribed %}Подписан{% else %}Подписаться{% endif %}
                 </button>
                 {% endif %}
@@ -839,9 +836,7 @@
     </div>
 
     <!-- Кнопка "Наверх" -->
-    <div class="scroll-top" id="scrollTop" onclick="scrollToTop()" aria-label="Наверх">
-        ↑
-    </div>
+    <div class="scroll-top" id="scrollTop" onclick="scrollToTop()" aria-label="Наверх">↑</div>
 
     <!-- Тултип -->
     <div class="tooltip" id="tooltip"></div>
@@ -851,7 +846,7 @@
         <div class="spinner"></div>
     </div>
 
-    <!-- Кнопка настроек (плавающая, посередине справа) -->
+    <!-- Кнопка настроек -->
     <div class="settings-fab" id="settingsFab" onclick="toggleSettings()" title="Настройки">⚙</div>
 
     <!-- Оверлей настроек -->
@@ -958,28 +953,38 @@
         </div>
     </div>
 
-    <!-- Кнопка управления автопрокруткой (поверх страниц) -->
+    <!-- Кнопка управления автопрокруткой -->
     <div class="autoscroll-fab" id="autoscrollFab" onclick="toggleAutoScroll()">⏸</div>
 
     <script>
+        // ==================== БЕЗОПАСНЫЕ ДАННЫЕ ИЗ ШАБЛОНА ====================
+        // Все значения из Jinja2 экранируются через | tojson — защита от XSS и SyntaxError
+        const totalPages      = {{ chapter.pages|length }};
+        const mangaSlug       = {{ chapter.manga_slug | tojson }};
+        const chapterNumber   = {{ chapter.chapter_number | tojson }};
+
+        const prevChapterUrl  = {% if prev_chapter %}{{ ('/read/' + chapter.manga_slug + '/' + prev_chapter.chapter_slug) | tojson }}{% else %}null{% endif %};
+        const nextChapterUrl  = {% if next_chapter %}{{ ('/read/' + chapter.manga_slug + '/' + next_chapter.chapter_slug) | tojson }}{% else %}null{% endif %};
+        const mangaPageUrl    = {{ ('/manga/' + chapter.manga_slug) | tojson }};
+
+        // Ключ для localStorage — собирается из уже безопасных JS-переменных
+        const PROGRESS_KEY = 'reading_' + mangaSlug + '_' + chapterNumber;
+
         // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
-        const totalPages = {{ chapter.pages|length }};
         let currentPage = 1;
         let lastScrollTop = 0;
-        let scrollTimeout;
         let isReadingMode = false;
-        let hideControlsTimeout;
 
-        const header = document.getElementById('header');
-        const progressBar = document.getElementById('progressBar');
-        const scrollTopBtn = document.getElementById('scrollTop');
-        const pageCounter = document.getElementById('pageCounter');
+        const header           = document.getElementById('header');
+        const progressBar      = document.getElementById('progressBar');
+        const scrollTopBtn     = document.getElementById('scrollTop');
+        const pageCounter      = document.getElementById('pageCounter');
         const chapterNavigation = document.getElementById('chapterNavigation');
-        const currentPageSpan = document.getElementById('currentPage');
+        const currentPageSpan  = document.getElementById('currentPage');
 
-        // ==================== ОПРЕДЕЛЕНИЕ НАПРАВЛЕНИЯ ПРОКРУТКИ ====================
+        // ==================== ОБРАБОТКА ПРОКРУТКИ ====================
         let ticking = false;
-        
+
         window.addEventListener('scroll', () => {
             if (!ticking) {
                 window.requestAnimationFrame(() => {
@@ -993,7 +998,7 @@
         function handleScroll() {
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-            // Показ/скрытие шапки на основе направления прокрутки (только в режиме scroll)
+            // Показ/скрытие шапки по направлению прокрутки
             if (readerSettings.menu === 'scroll') {
                 if (scrollTop > lastScrollTop && scrollTop > 100) {
                     header.classList.add('hidden');
@@ -1002,25 +1007,14 @@
                 }
             }
 
-            // Проверка «все главы подряд»
             checkConsecutive();
-            
+
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
 
-            // Показ кнопки "Наверх"
-            if (scrollTop > 300) {
-                scrollTopBtn.classList.add('visible');
-            } else {
-                scrollTopBtn.classList.remove('visible');
-            }
+            scrollTopBtn.classList.toggle('visible', scrollTop > 300);
 
-            // Обновление прогресс-бара
             updateProgressBar();
-
-            // Обновление счётчика страниц
             updateCurrentPage();
-
-            // Автоскрытие элементов управления
             resetHideControlsTimer();
         }
 
@@ -1032,7 +1026,7 @@
             let page = 1;
             for (let i = 0; i < imgs.length; i++) {
                 const rect = imgs[i].getBoundingClientRect();
-                if (rect.height === 0) continue; // не загружено — пропускаем
+                if (rect.height === 0) continue;
                 if (rect.top < center) {
                     page = parseInt(imgs[i].dataset.page) || (i + 1);
                 } else {
@@ -1048,16 +1042,13 @@
 
         // ==================== ПРОГРЕСС-БАР ====================
         function updateProgressBar() {
-            const scrollPercentage = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
-            progressBar.style.width = Math.min(scrollPercentage, 100) + '%';
+            const pct = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+            progressBar.style.width = Math.min(pct, 100) + '%';
         }
 
         // ==================== ПРОКРУТКА НАВЕРХ ====================
         function scrollToTop() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             showTooltip('Возврат к началу');
         }
 
@@ -1066,12 +1057,10 @@
             try {
                 const btn = document.getElementById('subscribeBtn');
                 btn.disabled = true;
-                
-                const response = await fetch(`/api/subscribe/${mangaId}`, {
-                    method: 'POST'
-                });
+
+                const response = await fetch('/api/subscribe/' + mangaId, { method: 'POST' });
                 const data = await response.json();
-                
+
                 if (data.subscribed) {
                     btn.classList.add('subscribed');
                     btn.innerHTML = '<span>✓</span>';
@@ -1081,12 +1070,13 @@
                     btn.innerHTML = '<span>⭐</span>';
                     showTooltip('Подписка отменена');
                 }
-                
+
                 btn.disabled = false;
             } catch (error) {
                 console.error('Ошибка подписки:', error);
                 showTooltip('Ошибка подписки');
-                document.getElementById('subscribeBtn').disabled = false;
+                const btn = document.getElementById('subscribeBtn');
+                if (btn) btn.disabled = false;
             }
         }
 
@@ -1095,66 +1085,43 @@
             const tooltip = document.getElementById('tooltip');
             tooltip.textContent = message;
             tooltip.classList.add('show');
-            
-            setTimeout(() => {
-                tooltip.classList.remove('show');
-            }, duration);
+            setTimeout(() => tooltip.classList.remove('show'), duration);
         }
 
         // ==================== КЛАВИАТУРНЫЕ СОКРАЩЕНИЯ ====================
-        const prevChapterUrl = {{ ('"/read/' + chapter.manga_slug + '/' + prev_chapter.chapter_slug + '"') if prev_chapter else 'null' }};
-        const nextChapterUrl = {{ ('"/read/' + chapter.manga_slug + '/' + next_chapter.chapter_slug + '"') if next_chapter else 'null' }};
-
         document.addEventListener('keydown', function(e) {
-            // Стрелка влево - предыдущая глава
             if (e.key === 'ArrowLeft') {
                 if (prevChapterUrl) window.location.href = prevChapterUrl;
-            }
-            // Стрелка вправо - следующая глава
-            else if (e.key === 'ArrowRight') {
+            } else if (e.key === 'ArrowRight') {
                 if (nextChapterUrl) window.location.href = nextChapterUrl;
-            }
-            // Стрелка вверх или W - прокрутка вверх
-            else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'ц') {
+            } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'ц') {
                 e.preventDefault();
                 window.scrollBy({ top: -window.innerHeight * 0.8, behavior: 'smooth' });
-            }
-            // Стрелка вниз или S - прокрутка вниз
-            else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'ы') {
+            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'ы') {
                 e.preventDefault();
                 window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
-            }
-            // End - в конец
-            else if (e.key === 'End') {
+            } else if (e.key === 'End') {
                 e.preventDefault();
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-            }
-            // F - полноэкранный режим
-            else if (e.key === 'f' || e.key === 'а') {
+            } else if (e.key === 'f' || e.key === 'а') {
                 e.preventDefault();
                 toggleFullscreen();
-            }
-            // Escape - к странице манги
-            else if (e.key === 'Escape') {
+            } else if (e.key === 'Escape') {
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
                 } else {
-                    window.location.href = '/manga/{{ chapter.manga_slug }}';
+                    window.location.href = mangaPageUrl;
                 }
-            }
-            // Space - пролистать страницу
-            else if (e.key === ' ') {
+            } else if (e.key === ' ') {
                 e.preventDefault();
                 window.scrollBy({ top: window.innerHeight * 0.9, behavior: 'smooth' });
-            }
-            // H - показать/скрыть элементы управления
-            else if (e.key === 'h' || e.key === 'р') {
+            } else if (e.key === 'h' || e.key === 'р') {
                 e.preventDefault();
                 toggleReadingMode();
             }
         });
 
-        // ==================== РЕЖИМ ПОЛНОЭКРАННОГО ЧТЕНИЯ ====================
+        // ==================== ПОЛНОЭКРАННЫЙ РЕЖИМ ====================
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
@@ -1167,26 +1134,23 @@
             }
         }
 
-        // ==================== РЕЖИМ ЧТЕНИЯ (СКРЫТИЕ ЭЛЕМЕНТОВ) ====================
+        // ==================== РЕЖИМ ЧТЕНИЯ ====================
         function toggleReadingMode() {
             isReadingMode = !isReadingMode;
             document.body.classList.toggle('reading-mode', isReadingMode);
             showTooltip(isReadingMode ? 'Режим чтения включен' : 'Режим чтения выключен');
         }
 
-        // ==================== АВТОСКРЫТИЕ ЭЛЕМЕНТОВ УПРАВЛЕНИЯ ====================
-        // Авто-скрытие убрано — кнопки не исчезают сами по себе.
-        // Режим чтения (H) скрывает элементы вручную.
         function resetHideControlsTimer() {
             if (!isReadingMode) {
                 document.body.classList.remove('reading-mode');
             }
         }
 
-        // ==================== СОХРАНЕНИЕ ПРОГРЕССА ЧТЕНИЯ ====================
+        // ==================== СОХРАНЕНИЕ ПРОГРЕССА ====================
         function saveReadingProgress(page) {
             try {
-                localStorage.setItem('reading_{{ chapter.manga_slug }}_{{ chapter.chapter_number }}', page);
+                localStorage.setItem(PROGRESS_KEY, page);
             } catch (e) {
                 console.log('Не удалось сохранить прогресс:', e);
             }
@@ -1195,14 +1159,14 @@
         // ==================== ВОССТАНОВЛЕНИЕ ПРОГРЕССА ====================
         window.addEventListener('load', () => {
             try {
-                const savedPage = localStorage.getItem('reading_{{ chapter.manga_slug }}_{{ chapter.chapter_number }}');
+                const savedPage = localStorage.getItem(PROGRESS_KEY);
                 if (savedPage && savedPage > 1) {
                     const images = document.querySelectorAll('.page-image');
                     const targetImage = images[savedPage - 1];
                     if (targetImage) {
                         setTimeout(() => {
                             targetImage.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            showTooltip(`Продолжаем со стр. ${savedPage}`);
+                            showTooltip('Продолжаем со стр. ' + savedPage);
                         }, 500);
                     }
                 }
@@ -1211,13 +1175,12 @@
             }
         });
 
-        // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ + СЧЁТЧИК СТРАНИЦ ====================
-      // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИЗОБРАЖЕНИЙ + СЧЁТЧИК СТРАНИЦ ====================
-      document.addEventListener('DOMContentLoaded', function() {
+        // ==================== ЛЕНИВАЯ ЗАГРУЗКА + СЧЁТЧИК СТРАНИЦ ====================
+        document.addEventListener('DOMContentLoaded', function() {
             const images = document.querySelectorAll('.page-image');
 
-            // Intersection Observer для ленивой загрузки (data-src → src)
             if ('IntersectionObserver' in window) {
+                // Ленивая загрузка
                 const imageObserver = new IntersectionObserver((entries, observer) => {
                     entries.forEach(entry => {
                         if (!entry.isIntersecting) return;
@@ -1225,30 +1188,21 @@
                         if (img.dataset.src) {
                             img.src = img.dataset.src;
                             delete img.dataset.src;
-                            img.addEventListener('load', () => {
-                                img.classList.remove('loading');
-                            }, { once: true });
-                            img.addEventListener('error', () => {
-                                img.classList.remove('loading');
-                                img.style.display = 'none';
-                            }, { once: true });
+                            img.addEventListener('load',  () => img.classList.remove('loading'), { once: true });
+                            img.addEventListener('error', () => { img.classList.remove('loading'); img.style.display = 'none'; }, { once: true });
                         }
                         observer.unobserve(img);
                     });
-                }, {
-                    rootMargin: '400px 0px'  // Загружаем за 400px до появления
-                });
+                }, { rootMargin: '400px 0px' });
 
                 images.forEach(img => {
                     if (img.dataset.src) imageObserver.observe(img);
                 });
 
-                // Счётчик страниц: узкая полоса в центре экрана определяет текущую страницу.
-                // Работает даже для lazy-загруженных изображений — не зависит от их высоты.
+                // Счётчик страниц через центральную 20%-ю полосу
                 const pageObserver = new IntersectionObserver((entries) => {
                     const intersecting = entries.filter(e => e.isIntersecting);
                     if (!intersecting.length) return;
-                    // Берём самое верхнее из видимых в центральной полосе
                     intersecting.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
                     const pageNum = parseInt(intersecting[0].target.dataset.page);
                     if (pageNum && pageNum !== currentPage) {
@@ -1258,58 +1212,38 @@
                     }
                 }, {
                     threshold: 0,
-                    // Центральная 20%-я полоса экрана: обрезаем 40% сверху и 40% снизу
                     rootMargin: '-40% 0px -40% 0px'
                 });
 
                 images.forEach(img => pageObserver.observe(img));
             }
         });
-        // ==================== ОТСЛЕЖИВАНИЕ ЗАВЕРШЕНИЯ ГЛАВЫ ====================
+
+        // ==================== ЗАВЕРШЕНИЕ ГЛАВЫ ====================
         window.addEventListener('scroll', () => {
-            const scrollPercentage = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
-            
-            // Если прочитано более 95% главы
-            if (scrollPercentage > 95 && currentPage === totalPages) {
-                // Можно здесь добавить логику автоперехода к следующей главе
-                // или показать уведомление
+            const pct = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+            if (pct > 95 && currentPage === totalPages) {
+                // Место для логики по завершению главы
             }
         }, { passive: true });
 
-        // ==================== ПРЕДЗАГРУЗКА СЛЕДУЮЩЕЙ ГЛАВЫ ====================
-        // Можно добавить предзагрузку для более быстрого перехода
-
-        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        // Шапка видна по умолчанию; скрывается при прокрутке вниз.
-
-
         // ==================== ЖЕСТЫ ДЛЯ МОБИЛЬНЫХ ====================
         let touchStartY = 0;
-        let touchEndY = 0;
 
         document.addEventListener('touchstart', (e) => {
             touchStartY = e.changedTouches[0].screenY;
         }, { passive: true });
 
         document.addEventListener('touchend', (e) => {
-            touchEndY = e.changedTouches[0].screenY;
-            handleSwipe();
-        }, { passive: true });
-
-        function handleSwipe() {
-            const swipeThreshold = 50;
-            const diff = touchStartY - touchEndY;
-
-            // Свайп вниз (палец вниз) - показать шапку с любого места
-            if (diff < -swipeThreshold) {
+            const diff = touchStartY - e.changedTouches[0].screenY;
+            if (diff < -50) {
                 header.classList.remove('hidden');
             }
-        }
+        }, { passive: true });
 
-        // ==================== ПОКАЗ ПОДСКАЗОК ПРИ ПЕРВОМ ИСПОЛЬЗОВАНИИ ====================
+        // ==================== ПОДСКАЗКА ПРИ ПЕРВОМ ПОСЕЩЕНИИ ====================
         window.addEventListener('load', () => {
-            const firstTime = !localStorage.getItem('reader_tips_shown');
-            if (firstTime) {
+            if (!localStorage.getItem('reader_tips_shown')) {
                 setTimeout(() => {
                     showTooltip('💡 Нажмите ⚙ для настроек читалки', 4000);
                     localStorage.setItem('reader_tips_shown', 'true');
@@ -1351,42 +1285,42 @@
             applyFit(readerSettings.fit);
             applyClickArea(readerSettings.clickarea);
 
-            document.getElementById('s-consecutive').checked = readerSettings.consecutive;
-            document.getElementById('s-pagenums').checked    = readerSettings.pagenums;
-            document.getElementById('s-width').value         = readerSettings.width;
-            document.getElementById('sv-width').textContent  = readerSettings.width + ' px';
-            document.getElementById('s-brightness').value    = readerSettings.brightness;
-            document.getElementById('sv-brightness').textContent = readerSettings.brightness + '%';
+            document.getElementById('s-consecutive').checked       = readerSettings.consecutive;
+            document.getElementById('s-pagenums').checked          = readerSettings.pagenums;
+            document.getElementById('s-width').value               = readerSettings.width;
+            document.getElementById('sv-width').textContent        = readerSettings.width + ' px';
+            document.getElementById('s-brightness').value          = readerSettings.brightness;
+            document.getElementById('sv-brightness').textContent   = readerSettings.brightness + '%';
 
             ['theme','menu','clickarea','fit','speed'].forEach(g => setActiveRadio(g, readerSettings[g]));
         }
 
         function applySetting(key, value) {
-            readerSettings[key] = key === 'width' || key === 'brightness' ? Number(value) : value;
+            readerSettings[key] = (key === 'width' || key === 'brightness') ? Number(value) : value;
             saveReaderSettings();
-            if (key === 'pagenums')    applyPageNums(value);
-            else if (key === 'width')  { applyWidth(value); document.getElementById('sv-width').textContent = value + ' px'; }
-            else if (key === 'brightness') { applyBrightness(value); document.getElementById('sv-brightness').textContent = value + '%'; }
+            if      (key === 'pagenums')    applyPageNums(value);
+            else if (key === 'width')       { applyWidth(value); document.getElementById('sv-width').textContent = value + ' px'; }
+            else if (key === 'brightness')  { applyBrightness(value); document.getElementById('sv-brightness').textContent = value + '%'; }
         }
 
         function setRadio(group, value, btn) {
             readerSettings[group] = value;
             saveReaderSettings();
             setActiveRadio(group, value);
-            if (group === 'theme')     applyTheme(value);
+            if      (group === 'theme')     applyTheme(value);
             else if (group === 'fit')       applyFit(value);
             else if (group === 'clickarea') applyClickArea(value);
         }
 
         function setActiveRadio(group, value) {
-            document.querySelectorAll(`[id^="sr-${group}-"]`).forEach(b => {
-                b.classList.toggle('active', b.id === `sr-${group}-${value}`);
+            document.querySelectorAll('[id^="sr-' + group + '-"]').forEach(b => {
+                b.classList.toggle('active', b.id === 'sr-' + group + '-' + value);
             });
         }
 
         // — Тема —
         function applyTheme(theme) {
-            document.body.classList.remove('theme-dark','theme-light');
+            document.body.classList.remove('theme-dark', 'theme-light');
             if (theme === 'system') {
                 document.body.classList.add(
                     window.matchMedia('(prefers-color-scheme: dark)').matches ? 'theme-dark' : 'theme-light'
@@ -1414,19 +1348,15 @@
         // — Вмещать изображения —
         function applyFit(fit) {
             document.querySelectorAll('.page-image').forEach(img => {
-                if (fit === 'height') {
-                    img.style.cssText = 'width:auto;max-width:100%;height:100vh;object-fit:contain;display:block;margin:0 auto;';
-                } else {
-                    img.style.cssText = '';
-                }
+                img.style.cssText = fit === 'height'
+                    ? 'width:auto;max-width:100%;height:100vh;object-fit:contain;display:block;margin:0 auto;'
+                    : '';
             });
         }
 
         // — Область переключения страниц —
-        let _clickZonesMode = 'off';
         function applyClickArea(mode) {
             document.querySelectorAll('.click-zone').forEach(z => z.remove());
-            _clickZonesMode = mode;
             if (mode === 'off') return;
 
             const scrollAmt = window.innerHeight * 0.88;
@@ -1441,7 +1371,6 @@
                 document.body.appendChild(left);
                 document.body.appendChild(right);
             } else if (mode === 'image') {
-                // Клик в пределах контейнера страниц
                 left.style.cssText  = 'position:absolute;top:0;left:0;width:25%;height:100%;z-index:10;cursor:pointer;';
                 right.style.cssText = 'position:absolute;top:0;right:0;width:25%;height:100%;z-index:10;cursor:pointer;';
                 const container = document.getElementById('pagesContainer');
@@ -1451,7 +1380,7 @@
             }
         }
 
-        // Применяем brightness к новым изображениям через CSS-переменную
+        // Применяем brightness через CSS-переменную
         (function addBrightnessStyle() {
             const st = document.createElement('style');
             st.textContent = '.page-image { filter: brightness(var(--img-brightness, 100%)); }';
@@ -1469,15 +1398,15 @@
                 overlay.classList.add('open');
             }
         }
+
         function closeSettings() {
             document.getElementById('settingsPanel').classList.remove('open');
             document.getElementById('settingsOverlay').classList.remove('open');
         }
 
-        // — Клик в центре для режима «только кликом» —
+        // — Клик по центру страницы в режиме «только кликом» —
         document.getElementById('pagesContainer').addEventListener('click', function(e) {
             if (readerSettings.menu !== 'click') return;
-            // Не реагируем на клики по зонам переключения страниц
             if (e.target.classList.contains('click-zone')) return;
             header.classList.toggle('hidden');
         });
@@ -1486,7 +1415,7 @@
         let autoScrollActive = false;
         let autoScrollRaf    = null;
         let autoScrollLast   = null;
-        const autoScrollSpeeds = { slow: 28, medium: 70, fast: 140 }; // px/s
+        const autoScrollSpeeds = { slow: 28, medium: 70, fast: 140 };
 
         function toggleAutoScroll() {
             autoScrollActive = !autoScrollActive;
@@ -1511,7 +1440,7 @@
             if (autoScrollLast === null) autoScrollLast = ts;
             const elapsed = ts - autoScrollLast;
             autoScrollLast = ts;
-            const speed   = autoScrollSpeeds[readerSettings.speed] || 28;
+            const speed = autoScrollSpeeds[readerSettings.speed] || 28;
             window.scrollBy(0, (speed * elapsed) / 1000);
 
             const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 4;
@@ -1521,6 +1450,7 @@
 
         // ==================== ВСЕ ГЛАВЫ ПОДРЯД ====================
         let _consecutiveTimer = null;
+
         function checkConsecutive() {
             if (!readerSettings.consecutive) return;
             const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 30;
@@ -1533,7 +1463,7 @@
             }
         }
 
-        // ==================== ИНИЦИАЛИЗАЦИЯ НАСТРОЕК ====================
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         document.addEventListener('DOMContentLoaded', function() {
             loadReaderSettings();
             applyAllSettings();
