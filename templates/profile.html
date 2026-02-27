@@ -222,7 +222,7 @@
       <a href="/logout" class="nav-btn">Выйти</a>
       {% else %}
       <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span>🤖</span><span>Войти</span>
+        <span></span><span>Войти</span>
       </a>
       {% endif %}
     </nav>
@@ -348,12 +348,12 @@ function EditPanel({profile,onSaved}){
       h('p',{style:{color:'#71717a',fontSize:'.8rem',marginBottom:'.5rem'}},
         'Слот аватара и фона покупаются в Магазине'),
       h('label',{className:'upload-btn'},
-        '📷 Загрузить аватар',
+        ' Загрузить аватар',
         h('input',{type:'file',ref:avatarRef,accept:'image/*',onChange:()=>upload(avatarRef,'/upload/avatar')})
       ),
       h('br'),
       h('label',{className:'upload-btn',style:{marginTop:'.5rem'}},
-        '🌆 Загрузить фон профиля',
+        ' Загрузить фон профиля',
         h('input',{type:'file',ref:bgRef,accept:'image/*',onChange:()=>upload(bgRef,'/upload/background')})
       )
     )

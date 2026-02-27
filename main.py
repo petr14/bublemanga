@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response, make_response
@@ -33,7 +34,17 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(32)
+
+# Постоянный secret_key — читаем из файла, чтобы сессии не сбрасывались при рестарте
+_SECRET_KEY_FILE = os.path.join(os.path.dirname(__file__), '.secret_key')
+if os.path.exists(_SECRET_KEY_FILE):
+    with open(_SECRET_KEY_FILE, 'r') as _f:
+        app.secret_key = _f.read().strip()
+else:
+    app.secret_key = secrets.token_hex(32)
+    with open(_SECRET_KEY_FILE, 'w') as _f:
+        _f.write(app.secret_key)
+
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['COMPRESS_MIMETYPES'] = [
     'text/html', 'text/css', 'application/json',
@@ -332,7 +343,6 @@ def get_db():
 # ==================== ГЕЙМИФИКАЦИЯ: XP / УРОВНИ / АЧИВКИ ====================
 
 import math
-import os
 from werkzeug.utils import secure_filename
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
@@ -678,13 +688,18 @@ def parse_spotlight_data(spotlight_edge):
         save_manga_from_spotlight(parsed_manga)
         parsed_mangas.append(parsed_manga)
     
-    return {
+    result = {
         'id': spotlight_id,
         'ru_title': ru_title,
         'en_title': en_title,
         'title': ru_title or en_title or f"Блок {spotlight_id}",
         'mangas': parsed_mangas
     }
+    logger.info(
+        f"[parse_spotlight] id={spotlight_id} ru={ru_title!r} en={en_title!r} "
+        f"mangas={len(parsed_mangas)}"
+    )
+    return result
 
 def save_manga_from_spotlight(manga_data):
     """Сохранить мангу из спотлайта в БД"""
@@ -815,39 +830,35 @@ def get_cached_spotlights(ttl_seconds=3600):
         
         # Соопостав спотлайты по названиям
         for spotlight in all_spotlights:
-            title = spotlight.get('title', '').lower()
-            ru_title = spotlight.get('ru_title', '').lower()
-            
+            title = (spotlight.get('title') or '').lower()
+            ru_title = (spotlight.get('ru_title') or '').lower()
+
             if any(keyword in title or keyword in ru_title for keyword in ['последние манги', 'last manga']):
                 spotlights_by_type['last_manga'] = spotlight
+                logger.info(f"[categorize] id={spotlight.get('id')} → last_manga (title={spotlight.get('title')!r})")
             elif any(keyword in title or keyword in ru_title for keyword in ['популярные новинки', 'new popular']):
                 spotlights_by_type['popular_new'] = spotlight
+                logger.info(f"[categorize] id={spotlight.get('id')} → popular_new (title={spotlight.get('title')!r})")
             elif any(keyword in title or keyword in ru_title for keyword in ['топ манхв', 'top manhwa']):
                 spotlights_by_type['top_manhwa'] = spotlight
-            elif any(keyword in title or keyword in ru_title for keyword in ['топ манхуа', 'top manhua']):
+                logger.info(f"[categorize] id={spotlight.get('id')} → top_manhwa (title={spotlight.get('title')!r})")
+            elif any(keyword in title or keyword in ru_title for keyword in ['топ манхуа', 'топ маньхуа', 'top manhua']):
                 spotlights_by_type['top_manhua'] = spotlight
+                logger.info(f"[categorize] id={spotlight.get('id')} → top_manhua (title={spotlight.get('title')!r})")
             elif any(keyword in title or keyword in ru_title for keyword in ['топ манг', 'top manga']):
                 spotlights_by_type['top_manga'] = spotlight
+                logger.info(f"[categorize] id={spotlight.get('id')} → top_manga (title={spotlight.get('title')!r})")
             elif any(keyword in title or keyword in ru_title for keyword in ['самое читаемое', 'most read']):
                 spotlights_by_type['most_read'] = spotlight
+                logger.info(f"[categorize] id={spotlight.get('id')} → most_read (title={spotlight.get('title')!r})")
             elif any(keyword in title or keyword in ru_title for keyword in ['последние обновления', 'latest updates']):
                 spotlights_by_type['latest_updates'] = spotlight
+                logger.info(f"[categorize] id={spotlight.get('id')} → latest_updates (title={spotlight.get('title')!r})")
             elif any(keyword in title or keyword in ru_title for keyword in ['лейблы', 'labels', 'жанры', 'genres']):
                 spotlights_by_type['genres'] = spotlight
-        
-        # Если каких-то спотлайтов нет, создаем заглушки
-        for key in spotlights_by_type:
-            if spotlights_by_type[key] is None:
-                # Используем первый спотлайт как заглушку
-                if all_spotlights:
-                    spotlights_by_type[key] = all_spotlights[0]
-                else:
-                    # Создаем пустой спотлайт
-                    spotlights_by_type[key] = {
-                        'id': key,
-                        'title': key.replace('_', ' ').title(),
-                        'mangas': []
-                    }
+                logger.info(f"[categorize] id={spotlight.get('id')} → genres (title={spotlight.get('title')!r})")
+            else:
+                logger.warning(f"[categorize] id={spotlight.get('id')} → НЕ РАСПОЗНАН (title={spotlight.get('title')!r}, ru={spotlight.get('ru_title')!r})")
         
         # Получаем "Самое читаемое" отдельно (если не нашли в спотлайтах)
         if spotlights_by_type['most_read'] is None or not spotlights_by_type['most_read']['mangas']:
@@ -1382,7 +1393,7 @@ def get_recent_chapters_from_api(limit=21):
                 'chapter_volume': latest_chapter.get('volume'),
                 'chapter_name': latest_chapter.get('name'),
                 'created_at': latest_chapter.get('createdAt'),
-                'chapter_url': f"http://144.31.49.103:5000/read/{manga_slug}/{latest_chapter.get('slug')}"
+                'chapter_url': f"http://91.196.34.216/read/{manga_slug}/{latest_chapter.get('slug')}"
             }
             
             recent_chapters.append(chapter_data)
@@ -1568,7 +1579,7 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
     chapter_volume = chapter_info.get("volume")
     chapter_name = chapter_info.get("name")
     chapter_id = chapter_info.get("id")
-    chapter_url = f"http://144.31.49.103:5000/read/{manga_slug}/{chapter_slug}"
+    chapter_url = f"http://91.196.34.216/read/{manga_slug}/{chapter_slug}"
 
     pages = get_chapter_pages(chapter_slug)
     if not pages:
@@ -1705,8 +1716,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Ошибка регистрации. Попробуйте позже.")
         return
     
-    login_url = f"http://144.31.49.103:5000/login/{user['login_token']}"
-    webapp_url = f"http://144.31.49.103:5000"
+    login_url = f"http://91.196.34.216/login/{user['login_token']}"
+    webapp_url = f"http://91.196.34.216"
     
     keyboard = [
         [InlineKeyboardButton("🌐 Открыть сайт", url=webapp_url)],
@@ -1785,7 +1796,7 @@ async def handle_search_message(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard.append([
         InlineKeyboardButton(
             "🌐 Открыть все результаты на сайте",
-            url=f"http://144.31.49.103:5000/search?q={query}"
+            url=f"http://91.196.34.216/search?q={query}"
         )
     ])
     
@@ -1867,7 +1878,7 @@ async def my_subscriptions_callback(update: Update, context: ContextTypes.DEFAUL
     
     keyboard.append([
         InlineKeyboardButton("🌐 Открыть на сайте", 
-                           url=f"http://144.31.49.103:5000/login/{user['login_token']}")
+                           url=f"http://91.196.34.216/login/{user['login_token']}")
     ])
     keyboard.append([
         InlineKeyboardButton("◀️ Назад", callback_data="back_to_start")
@@ -1910,8 +1921,8 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text("❌ Ошибка пользователя")
         return
     
-    login_url = f"http://144.31.49.103:5000/login/{user['login_token']}"
-    webapp_url = f"http://144.31.49.103:5000"
+    login_url = f"http://91.196.34.216/login/{user['login_token']}"
+    webapp_url = f"http://91.196.34.216"
     
     keyboard = [
         [InlineKeyboardButton("🌐 Открыть сайт", url=webapp_url)],
@@ -2054,7 +2065,19 @@ def api_home_popular():
     period = request.args.get('period', 'MONTH').upper()
     if period not in ('DAY', 'WEEK', 'MONTH'):
         period = 'MONTH'
-    data = get_popular_manga_from_api(period, 12)
+    raw = get_popular_manga_from_api(period, 12)
+    # Нормализуем поля под формат, который ожидает buildSliderItems на фронте
+    data = [
+        {
+            'id':        m.get('manga_id'),
+            'slug':      m.get('manga_slug'),
+            'title':     m.get('manga_title'),
+            'cover_url': m.get('cover_url'),
+            'score':     m.get('score', 0),
+            'type':      'MANGA',
+        }
+        for m in raw
+    ]
     resp = make_response(jsonify(data))
     resp.headers['Cache-Control'] = 'public, max-age=600'
     return resp
@@ -2251,7 +2274,7 @@ def read_chapter(manga_slug, chapter_slug):
             'manga_slug': manga_slug_db,  # Используем manga_slug из БД
             'pages_json': json.dumps(page_urls),
             'pages': page_urls,
-            'chapter_url': f"http://144.31.49.103:5000/read/{manga_slug_db}/{chapter_slug}"
+            'chapter_url': f"http://91.196.34.216/read/{manga_slug_db}/{chapter_slug}"
         }
         
         # Показываем главу без сохранения в БД
@@ -2997,6 +3020,6 @@ if __name__ == "__main__":
     # Запуск Telegram бота (теперь он сам создает поток)
     run_telegram_bot()
     
-    print("🌐 Веб-сервер запущен на http://144.31.49.103:5000")
+    print("🌐 Веб-сервер запущен на http://91.196.34.216")
     app.run(debug=True, use_reloader=False,
-            host='0.0.0.0', port=5500)
+            host='0.0.0.0', port=80)

@@ -25,17 +25,17 @@
             --success: #22c55e;
             --warning: #fbbf24;
             --bg-dark: #0a0a0a;
-            --bg-card: #141414;
-            --bg-hover: #1f1f1f;
+            --bg-card: #111118;
+            --bg-hover: #1a1a24;
             --text-primary: #ffffff;
             --text-secondary: #a1a1aa;
-            --border: rgba(255, 255, 255, 0.1);
+            --border: rgba(255, 255, 255, 0.07);
+            --border-accent: rgba(99, 102, 241, 0.3);
             --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
             --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
             --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
             --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             --gradient-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             --gradient-pink: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
         }
@@ -50,7 +50,6 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* ==================== УЛУЧШЕННЫЙ АНИМИРОВАННЫЙ ФОН ==================== */
         .animated-bg {
             position: fixed;
             top: 0;
@@ -80,12 +79,7 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: linear-gradient(
-                45deg,
-                transparent 30%,
-                rgba(102, 126, 234, 0.03) 50%,
-                transparent 70%
-            );
+            background: linear-gradient(45deg, transparent 30%, rgba(102, 126, 234, 0.03) 50%, transparent 70%);
             animation: bgRotate 20s linear infinite;
         }
 
@@ -100,7 +94,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* ==================== УЛУЧШЕННАЯ ШАПКА С GLASSMORPHISM ==================== */
+        /* HEADER */
         .header {
             position: fixed;
             top: 0;
@@ -115,8 +109,7 @@
 
         .header.scrolled {
             background: rgba(10, 10, 10, 0.95);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6),
-                        0 0 80px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 80px rgba(102, 126, 234, 0.1);
             border-bottom-color: rgba(102, 126, 234, 0.2);
         }
 
@@ -159,9 +152,7 @@
             transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .logo:hover::after {
-            width: 100%;
-        }
+        .logo:hover::after { width: 100%; }
 
         .logo-icon {
             font-size: 26px;
@@ -174,7 +165,6 @@
             50% { transform: translateY(-3px) rotate(5deg); }
         }
 
-        /* Десктопная навигация */
         .nav {
             display: none;
             gap: 30px;
@@ -204,30 +194,9 @@
             transition: width 0.3s ease;
         }
 
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            inset: -8px;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-            border-radius: 12px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-        }
+        .nav-link:hover { color: var(--text-primary); }
+        .nav-link:hover::before { width: 100%; }
 
-        .nav-link:hover {
-            color: var(--text-primary);
-        }
-
-        .nav-link:hover::before {
-            width: 100%;
-        }
-
-        .nav-link:hover::after {
-            opacity: 1;
-        }
-
-        /* Мобильное меню */
         .mobile-menu-btn {
             background: none;
             border: none;
@@ -242,9 +211,7 @@
             transition: transform 0.3s ease;
         }
 
-        .mobile-menu-btn:active {
-            transform: scale(0.9);
-        }
+        .mobile-menu-btn:active { transform: scale(0.9); }
 
         .mobile-nav {
             position: fixed;
@@ -257,8 +224,7 @@
             padding: 0;
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
-                        padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 999;
         }
 
@@ -282,16 +248,9 @@
             background: rgba(255, 255, 255, 0.02);
         }
 
-        .mobile-nav-link:last-child {
-            margin-bottom: 0;
-        }
+        .mobile-nav-link:last-child { margin-bottom: 0; }
+        .mobile-nav-link:active { background: rgba(102, 126, 234, 0.15); transform: translateX(8px); }
 
-        .mobile-nav-link:active {
-            background: rgba(102, 126, 234, 0.15);
-            transform: translateX(8px);
-        }
-
-        /* УЛУЧШЕННЫЙ ПОИСК */
         .search-box {
             flex: 1;
             order: 4;
@@ -311,16 +270,13 @@
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .search-input::placeholder {
-            color: var(--text-secondary);
-        }
+        .search-input::placeholder { color: var(--text-secondary); }
 
         .search-input:focus {
             outline: none;
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(102, 126, 234, 0.6);
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1),
-                        0 8px 24px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 8px 24px rgba(102, 126, 234, 0.2);
             transform: translateY(-1px);
         }
 
@@ -341,16 +297,9 @@
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
-        .search-button:hover {
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-            transform: translateY(-50%) scale(1.05);
-        }
+        .search-button:hover { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); transform: translateY(-50%) scale(1.05); }
+        .search-button:active { transform: translateY(-50%) scale(0.95); }
 
-        .search-button:active {
-            transform: translateY(-50%) scale(0.95);
-        }
-
-        /* УЛУЧШЕННЫЕ КНОПКИ */
         .btn-primary {
             padding: 10px 20px;
             background: var(--gradient-primary);
@@ -385,26 +334,12 @@
             transition: width 0.6s, height 0.6s;
         }
 
-        .btn-primary:hover::before {
-            width: 300px;
-            height: 300px;
-        }
+        .btn-primary:hover::before { width: 300px; height: 300px; }
+        .btn-primary:hover { box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5); transform: translateY(-2px); }
+        .btn-primary:active { transform: translateY(0) scale(0.95); }
+        .btn-primary span { position: relative; z-index: 1; }
 
-        .btn-primary:hover {
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0) scale(0.95);
-        }
-
-        .btn-primary span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ==================== УЛУЧШЕННАЯ ГЛАВНАЯ СЕКЦИЯ ==================== */
+        /* HERO */
         .hero {
             margin-top: 72px;
             min-height: auto;
@@ -417,23 +352,15 @@
 
         .hero-background {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15) 0%, transparent 50%), radial-gradient(ellipse at bottom, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
             z-index: 0;
         }
 
         .hero-background::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23667eea' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
             opacity: 0.5;
             animation: patternMove 30s linear infinite;
@@ -471,7 +398,6 @@
             background-clip: text;
             text-align: center;
             letter-spacing: -1px;
-            text-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
         }
 
         .hero-highlight {
@@ -497,12 +423,7 @@
             text-align: center;
         }
 
-        .hero-buttons {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+        .hero-buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
         .btn-secondary {
             padding: 10px 20px;
@@ -532,24 +453,10 @@
             transition: opacity 0.4s ease;
         }
 
-        .btn-secondary:hover::before {
-            opacity: 0.1;
-        }
-
-        .btn-secondary:hover {
-            border-color: rgba(102, 126, 234, 0.5);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
-        }
-
-        .btn-secondary:active {
-            transform: scale(0.95);
-        }
-
-        .btn-secondary span {
-            position: relative;
-            z-index: 1;
-        }
+        .btn-secondary:hover::before { opacity: 0.1; }
+        .btn-secondary:hover { border-color: rgba(102, 126, 234, 0.5); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2); }
+        .btn-secondary:active { transform: scale(0.95); }
+        .btn-secondary span { position: relative; z-index: 1; }
 
         .hero-image {
             position: relative;
@@ -568,9 +475,7 @@
             transition: transform 0.3s ease;
         }
 
-        .hero-character:hover {
-            transform: scale(1.05);
-        }
+        .hero-character:hover { transform: scale(1.05); }
 
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
@@ -578,39 +483,18 @@
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes fadeInRight {
-            from {
-                opacity: 0;
-                transform: translateX(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
-        /* ==================== КОНТЕЙНЕР ==================== */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
 
-        /* ==================== УЛУЧШЕННАЯ СЕКЦИЯ ==================== */
-        .section {
-            padding: 80px 0;
-            position: relative;
-        }
+        .section { padding: 80px 0; position: relative; }
 
         .section-header {
             text-align: center;
@@ -656,10 +540,10 @@
             line-height: 1.7;
         }
 
-        /* ==================== УЛУЧШЕННЫЕ ВКЛАДКИ ==================== */
+        /* TABS */
         .tabs {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             justify-content: flex-start;
             margin-bottom: 40px;
             flex-wrap: nowrap;
@@ -670,61 +554,41 @@
             padding: 0 20px;
         }
 
-        .tabs::-webkit-scrollbar {
-            display: none;
-        }
+        .tabs::-webkit-scrollbar { display: none; }
 
         .tab {
-            padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 22px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
             border-radius: 50px;
             color: var(--text-secondary);
             font-weight: 600;
             font-size: 13px;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
             flex-shrink: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .tab::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
         }
 
         .tab:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(102, 126, 234, 0.3);
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.07);
+            border-color: var(--border-accent);
+            color: rgba(255,255,255,0.8);
         }
 
         .tab.active {
             background: var(--gradient-primary);
             border-color: transparent;
             color: white;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
         }
 
-        .tab span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ==================== УЛУЧШЕННАЯ СЕТКА МАНГИ ==================== */
+        /* ==================== MANGA GRID ==================== */
         .manga-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            animation: fadeIn 0.8s ease-out;
+            gap: 16px;
+            animation: fadeIn 0.6s ease-out;
         }
 
         @keyframes fadeIn {
@@ -732,288 +596,267 @@
             to { opacity: 1; }
         }
 
+        /* Карточка манги — полный редизайн */
         .manga-card {
             background: var(--bg-card);
-            border-radius: 20px;
+            border-radius: 16px;
             overflow: hidden;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.35s ease, border-color 0.3s ease;
             position: relative;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-        }
-
-        .manga-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-            border-radius: 20px;
-        }
-
-        .manga-card:hover::before {
-            opacity: 0.1;
+            border: 1px solid var(--border);
         }
 
         .manga-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
-            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(99, 102, 241, 0.2);
+            border-color: var(--border-accent);
         }
 
         .manga-card:active {
-            transform: translateY(-4px) scale(0.98);
+            transform: translateY(-3px) scale(0.98);
         }
 
-        .manga-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            padding: 6px 14px;
-            background: var(--gradient-primary);
-            border-radius: 50px;
-            font-size: 11px;
-            font-weight: 700;
-            z-index: 2;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            animation: badgePulse 2s ease-in-out infinite;
-        }
-
-        @keyframes badgePulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
+        /* Обложка */
         .manga-cover-container {
             position: relative;
             overflow: hidden;
-            aspect-ratio: 3/4;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            aspect-ratio: 2/3;
         }
 
         .manga-cover {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            display: block;
+            transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: #111118;
         }
 
         .manga-card:hover .manga-cover {
-            transform: scale(1.15);
+            transform: scale(1.08);
         }
 
+        /* Затемнение снизу */
+        .manga-cover-container::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40%;
+            background: linear-gradient(to top, rgba(10,10,15,0.85) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        /* Бейдж */
+        .manga-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 10px;
+            background: rgba(10, 10, 15, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #a5b4fc;
+            z-index: 2;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        /* Нижняя информация */
         .manga-info {
-            padding: 16px;
-            position: relative;
-            z-index: 1;
-            background: linear-gradient(to top, rgba(20, 20, 20, 0.95), rgba(20, 20, 20, 0.8));
+            padding: 12px 14px 14px;
+            background: var(--bg-card);
         }
 
         .manga-title {
-            font-weight: 700;
-            font-size: 14px;
+            font-weight: 600;
+            font-size: 13px;
             margin-bottom: 8px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            line-height: 1.4;
-            min-height: 2.8em;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.92);
         }
 
         .manga-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-secondary);
+            gap: 6px;
         }
 
         .manga-type {
-            padding: 4px 12px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 12px;
+            padding: 3px 10px;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 6px;
             font-weight: 600;
-            font-size: 11px;
+            font-size: 10px;
+            color: #a5b4fc;
+            letter-spacing: 0.03em;
         }
 
-        /* ==================== УЛУЧШЕННЫЙ СЛАЙДЕР ==================== */
+        /* ==================== SLIDER ==================== */
         .slider-container {
             position: relative;
             overflow: hidden;
             margin: 0 -20px;
-            padding: 15px 20px;
+            padding: 10px 20px 20px;
         }
 
         .slider {
             display: flex;
-            gap: 20px;
+            gap: 14px;
             overflow-x: auto;
             scroll-behavior: smooth;
             scrollbar-width: none;
             -ms-overflow-style: none;
             -webkit-overflow-scrolling: touch;
             scroll-snap-type: x mandatory;
-            padding: 5px;
+            padding: 4px 2px 8px;
         }
 
-        .slider::-webkit-scrollbar {
-            display: none;
-        }
+        .slider::-webkit-scrollbar { display: none; }
 
+        /* Элемент слайдера */
         .slider-item {
-            min-width: 160px;
+            min-width: 150px;
             background: var(--bg-card);
-            border-radius: 20px;
+            border-radius: 14px;
             overflow: hidden;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+            border: 1px solid var(--border);
             scroll-snap-align: start;
             flex-shrink: 0;
-            position: relative;
-        }
-
-        .slider-item::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-            border-radius: 20px;
-        }
-
-        .slider-item:hover::before {
-            opacity: 0.1;
         }
 
         .slider-item:hover {
-            transform: scale(1.05) translateY(-8px);
-            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
-            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.2);
+            border-color: var(--border-accent);
         }
 
-        .slider-item:active {
-            transform: scale(0.98);
+        .slider-item:active { transform: translateY(-3px) scale(0.97); }
+
+        .slider-item .manga-cover-container { aspect-ratio: 2/3; }
+
+        .slider-item .manga-info { padding: 10px 12px 12px; }
+
+        .slider-item .manga-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            -webkit-line-clamp: 2;
         }
 
-        /* ==================== УЛУЧШЕННЫЙ СПИСОК ОБНОВЛЕНИЙ ==================== */
+        /* ==================== UPDATES LIST ==================== */
         .updates-list {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 8px;
         }
 
         .update-item {
             background: var(--bg-card);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 16px;
+            border-radius: 14px;
+            padding: 12px 14px;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 14px;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.25s ease, border-color 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+            border: 1px solid var(--border);
             position: relative;
             overflow: hidden;
         }
 
+        /* Акцентная линия слева */
         .update-item::before {
             content: '';
             position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #667eea, #764ba2);
+            border-radius: 3px 0 0 3px;
             opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-        }
-
-        .update-item:hover::before {
-            opacity: 0.08;
+            transition: opacity 0.25s ease;
         }
 
         .update-item:hover {
             background: var(--bg-hover);
-            transform: translateX(8px) scale(1.02);
-            border-color: rgba(102, 126, 234, 0.3);
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+            border-color: var(--border-accent);
+            transform: translateX(5px);
         }
 
-        .update-item:active {
-            transform: translateX(4px) scale(0.98);
-        }
+        .update-item:hover::before { opacity: 1; }
+        .update-item:active { transform: translateX(2px) scale(0.99); }
 
         .update-cover {
-            width: 60px;
-            height: 85px;
+            width: 52px;
+            height: 72px;
             object-fit: cover;
-            border-radius: 12px;
+            border-radius: 8px;
             flex-shrink: 0;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            background: #111118;
         }
 
         .update-info {
             flex: 1;
             min-width: 0;
-            position: relative;
-            z-index: 1;
         }
 
         .update-title {
-            font-weight: 700;
-            font-size: 14px;
-            margin-bottom: 4px;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 3px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: rgba(255,255,255,0.9);
         }
 
         .update-chapter {
             color: var(--text-secondary);
             font-size: 12px;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .update-time {
-            color: #4facfe;
+            color: #6366f1;
             font-size: 11px;
             font-weight: 600;
             display: inline-block;
-            padding: 4px 10px;
-            background: rgba(79, 172, 254, 0.1);
-            border-radius: 8px;
+            padding: 3px 8px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 6px;
         }
 
         .update-type {
-            padding: 6px 14px;
-            border-radius: 50px;
-            font-size: 11px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 10px;
             font-weight: 700;
-            background: var(--gradient-primary);
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: #a5b4fc;
             white-space: nowrap;
             flex-shrink: 0;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
 
-        /* ==================== УЛУЧШЕННАЯ CTA СЕКЦИЯ ==================== */
+        /* ==================== CTA ==================== */
         .cta-section {
             padding: 100px 20px;
             text-align: center;
@@ -1023,12 +866,9 @@
 
         .cta-background {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: var(--gradient-primary);
-            opacity: 0.15;
+            opacity: 0.12;
             z-index: 0;
         }
 
@@ -1040,12 +880,7 @@
             animation: patternMove 40s linear infinite;
         }
 
-        .cta-content {
-            position: relative;
-            z-index: 1;
-            max-width: 800px;
-            margin: 0 auto;
-        }
+        .cta-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
 
         .cta-title {
             font-size: 36px;
@@ -1066,7 +901,7 @@
             line-height: 1.7;
         }
 
-        /* ==================== УЛУЧШЕННЫЙ ПОДВАЛ ==================== */
+        /* FOOTER */
         .footer {
             background: linear-gradient(to bottom, #0a0a0a 0%, #050505 100%);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -1077,17 +912,12 @@
         .footer::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.5), transparent);
         }
 
-        .footer-container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+        .footer-container { max-width: 1400px; margin: 0 auto; }
 
         .footer-grid {
             display: grid;
@@ -1096,9 +926,7 @@
             margin-bottom: 40px;
         }
 
-        .footer-brand {
-            text-align: center;
-        }
+        .footer-brand { text-align: center; }
 
         .footer-logo {
             font-size: 24px;
@@ -1111,16 +939,9 @@
             display: inline-block;
         }
 
-        .footer-description {
-            color: var(--text-secondary);
-            font-size: 14px;
-            line-height: 1.7;
-            margin-bottom: 24px;
-        }
+        .footer-description { color: var(--text-secondary); font-size: 14px; line-height: 1.7; margin-bottom: 24px; }
 
-        .footer-column {
-            text-align: center;
-        }
+        .footer-column { text-align: center; }
 
         .footer-column h4 {
             font-size: 16px;
@@ -1143,13 +964,8 @@
             border-radius: 2px;
         }
 
-        .footer-links {
-            list-style: none;
-        }
-
-        .footer-links li {
-            margin-bottom: 12px;
-        }
+        .footer-links { list-style: none; }
+        .footer-links li { margin-bottom: 12px; }
 
         .footer-links a {
             color: var(--text-secondary);
@@ -1163,25 +979,15 @@
         .footer-links a::before {
             content: '';
             position: absolute;
-            bottom: -2px;
-            left: 0;
+            bottom: -2px; left: 0;
             width: 0;
             height: 2px;
             background: var(--gradient-primary);
             transition: width 0.3s ease;
         }
 
-        .footer-links a:hover::before {
-            width: 100%;
-        }
-
-        .footer-links a:hover {
-            color: var(--text-primary);
-        }
-
-        .footer-links a:active {
-            transform: scale(0.95);
-        }
+        .footer-links a:hover::before { width: 100%; }
+        .footer-links a:hover { color: var(--text-primary); }
 
         .footer-bottom {
             padding-top: 30px;
@@ -1191,72 +997,46 @@
             font-size: 13px;
         }
 
-        /* ==================== УЛУЧШЕННАЯ КНОПКА "ПОКАЗАТЬ ЕЩЕ" ==================== */
+        /* SHOW MORE */
         .show-more-btn {
             display: block;
-            margin: 40px auto 0;
-            padding: 14px 36px;
-            background: rgba(102, 126, 234, 0.1);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(102, 126, 234, 0.3);
+            margin: 32px auto 0;
+            padding: 12px 32px;
+            background: transparent;
+            border: 1px solid var(--border-accent);
             border-radius: 50px;
-            color: #667eea;
+            color: #a5b4fc;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             width: calc(100% - 40px);
-            max-width: 320px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .show-more-btn::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .show-more-btn:hover::before {
-            opacity: 0.15;
+            max-width: 300px;
+            letter-spacing: 0.02em;
         }
 
         .show-more-btn:hover {
-            border-color: rgba(102, 126, 234, 0.6);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.15);
         }
 
-        .show-more-btn:active {
-            transform: scale(0.97);
-        }
+        .show-more-btn:active { transform: scale(0.97); }
 
-        .show-more-btn span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ==================== СКРЫТЫЕ ЭЛЕМЕНТЫ ==================== */
+        /* HIDDEN */
         .manga-card.hidden,
         .slider-item.hidden,
-        .update-item.hidden {
-            display: none;
-        }
+        .update-item.hidden { display: none; }
 
-        .manga-grid.limited .manga-card:nth-child(n+7) {
-            display: none;
-        }
+        .manga-grid.limited .manga-card:nth-child(n+7) { display: none; }
 
-        /* ==================== УЛУЧШЕННАЯ КНОПКА "НАВЕРХ" ==================== */
+        /* SCROLL TOP */
         .scroll-top {
             position: fixed;
             bottom: 30px;
             right: 30px;
-            width: 56px;
-            height: 56px;
+            width: 48px;
+            height: 48px;
             background: var(--gradient-primary);
             border-radius: 50%;
             display: flex;
@@ -1267,397 +1047,55 @@
             visibility: hidden;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 999;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
         }
 
-        .scroll-top::before {
-            content: '';
-            position: absolute;
-            inset: -3px;
-            background: var(--gradient-primary);
-            border-radius: 50%;
-            opacity: 0;
-            filter: blur(10px);
-            transition: opacity 0.4s ease;
+        .scroll-top.visible { opacity: 1; visibility: visible; }
+        .scroll-top:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.45); }
+        .scroll-top:active { transform: scale(0.93); }
+        .scroll-top span { font-size: 20px; }
+
+        /* SKELETON */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
         }
 
-        .scroll-top:hover::before {
-            opacity: 0.6;
-        }
-
-        .scroll-top.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .scroll-top:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
-        }
-
-        .scroll-top:active {
-            transform: translateY(-2px) scale(0.95);
-        }
-
-        .scroll-top span {
-            position: relative;
-            z-index: 1;
-            font-size: 24px;
-            animation: arrowBounce 2s ease-in-out infinite;
-        }
-
-        @keyframes arrowBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
-        }
-
-        /* ==================== АНИМАЦИЯ ЗАГРУЗКИ ==================== */
-        .skeleton {
-            background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+        .skeleton-line {
+            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
             background-size: 200% 100%;
-            animation: loading 1.5s ease-in-out infinite;
+            animation: shimmer 1.4s infinite;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
 
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        .skeleton-slider-card {
+            flex: 0 0 150px;
+            height: 225px;
+            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 14px;
         }
 
-        /* ==================== УЛУЧШЕННЫЙ СКРОЛЛБАР ==================== */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+        .skeleton-update-item {
+            height: 72px;
+            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 14px;
+            margin-bottom: 8px;
         }
 
-        ::-webkit-scrollbar-track {
-            background: var(--bg-dark);
+        .skeleton-manga-card {
+            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 14px;
+            aspect-ratio: 2/3;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 10px;
-            border: 2px solid var(--bg-dark);
-            transition: background 0.3s ease;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-        }
-
-        ::-webkit-scrollbar-corner {
-            background: var(--bg-dark);
-        }
-
-        /* ==================== АДАПТИВНОСТЬ ДЛЯ ПЛАНШЕТОВ ==================== */
-        @media (min-width: 600px) and (max-width: 1023px) {
-            .manga-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 24px;
-            }
-
-            .hero-title {
-                font-size: 44px;
-            }
-
-            .hero-subtitle {
-                font-size: 17px;
-            }
-
-            .section-title {
-                font-size: 36px;
-            }
-
-            .slider-item {
-                min-width: 180px;
-            }
-        }
-
-        /* ==================== АДАПТИВНОСТЬ ДЛЯ ДЕСКТОПА ==================== */
-        @media (min-width: 1024px) {
-            .header-container {
-                padding: 20px 40px;
-                flex-wrap: nowrap;
-            }
-
-            .logo {
-                font-size: 28px;
-                gap: 10px;
-            }
-
-            .logo-icon {
-                font-size: 32px;
-            }
-
-            .nav {
-                display: flex;
-            }
-
-            .mobile-menu-btn {
-                display: none;
-            }
-
-            .search-box {
-                max-width: 500px;
-                order: initial;
-                width: auto;
-            }
-
-            .search-input {
-                padding: 14px 120px 14px 24px;
-                font-size: 15px;
-            }
-
-            .search-button {
-                padding: 10px 24px;
-                font-size: 14px;
-            }
-
-            .btn-primary {
-                padding: 12px 28px;
-                font-size: 14px;
-                order: initial;
-            }
-
-            .hero {
-                margin-top: 80px;
-                min-height: 90vh;
-                padding: 100px 40px;
-            }
-
-            .hero-container {
-                grid-template-columns: 1fr 1fr;
-                gap: 100px;
-            }
-
-            .hero-content {
-                order: initial;
-            }
-
-            .hero-image {
-                order: initial;
-                max-width: 100%;
-            }
-
-            .hero-title {
-                font-size: 80px;
-                text-align: left;
-                margin-bottom: 30px;
-            }
-
-            .hero-subtitle {
-                font-size: 20px;
-                text-align: left;
-                margin-bottom: 40px;
-            }
-
-            .hero-buttons {
-                justify-content: flex-start;
-                gap: 20px;
-            }
-
-            .btn-secondary {
-                padding: 12px 28px;
-                font-size: 14px;
-            }
-
-            .container {
-                padding: 0 40px;
-            }
-
-            .section {
-                padding: 120px 0;
-            }
-
-            .section-header {
-                margin-bottom: 70px;
-            }
-
-            .section-tag {
-                font-size: 13px;
-                padding: 10px 24px;
-                margin-bottom: 24px;
-            }
-
-            .section-title {
-                font-size: 52px;
-                margin-bottom: 20px;
-            }
-
-            .section-description {
-                font-size: 18px;
-                padding: 0;
-            }
-
-            .tabs {
-                gap: 16px;
-                margin-bottom: 60px;
-                padding: 0;
-                justify-content: center;
-                overflow-x: visible;
-            }
-
-            .tab {
-                padding: 14px 32px;
-                font-size: 14px;
-            }
-
-            .manga-grid {
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-                gap: 32px;
-            }
-
-            .manga-card {
-                border-radius: 24px;
-            }
-
-            .manga-badge {
-                top: 16px;
-                right: 16px;
-                padding: 8px 16px;
-                font-size: 12px;
-            }
-
-            .manga-info {
-                padding: 20px;
-            }
-
-            .manga-title {
-                font-size: 16px;
-                line-height: 1.4;
-                min-height: auto;
-            }
-
-            .manga-meta {
-                font-size: 13px;
-            }
-
-            .manga-type {
-                padding: 5px 14px;
-                font-size: 11px;
-            }
-
-            .slider-container {
-                margin: 0 -40px;
-                padding: 20px 40px;
-            }
-
-            .slider {
-                gap: 20px;
-            }
-
-            .slider-item {
-                min-width: calc((100% - 100px) / 6); /* 6 карточек видимых с учётом 5 промежутков по 20px */
-                max-width: 200px;
-                border-radius: 24px;
-            }
-
-            .updates-list {
-                gap: 20px;
-            }
-
-            .update-item {
-                padding: 24px;
-                gap: 24px;
-                border-radius: 24px;
-            }
-
-            .update-cover {
-                width: 80px;
-                height: 110px;
-            }
-
-            .update-title {
-                font-size: 18px;
-                margin-bottom: 6px;
-                white-space: normal;
-            }
-
-            .update-chapter {
-                font-size: 14px;
-                margin-bottom: 8px;
-                white-space: normal;
-            }
-
-            .update-time {
-                font-size: 13px;
-            }
-
-            .update-type {
-                padding: 8px 18px;
-                font-size: 12px;
-            }
-
-            .cta-section {
-                padding: 140px 40px;
-            }
-
-            .cta-title {
-                font-size: 64px;
-                margin-bottom: 28px;
-            }
-
-            .cta-description {
-                font-size: 22px;
-                margin-bottom: 50px;
-            }
-
-            .footer {
-                padding: 100px 40px 50px;
-            }
-
-            .footer-grid {
-                grid-template-columns: 2fr 1fr 1fr 1fr;
-                gap: 60px;
-                margin-bottom: 60px;
-            }
-
-            .footer-brand {
-                max-width: 400px;
-                text-align: left;
-            }
-
-            .footer-logo {
-                font-size: 32px;
-                margin-bottom: 20px;
-                text-align: left;
-            }
-
-            .footer-description {
-                font-size: 15px;
-                margin-bottom: 30px;
-                text-align: left;
-            }
-
-            .footer-column {
-                text-align: left;
-            }
-
-            .footer-column h4::after {
-                left: 0;
-                transform: none;
-            }
-
-            .footer-bottom {
-                padding-top: 50px;
-                font-size: 14px;
-            }
-
-            .show-more-btn {
-                margin: 50px auto 0;
-                padding: 16px 48px;
-                font-size: 15px;
-                width: auto;
-            }
-
-            .scroll-top {
-                bottom: 40px;
-                right: 40px;
-                width: 64px;
-                height: 64px;
-            }
-        }
-
-        /* ==================== ОПТИМИЗАЦИИ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ ==================== */
+        /* PERFORMANCE */
         @media (prefers-reduced-motion: reduce) {
             * {
                 animation-duration: 0.01ms !important;
@@ -1666,78 +1104,96 @@
             }
         }
 
-        .slider,
-        .tabs {
-            will-change: scroll-position;
+        /* TABLET */
+        @media (min-width: 600px) and (max-width: 1023px) {
+            .manga-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+            .hero-title { font-size: 44px; }
+            .hero-subtitle { font-size: 17px; }
+            .section-title { font-size: 36px; }
+            .slider-item { min-width: 170px; }
         }
 
-        .manga-card,
-        .slider-item,
-        .update-item {
-            will-change: transform;
-        }
+        /* DESKTOP */
+        @media (min-width: 1024px) {
+            .header-container { padding: 20px 40px; flex-wrap: nowrap; }
+            .logo { font-size: 28px; gap: 10px; }
+            .logo-icon { font-size: 32px; }
+            .nav { display: flex; }
+            .mobile-menu-btn { display: none; }
+            .search-box { max-width: 500px; order: initial; width: auto; }
+            .search-input { padding: 14px 120px 14px 24px; font-size: 15px; }
+            .search-button { padding: 10px 24px; font-size: 14px; }
+            .btn-primary { padding: 12px 28px; font-size: 14px; order: initial; }
 
-        /* ==================== ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ ==================== */
-        @keyframes fadeInScale {
-            from { 
-                opacity: 0; 
-                transform: scale(0.95);
+            .hero { margin-top: 80px; min-height: 90vh; padding: 100px 40px; }
+            .hero-container { grid-template-columns: 1fr 1fr; gap: 100px; }
+            .hero-content { order: initial; }
+            .hero-image { order: initial; max-width: 100%; }
+            .hero-title { font-size: 80px; text-align: left; margin-bottom: 30px; }
+            .hero-subtitle { font-size: 20px; text-align: left; margin-bottom: 40px; }
+            .hero-buttons { justify-content: flex-start; gap: 20px; }
+            .btn-secondary { padding: 12px 28px; font-size: 14px; }
+
+            .container { padding: 0 40px; }
+            .section { padding: 120px 0; }
+            .section-header { margin-bottom: 70px; }
+            .section-tag { font-size: 13px; padding: 10px 24px; margin-bottom: 24px; }
+            .section-title { font-size: 52px; margin-bottom: 20px; }
+            .section-description { font-size: 18px; padding: 0; }
+
+            .tabs { gap: 12px; margin-bottom: 56px; padding: 0; justify-content: center; overflow-x: visible; }
+            .tab { padding: 12px 28px; font-size: 14px; }
+
+            .manga-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
+            .manga-card { border-radius: 16px; }
+            .manga-badge { top: 12px; right: 12px; padding: 5px 11px; font-size: 10px; }
+            .manga-info { padding: 14px 16px 16px; }
+            .manga-title { font-size: 14px; }
+            .manga-meta { font-size: 12px; }
+            .manga-type { padding: 3px 10px; font-size: 10px; }
+
+            .slider-container { margin: 0 -40px; padding: 10px 40px 24px; }
+            .slider { gap: 16px; }
+            .slider-item {
+                min-width: calc((100% - 5 * 16px) / 6);
+                max-width: 200px;
+                border-radius: 16px;
             }
-            to { 
-                opacity: 1; 
-                transform: scale(1);
-            }
+
+            .updates-list { gap: 10px; }
+            .update-item { padding: 16px 20px; gap: 18px; border-radius: 16px; }
+            .update-cover { width: 60px; height: 84px; border-radius: 10px; }
+            .update-title { font-size: 15px; white-space: normal; }
+            .update-chapter { font-size: 13px; white-space: normal; }
+            .update-time { font-size: 12px; }
+            .update-type { padding: 6px 14px; font-size: 10px; border-radius: 8px; }
+
+            .cta-section { padding: 140px 40px; }
+            .cta-title { font-size: 64px; margin-bottom: 28px; }
+            .cta-description { font-size: 22px; margin-bottom: 50px; }
+
+            .footer { padding: 100px 40px 50px; }
+            .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 60px; margin-bottom: 60px; }
+            .footer-brand { max-width: 400px; text-align: left; }
+            .footer-logo { font-size: 32px; margin-bottom: 20px; }
+            .footer-description { font-size: 15px; margin-bottom: 30px; }
+            .footer-column { text-align: left; }
+            .footer-column h4::after { left: 0; transform: none; }
+            .footer-bottom { padding-top: 50px; font-size: 14px; }
+
+            .show-more-btn { margin: 44px auto 0; padding: 13px 40px; font-size: 14px; width: auto; }
+            .scroll-top { bottom: 40px; right: 40px; width: 56px; height: 56px; }
         }
 
-        .manga-card {
-            animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
-        }
-
-        .manga-card:nth-child(1) { animation-delay: 0.05s; }
-        .manga-card:nth-child(2) { animation-delay: 0.1s; }
-        .manga-card:nth-child(3) { animation-delay: 0.15s; }
-        .manga-card:nth-child(4) { animation-delay: 0.2s; }
-        .manga-card:nth-child(5) { animation-delay: 0.25s; }
-        .manga-card:nth-child(6) { animation-delay: 0.3s; }
-        .manga-card:nth-child(7) { animation-delay: 0.35s; }
-        .manga-card:nth-child(8) { animation-delay: 0.4s; }
-
-        /* ==================== СКЕЛЕТОН-ЗАГРУЗКА ==================== */
-        @keyframes shimmer {
-            0%   { background-position: -200% 0; }
-            100% { background-position:  200% 0; }
-        }
-        .skeleton-line {
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #4f46e5, #6366f1);
             border-radius: 8px;
-            margin-bottom: 10px;
+            border: 2px solid var(--bg-dark);
         }
-        .skeleton-slider-card {
-            flex: 0 0 160px;
-            height: 240px;
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 12px;
-        }
-        .skeleton-update-item {
-            height: 80px;
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 12px;
-            margin-bottom: 12px;
-        }
-        .skeleton-manga-card {
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 12px;
-            aspect-ratio: 3/4;
-        }
-
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #6366f1, #818cf8); }
     </style>
     <script>
         if ('serviceWorker' in navigator) {
@@ -1812,17 +1268,17 @@
                 <div class="hero-buttons">
                     {% if user_id %}
                     <a href="#subscriptions" class="btn-primary">
-                        <span>⭐</span>
+                        <span></span>
                         <span>Мои подписки</span>
                     </a>
                     {% else %}
                     <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                        <span>🤖</span>
+                        <span></span>
                         <span>Начать</span>
                     </a>
                     {% endif %}
                     <a href="#trending" class="btn-secondary">
-                        <span>🔥</span>
+                        <span></span>
                         <span>Популярное</span>
                     </a>
                 </div>
@@ -1838,7 +1294,7 @@
         <div id="section-trending">
             <section class="section" id="trending">
                 <div class="section-header">
-                    <span class="section-tag">🔥 Самые горячие</span>
+                    <span class="section-tag"> Самые горячие</span>
                     <div class="skeleton-line" style="width:220px;height:26px"></div>
                     <div class="skeleton-line" style="width:300px;height:14px;margin-top:6px"></div>
                 </div>
@@ -1864,7 +1320,7 @@
         <div id="section-updates">
             <section class="section" id="updates">
                 <div class="section-header">
-                    <span class="section-tag">🆕 Свежие обновления</span>
+                    <span class="section-tag"> Свежие обновления</span>
                     <div class="skeleton-line" style="width:200px;height:26px"></div>
                     <div class="skeleton-line" style="width:280px;height:14px;margin-top:6px"></div>
                 </div>
@@ -1882,12 +1338,15 @@
         <!-- Динамические секции (рендерятся JS-ом) -->
         <div id="section-last-manga"></div>
         <div id="section-popular-new"></div>
+        <div id="section-top-manhwa"></div>
+        <div id="section-top-manhua"></div>
+        <div id="section-top-manga"></div>
 
         <!-- Подписки пользователя -->
         {% if user_id and subscriptions %}
         <section class="section" id="subscriptions">
             <div class="section-header">
-                <span class="section-tag">📚 Ваша библиотека</span>
+                <span class="section-tag"> Ваша библиотека</span>
                 <h2 class="section-title">Мои подписки</h2>
                 <p class="section-description">Следите за любимыми мангами</p>
             </div>
@@ -1930,7 +1389,7 @@
                 Присоединяйтесь к тысячам фанатов. Получайте уведомления о новых главах!
             </p>
             <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary" style="font-size: 16px; padding: 16px 40px;">
-                <span>🚀</span>
+                <span></span>
                 <span>Начать в Telegram</span>
             </a>
         </div>
@@ -1946,7 +1405,7 @@
                         Ваша лучшая платформа для чтения манги с мгновенными уведомлениями о новых главах.
                     </p>
                     <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                        <span>🤖</span>
+                        <span></span>
                         <span>Telegram Бот</span>
                     </a>
                 </div>
@@ -2277,21 +1736,26 @@
         }
 
         function buildSliderItems(mangas) {
-            return mangas.slice(0, 8).map(m => `
-                <div class="slider-item" onclick="location.href='/manga/${e(m.slug)}'">
+            return mangas.slice(0, 8).map(m => {
+                const slug  = m.slug  || m.manga_slug  || '';
+                const title = m.title || m.manga_title || '';
+                const type  = m.type  || m.manga_type  || '';
+                return `
+                <div class="slider-item" onclick="location.href='/manga/${e(slug)}'">
                     <div class="manga-cover-container">
-                        <span class="manga-badge">🔥 Топ</span>
-                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
+                   
+                        <img src="${e(m.cover_url)}" alt="${e(title)}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
                     </div>
                     <div class="manga-info">
-                        <div class="manga-title">${e(m.title)}</div>
+                        <div class="manga-title">${e(title)}</div>
                         <div class="manga-meta">
                             <span>⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
-                            <span class="manga-type">${e(typeRu(m.type))}</span>
+                            <span class="manga-type">${e(typeRu(type))}</span>
                         </div>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
         }
 
         function initTrendingSlider() {
@@ -2318,7 +1782,7 @@
             document.getElementById('section-trending').innerHTML = `
                 <section class="section" id="trending">
                     <div class="section-header">
-                        <span class="section-tag">🔥 Самые горячие</span>
+                        <span class="section-tag"> Самые горячие</span>
                         <h2 class="section-title">${e(mostRead.title || 'Самое читаемое')}</h2>
                         <p class="section-description">Самые популярные манги по мнению читателей</p>
                     </div>
@@ -2379,7 +1843,7 @@
             document.getElementById('section-updates').innerHTML = `
                 <section class="section" id="updates">
                     <div class="section-header">
-                        <span class="section-tag">🆕 Свежие обновления</span>
+                        <span class="section-tag"> Свежие обновления</span>
                         <h2 class="section-title">Последние главы</h2>
                         <p class="section-description">Новые главы из ваших любимых манг</p>
                     </div>
@@ -2424,7 +1888,7 @@
             const cards = mangas.map((m, i) => `
                 <div class="manga-card${i >= 6 ? ' hidden' : ''}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
-                        <span class="manga-badge">⭐ Горячее</span>
+                        <span class="manga-badge"> Горячее</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
                     </div>
@@ -2443,7 +1907,7 @@
             document.getElementById('section-popular-new').innerHTML = `
                 <section class="section" id="popular">
                     <div class="section-header">
-                        <span class="section-tag">⭐ Восходящие звезды</span>
+                        <span class="section-tag"> Восходящие звезды</span>
                         <h2 class="section-title">${e(popularNew.title || 'Популярные новинки')}</h2>
                         <p class="section-description">Новые манги, набирающие популярность</p>
                     </div>
@@ -2459,8 +1923,11 @@
         ]).then(([recent, spotlights]) => {
             renderTrending(spotlights.most_read);
             renderRecent(recent);
-            renderSliderSection('section-last-manga', spotlights.last_manga, '🆕 Новое', '✨ Новые поступления', 'Свежие манги в коллекции');
+            renderSliderSection('section-last-manga', spotlights.last_manga, ' Новое', ' Новые поступления', 'Свежие манги в коллекции');
             renderPopularNew(spotlights.popular_new);
+            renderSliderSection('section-top-manhwa', spotlights.top_manhwa, '🇰🇷 Манхва', ' Топ манхв', 'Лучшие корейские манги');
+            renderSliderSection('section-top-manhua', spotlights.top_manhua, '🇨🇳 Маньхуа', ' Топ маньхуа', 'Лучшие китайские манги');
+            renderSliderSection('section-top-manga', spotlights.top_manga, '🇯🇵 Манга', ' Топ манга', 'Лучшие японские манги');
 
             // Переинициализировать IntersectionObserver для новых элементов
             if (typeof observeElements === 'function') {

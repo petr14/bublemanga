@@ -40,9 +40,21 @@ class SenkuroAPI:
 
     def _post(self, payload, timeout=10):
         """Выполнить POST-запрос к GraphQL API и вернуть распарсенный JSON."""
+        import json
+        
+        # Сериализуем payload в JSON строку
+        json_payload = json.dumps(payload)
+        # print(f"Сериализованный JSON для отправки: {json_payload}")
+        
+        # # Проверим, есть ли в строке "after": null
+        # if '"after": null' in json_payload:
+        #     print("✅ after успешно преобразован в null")
+        # else:
+        #     print("❌ after НЕ преобразован в null")
+        
         response = requests.post(
             self.GRAPHQL_URL,
-            json=payload,
+            json=payload,  # или можно использовать data=json_payload с правильными headers
             headers=self.HEADERS,
             timeout=timeout
         )
@@ -62,27 +74,92 @@ class SenkuroAPI:
         Returns:
             dict: {"edges": [...], "pageInfo": {"hasNextPage": bool, "endCursor": str|None}}
         """
+        after_value = after
         payload = {
             "extensions": {
                 "persistedQuery": {
-                    "sha256Hash": "fec51ce63073eb173a62c1cdc9f548d09de070d0d5c2f051d3393a6cc523a573",
+                    "sha256Hash": "f5264f555ff8bfde7b5b985cd8eafc0720b159a4e5bf0e6874a1d3b51eb20a9e",
                     "version": 1
                 }
             },
             "operationName": "fetchExperimentalSpotlights",
             "variables": {
-                "after": after,
+                "after": after_value,
                 "websiteMode": website_mode
             }
         }
-
+        print(payload)
         try:
             data = self._post(payload)
-            return data.get("data", {}).get("experimentalSpotlights", {})
+            print(data)
+            # Безопасное извлечение данных с проверкой на None
+            if data is None:
+                logger.error(f"❌ Получен None ответ от API (after={after})")
+                return {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+            
+            # Получаем data и проверяем на None
+            data_obj = data.get("data")
+            if data_obj is None:
+                logger.error(f"❌ В ответе отсутствует поле 'data' (after={after})")
+                logger.debug(f"Ответ API: {data}")
+                return {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+            
+            # Получаем experimentalSpotlights и проверяем на None
+            result = data_obj.get("experimentalSpotlights")
+            if result is None:
+                logger.error(f"❌ В ответе отсутствует поле 'experimentalSpotlights' (after={after})")
+                logger.debug(f"data_obj: {data_obj}")
+                return {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+            
+            # Безопасное получение edges и pageInfo
+            edges = result.get("edges", [])
+            if edges is None:  # На случай если edges = null в ответе
+                edges = []
+                
+            page_info = result.get("pageInfo", {})
+            if page_info is None:  # На случай если pageInfo = null в ответе
+                page_info = {}
+            
+            logger.info(
+                f"[fetchExperimentalSpotlights] after={after!r} → "
+                f"{len(edges)} edges, hasNextPage={page_info.get('hasNextPage')}, "
+                f"endCursor={page_info.get('endCursor')!r}"
+            )
+            
+            # Безопасное логирование каждого спотлайта
+            for i, edge in enumerate(edges):
+                if edge is None:
+                    logger.warning(f"  spotlight {i}: edge is None")
+                    continue
+                    
+                node = edge.get("node")
+                if node is None:
+                    logger.warning(f"  spotlight {i}: node is None")
+                    continue
+                
+                # Безопасное получение заголовков
+                titles = node.get("titles") or []
+                if titles is None:
+                    titles = []
+                    
+                ru = next((t["content"] for t in titles if t and t.get("lang") == "RU"), None)
+                en = next((t["content"] for t in titles if t and t.get("lang") == "EN"), None)
+                
+                # Безопасное получение количества манг
+                nodes = node.get("nodes") or []
+                if nodes is None:
+                    nodes = []
+                manga_count = len(nodes)
+                
+                logger.info(
+                    f"  spotlight id={node.get('id')} ru={ru!r} en={en!r} mangas={manga_count}"
+                )
+                
+            return result
+            
         except Exception as e:
-            logger.error(f"❌ Ошибка получения спотлайтов (after={after}): {e}")
+            logger.error(f"❌ Ошибка получения спотлайтов (after={after}): {e}", exc_info=True)
             return {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
-
     # ── Поиск ─────────────────────────────────────────────────────────────
 
     def search(self, query):

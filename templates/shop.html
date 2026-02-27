@@ -188,7 +188,7 @@
       <a href="/logout" class="nav-btn">Выйти</a>
       {% else %}
       <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span>🤖</span><span>Войти</span>
+        <span></span><span>Войти</span>
       </a>
       {% endif %}
     </nav>
@@ -216,11 +216,11 @@ const USER_ID     = {{ user_id | tojson }};
 const INIT_COINS  = {{ coins | tojson }};
 
 const TYPE_LABELS = {
-  frame:      {icon:'🖼',  label:'Рамки'},
-  background: {icon:'🌅', label:'Фоны профиля'},
-  badge:      {icon:'🏅', label:'Значки'},
-  avatar_slot:{icon:'📷', label:'Загрузка аватара'},
-  bg_slot:    {icon:'🌄', label:'Загрузка фона'},
+  frame:      {icon:'',  label:'Рамки'},
+  background: {icon:'', label:'Фоны профиля'},
+  badge:      {icon:'', label:'Значки'},
+  avatar_slot:{icon:'', label:'Загрузка аватара'},
+  bg_slot:    {icon:'', label:'Загрузка фона'},
 };
 
 function toast(msg, type='ok'){
@@ -253,7 +253,7 @@ function ItemPreview({item}){
       h('span',{style:{fontSize:'2.5rem'}}, item.css_value)
     );
 
-  const typeEmojis = {avatar_slot:'📷', bg_slot:'🖼'};
+  const typeEmojis = {avatar_slot:'', bg_slot:''};
   return h('div',{className:'item-preview'},
     h('span',{style:{fontSize:'2.5rem'}}, typeEmojis[item.type] || '🎁')
   );
