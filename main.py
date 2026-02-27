@@ -269,6 +269,38 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # Коллекции пользователей
+    c.execute('''CREATE TABLE IF NOT EXISTS collections (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        cover_url TEXT,
+        is_public INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS collection_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        collection_id INTEGER NOT NULL,
+        manga_id TEXT NOT NULL,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
+        UNIQUE(collection_id, manga_id)
+    )''')
+
+    # Все прочитанные главы (одна запись на главу, в отличие от reading_history)
+    c.execute('''CREATE TABLE IF NOT EXISTS chapters_read (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        chapter_id TEXT NOT NULL,
+        manga_id TEXT NOT NULL,
+        read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, chapter_id)
+    )''')
+
     # ── Индексы ────────────────────────────────────────────────────────────
     c.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_users_login_token ON users(login_token)')
@@ -278,6 +310,9 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_search_user ON search_history(user_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_user_stats ON user_stats(xp DESC)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_xp_log ON xp_log(user_id, ref_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_chapters_read_user_manga ON chapters_read(user_id, manga_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_collection_items ON collection_items(collection_id)')
 
     # ── Seed: ачивки ───────────────────────────────────────────────────────
     ACHIEVEMENTS = [
@@ -2340,6 +2375,11 @@ def read_chapter(manga_slug, chapter_slug):
                      VALUES (?, ?, ?, ?)''',
                   (user_id, chapter_dict['manga_id'],
                    chapter_dict['chapter_id'], datetime.now()))
+        # Сохраняем каждую прочитанную главу отдельно
+        c.execute('''INSERT OR IGNORE INTO chapters_read
+                     (user_id, chapter_id, manga_id)
+                     VALUES (?, ?, ?)''',
+                  (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
 
         # Увеличиваем счётчик прочитанных глав
         c.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
@@ -2558,6 +2598,95 @@ def api_manga_chapters(manga_slug):
         'total_in_db': total_in_db,
         'has_more': len(chapters) == limit
     })
+
+
+@app.route('/api/manga/<manga_slug>/read-chapters')
+def api_read_chapters(manga_slug):
+    """API: список прочитанных глав пользователя для конкретной манги"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT manga_id FROM manga WHERE manga_slug = ?', (manga_slug,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify([])
+    manga_id = row['manga_id']
+    c.execute(
+        'SELECT chapter_id FROM chapters_read WHERE user_id = ? AND manga_id = ?',
+        (user_id, manga_id)
+    )
+    chapter_ids = [r['chapter_id'] for r in c.fetchall()]
+    conn.close()
+    return jsonify(chapter_ids)
+
+
+def _refresh_manga_worker(slugs):
+    """Фоновый поток: обновить данные манг по slug-ам (TTL 24 ч)"""
+    threshold = datetime.now() - timedelta(hours=24)
+    conn = get_db()
+    c = conn.cursor()
+    for slug in slugs:
+        try:
+            c.execute(
+                'SELECT manga_id, last_updated FROM manga WHERE manga_slug = ?', (slug,)
+            )
+            row = c.fetchone()
+            if row and row['last_updated']:
+                last_upd = datetime.fromisoformat(row['last_updated'])
+                if last_upd > threshold:
+                    continue  # ещё свежая, пропускаем
+            fresh = api.fetch_manga(slug)
+            if not fresh:
+                continue
+            c.execute(
+                '''INSERT INTO manga (manga_id, manga_slug, manga_title, manga_type,
+                       manga_status, rating, cover_url, chapters_count, branch_id, last_updated)
+                   VALUES (:manga_id, :manga_slug, :manga_title, :manga_type,
+                       :manga_status, :rating, :cover_url, :chapters_count, :branch_id, :now)
+                   ON CONFLICT(manga_id) DO UPDATE SET
+                       manga_slug       = excluded.manga_slug,
+                       manga_title      = excluded.manga_title,
+                       manga_type       = excluded.manga_type,
+                       manga_status     = excluded.manga_status,
+                       rating           = excluded.rating,
+                       cover_url        = excluded.cover_url,
+                       chapters_count   = excluded.chapters_count,
+                       branch_id        = excluded.branch_id,
+                       last_updated     = excluded.last_updated''',
+                {
+                    'manga_id':       fresh['manga_id'],
+                    'manga_slug':     fresh['manga_slug'],
+                    'manga_title':    fresh['manga_title'],
+                    'manga_type':     fresh.get('manga_type'),
+                    'manga_status':   fresh.get('manga_status'),
+                    'rating':         fresh.get('rating'),
+                    'cover_url':      fresh.get('cover_url'),
+                    'chapters_count': fresh.get('chapters_count', 0),
+                    'branch_id':      fresh.get('branch_id'),
+                    'now':            datetime.now().isoformat(),
+                }
+            )
+            conn.commit()
+            logger.info(f"[bulk-refresh] обновлена манга {slug}")
+        except Exception as e:
+            logger.warning(f"[bulk-refresh] ошибка для {slug}: {e}")
+    conn.close()
+
+
+@app.route('/api/manga/bulk-refresh', methods=['POST'])
+def api_manga_bulk_refresh():
+    """API: обновить метаданные манг в фоне (TTL 24 ч).
+    Body: {"slugs": ["slug1", "slug2", ...]}  (до 20 штук за раз)
+    """
+    data = request.get_json(silent=True) or {}
+    slugs = [s for s in (data.get('slugs') or []) if isinstance(s, str)][:20]
+    if slugs:
+        t = threading.Thread(target=_refresh_manga_worker, args=(slugs,), daemon=True)
+        t.start()
+    return jsonify({'queued': len(slugs)})
 
 
 @app.route('/manga/<manga_slug>')
@@ -2888,23 +3017,13 @@ def profile_update():
 
 @app.route('/upload/avatar', methods=['POST'])
 def upload_avatar():
-    """Загрузить аватар (требует купленный слот)"""
+    """Загрузить аватар"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Не авторизован'}), 401
 
-    # Проверяем, куплен ли слот аватара
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        '''SELECT ui.id FROM user_items ui
-           JOIN shop_items si ON ui.item_id = si.id
-           WHERE ui.user_id = ? AND si.type = 'avatar_slot' ''',
-        (user_id,)
-    )
-    if not c.fetchone():
-        conn.close()
-        return jsonify({'error': 'Купите слот загрузки аватара в магазине'}), 403
 
     if 'file' not in request.files:
         conn.close()
@@ -2939,15 +3058,6 @@ def upload_background():
 
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        '''SELECT ui.id FROM user_items ui
-           JOIN shop_items si ON ui.item_id = si.id
-           WHERE ui.user_id = ? AND si.type = 'bg_slot' ''',
-        (user_id,)
-    )
-    if not c.fetchone():
-        conn.close()
-        return jsonify({'error': 'Купите слот загрузки фона в магазине'}), 403
 
     if 'file' not in request.files:
         conn.close()
@@ -3006,6 +3116,208 @@ def api_user_stats():
         _stats_cache[user_id] = {'data': data, 'expires': now + 30}
 
     return jsonify(data)
+
+
+# ==================== БИБЛИОТЕКА И КОЛЛЕКЦИИ ====================
+
+@app.route('/api/user/history')
+def api_user_history():
+    """История чтения пользователя"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])
+    limit = min(int(request.args.get('limit', 50)), 200)
+    offset = int(request.args.get('offset', 0))
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        '''SELECT m.manga_title, m.manga_slug, m.cover_url, m.manga_type,
+                  c.chapter_number, c.chapter_slug, rh.last_read
+           FROM reading_history rh
+           JOIN manga m ON rh.manga_id = m.manga_id
+           JOIN chapters c ON rh.chapter_id = c.chapter_id
+           WHERE rh.user_id = ?
+           ORDER BY rh.last_read DESC
+           LIMIT ? OFFSET ?''',
+        (user_id, limit, offset)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+
+@app.route('/api/user/subscriptions')
+def api_user_subscriptions():
+    """Подписки пользователя"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        '''SELECT m.manga_id, m.manga_title, m.manga_slug, m.cover_url,
+                  m.manga_type, m.manga_status, s.subscribed_at
+           FROM subscriptions s
+           JOIN manga m ON s.manga_id = m.manga_id
+           WHERE s.user_id = ?
+           ORDER BY s.subscribed_at DESC''',
+        (user_id,)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+
+@app.route('/api/user/collections')
+def api_user_collections():
+    """Коллекции пользователя"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify([])
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at,
+                  COUNT(ci.manga_id) as items_count
+           FROM collections c
+           LEFT JOIN collection_items ci ON c.id = ci.collection_id
+           WHERE c.user_id = ?
+           GROUP BY c.id
+           ORDER BY c.created_at DESC''',
+        (user_id,)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+
+@app.route('/api/collections', methods=['POST'])
+def api_create_collection():
+    """Создать коллекцию"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()[:100]
+    if not name:
+        return jsonify({'error': 'Название обязательно'}), 400
+    description = (data.get('description') or '').strip()[:500]
+    is_public = 1 if data.get('is_public', True) else 0
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        'INSERT INTO collections (user_id, name, description, is_public) VALUES (?, ?, ?, ?)',
+        (user_id, name, description, is_public)
+    )
+    conn.commit()
+    new_id = c.lastrowid
+    conn.close()
+    return jsonify({'success': True, 'id': new_id, 'name': name, 'items_count': 0})
+
+
+@app.route('/api/collections/<int:coll_id>', methods=['PUT'])
+def api_update_collection(coll_id):
+    """Обновить коллекцию"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()[:100]
+    if not name:
+        return jsonify({'error': 'Название обязательно'}), 400
+    description = (data.get('description') or '').strip()[:500]
+    is_public = 1 if data.get('is_public', True) else 0
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        'UPDATE collections SET name=?, description=?, is_public=? WHERE id=? AND user_id=?',
+        (name, description, is_public, coll_id, user_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/collections/<int:coll_id>', methods=['DELETE'])
+def api_delete_collection(coll_id):
+    """Удалить коллекцию"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM collection_items WHERE collection_id = ?', (coll_id,))
+    c.execute('DELETE FROM collections WHERE id = ? AND user_id = ?', (coll_id, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/collections/<int:coll_id>/items', methods=['GET'])
+def api_collection_items(coll_id):
+    """Манги в коллекции"""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        '''SELECT m.manga_id, m.manga_title, m.manga_slug, m.cover_url, m.manga_type, ci.added_at
+           FROM collection_items ci
+           JOIN manga m ON ci.manga_id = m.manga_id
+           WHERE ci.collection_id = ?
+           ORDER BY ci.added_at DESC''',
+        (coll_id,)
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+
+@app.route('/api/collections/<int:coll_id>/manga', methods=['POST'])
+def api_add_to_collection(coll_id):
+    """Добавить мангу в коллекцию"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    data = request.get_json(silent=True) or {}
+    manga_id = (data.get('manga_id') or '').strip()
+    if not manga_id:
+        return jsonify({'error': 'manga_id обязателен'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT id FROM collections WHERE id = ? AND user_id = ?', (coll_id, user_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'error': 'Коллекция не найдена'}), 404
+    try:
+        c.execute(
+            'INSERT OR IGNORE INTO collection_items (collection_id, manga_id) VALUES (?, ?)',
+            (coll_id, manga_id)
+        )
+        conn.commit()
+    except Exception:
+        pass
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/collections/<int:coll_id>/manga/<manga_id>', methods=['DELETE'])
+def api_remove_from_collection(coll_id, manga_id):
+    """Удалить мангу из коллекции"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT id FROM collections WHERE id = ? AND user_id = ?', (coll_id, user_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'error': 'Коллекция не найдена'}), 404
+    c.execute(
+        'DELETE FROM collection_items WHERE collection_id = ? AND manga_id = ?',
+        (coll_id, manga_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 
 # ==================== ЗАПУСК ====================

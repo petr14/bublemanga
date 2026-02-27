@@ -403,7 +403,7 @@
             {% if results %}
             <div class="manga-grid">
                 {% for manga in results %}
-                <div class="manga-card" onclick="location.href='/manga/{{ manga.manga_slug }}'">
+                <div class="manga-card" data-slug="{{ manga.manga_slug }}" onclick="location.href='/manga/{{ manga.manga_slug }}'">
                     {% if manga.manga_type %}
                     <div class="manga-badge">{{ manga.manga_type | type_ru }}</div>
                     {% endif %}
@@ -440,11 +440,7 @@
                 {% if not user_id %}
                 <p>Для подписки на мангу войдите через Telegram бота:</p>
                 <a href="https://t.me/your_bot" target="_blank" class="telegram-link">
-<<<<<<< HEAD
                     Открыть Telegram бота
-=======
-                     Открыть Telegram бота
->>>>>>> master
                 </a>
                 {% endif %}
             </div>
@@ -455,11 +451,7 @@
                 <p>Введите название манги в поисковую строку выше</p>
                 <p>Или используйте Telegram бота для удобного поиска и подписки:</p>
                 <a href="https://t.me/your_bot" target="_blank" class="telegram-link">
-<<<<<<< HEAD
                     Открыть Telegram бота
-=======
-                     Открыть Telegram бота
->>>>>>> master
                 </a>
             </div>
             {% endif %}
@@ -545,6 +537,35 @@
                 suggestionsBox.style.display = 'none';
             }
         });
+
+        // Фоновое обновление метаданных манг, видимых на экране
+        (function() {
+            const pending = new Set();
+            let timer = null;
+
+            function flush() {
+                if (!pending.size) return;
+                fetch('/api/manga/bulk-refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slugs: Array.from(pending) })
+                }).catch(() => {});
+                pending.clear();
+            }
+
+            const io = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    const slug = entry.target.dataset.slug;
+                    if (slug) pending.add(slug);
+                    io.unobserve(entry.target);
+                });
+                clearTimeout(timer);
+                timer = setTimeout(flush, 1500);
+            }, { rootMargin: '150px' });
+
+            document.querySelectorAll('[data-slug]').forEach(el => io.observe(el));
+        })();
     </script>
 </body>
 </html>

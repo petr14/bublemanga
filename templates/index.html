@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#667eea">
     <title>BubbleManga - Читайте мангу онлайн</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,17 +25,17 @@
             --success: #22c55e;
             --warning: #fbbf24;
             --bg-dark: #0a0a0a;
-            --bg-card: #111118;
-            --bg-hover: #1a1a24;
+            --bg-card: #141414;
+            --bg-hover: #1f1f1f;
             --text-primary: #ffffff;
             --text-secondary: #a1a1aa;
-            --border: rgba(255, 255, 255, 0.07);
-            --border-accent: rgba(99, 102, 241, 0.3);
+            --border: rgba(255, 255, 255, 0.1);
             --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
             --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
             --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
             --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             --gradient-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             --gradient-pink: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
         }
@@ -50,6 +50,7 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
+        /* ==================== УЛУЧШЕННЫЙ АНИМИРОВАННЫЙ ФОН ==================== */
         .animated-bg {
             position: fixed;
             top: 0;
@@ -79,7 +80,12 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: linear-gradient(45deg, transparent 30%, rgba(102, 126, 234, 0.03) 50%, transparent 70%);
+            background: linear-gradient(
+                45deg,
+                transparent 30%,
+                rgba(102, 126, 234, 0.03) 50%,
+                transparent 70%
+            );
             animation: bgRotate 20s linear infinite;
         }
 
@@ -94,7 +100,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* HEADER */
+        /* ==================== УЛУЧШЕННАЯ ШАПКА С GLASSMORPHISM ==================== */
         .header {
             position: fixed;
             top: 0;
@@ -109,23 +115,30 @@
 
         .header.scrolled {
             background: rgba(10, 10, 10, 0.95);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 80px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6),
+                        0 0 80px rgba(102, 126, 234, 0.1);
             border-bottom-color: rgba(102, 126, 234, 0.2);
         }
 
         .header-container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 16px 20px;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 20px;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
+        @media (min-width: 768px) {
+            .header-container {
+                padding: 16px 20px;
+            }
+        }
+
         .logo {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 800;
             background: var(--gradient-primary);
             -webkit-background-clip: text;
@@ -136,8 +149,15 @@
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .logo {
+                font-size: 22px;
+                gap: 8px;
+            }
         }
 
         .logo::after {
@@ -152,12 +172,20 @@
             transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .logo:hover::after { width: 100%; }
+        .logo:hover::after {
+            width: 100%;
+        }
 
         .logo-icon {
-            font-size: 26px;
+            font-size: 24px;
             filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.6));
             animation: logoFloat 3s ease-in-out infinite;
+        }
+
+        @media (min-width: 768px) {
+            .logo-icon {
+                font-size: 26px;
+            }
         }
 
         @keyframes logoFloat {
@@ -165,6 +193,7 @@
             50% { transform: translateY(-3px) rotate(5deg); }
         }
 
+        /* Десктопная навигация */
         .nav {
             display: none;
             gap: 30px;
@@ -194,9 +223,30 @@
             transition: width 0.3s ease;
         }
 
-        .nav-link:hover { color: var(--text-primary); }
-        .nav-link:hover::before { width: 100%; }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            border-radius: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
 
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-link:hover::before {
+            width: 100%;
+        }
+
+        .nav-link:hover::after {
+            opacity: 1;
+        }
+
+        /* Мобильное меню */
         .mobile-menu-btn {
             background: none;
             border: none;
@@ -211,11 +261,13 @@
             transition: transform 0.3s ease;
         }
 
-        .mobile-menu-btn:active { transform: scale(0.9); }
+        .mobile-menu-btn:active {
+            transform: scale(0.9);
+        }
 
         .mobile-nav {
             position: fixed;
-            top: 72px;
+            top: 60px;
             left: 0;
             right: 0;
             background: rgba(10, 10, 10, 0.98);
@@ -224,13 +276,20 @@
             padding: 0;
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                        padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 999;
+        }
+
+        @media (min-width: 768px) {
+            .mobile-nav {
+                top: 72px;
+            }
         }
 
         .mobile-nav.active {
             max-height: 400px;
-            padding: 20px;
+            padding: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
         }
 
@@ -238,19 +297,26 @@
             color: var(--text-primary);
             text-decoration: none;
             font-size: 16px;
-            padding: 14px 16px;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
             gap: 12px;
             border-radius: 12px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             transition: all 0.3s ease;
             background: rgba(255, 255, 255, 0.02);
         }
 
-        .mobile-nav-link:last-child { margin-bottom: 0; }
-        .mobile-nav-link:active { background: rgba(102, 126, 234, 0.15); transform: translateX(8px); }
+        .mobile-nav-link:last-child {
+            margin-bottom: 0;
+        }
 
+        .mobile-nav-link:active {
+            background: rgba(102, 126, 234, 0.15);
+            transform: translateX(8px);
+        }
+
+        /* УЛУЧШЕННЫЙ ПОИСК */
         .search-box {
             flex: 1;
             order: 4;
@@ -258,25 +324,48 @@
             position: relative;
         }
 
+        @media (min-width: 768px) {
+            .search-box {
+                order: initial;
+                width: auto;
+                max-width: 400px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .search-box {
+                max-width: 500px;
+            }
+        }
+
         .search-input {
             width: 100%;
-            padding: 12px 110px 12px 20px;
+            padding: 10px 90px 10px 16px;
             background: rgba(255, 255, 255, 0.05);
             border: 1.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50px;
+            border-radius: 40px;
             color: var(--text-primary);
             font-size: 14px;
             font-family: 'Poppins', sans-serif;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .search-input::placeholder { color: var(--text-secondary); }
+        @media (min-width: 768px) {
+            .search-input {
+                padding: 12px 110px 12px 20px;
+            }
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
 
         .search-input:focus {
             outline: none;
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(102, 126, 234, 0.6);
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 8px 24px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1),
+                        0 8px 24px rgba(102, 126, 234, 0.2);
             transform: translateY(-1px);
         }
 
@@ -287,38 +376,60 @@
             transform: translateY(-50%);
             background: var(--gradient-primary);
             border: none;
-            padding: 9px 20px;
-            border-radius: 50px;
+            padding: 7px 16px;
+            border-radius: 40px;
             color: white;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
-        .search-button:hover { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); transform: translateY(-50%) scale(1.05); }
-        .search-button:active { transform: translateY(-50%) scale(0.95); }
+        @media (min-width: 768px) {
+            .search-button {
+                padding: 9px 20px;
+                font-size: 13px;
+            }
+        }
 
+        .search-button:hover {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .search-button:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        /* УЛУЧШЕННЫЕ КНОПКИ */
         .btn-primary {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: var(--gradient-primary);
             border: none;
-            border-radius: 50px;
+            border-radius: 40px;
             color: white;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             white-space: nowrap;
             order: 2;
             position: relative;
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .btn-primary {
+                padding: 10px 20px;
+                font-size: 13px;
+                gap: 8px;
+            }
         }
 
         .btn-primary::before {
@@ -334,33 +445,70 @@
             transition: width 0.6s, height 0.6s;
         }
 
-        .btn-primary:hover::before { width: 300px; height: 300px; }
-        .btn-primary:hover { box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5); transform: translateY(-2px); }
-        .btn-primary:active { transform: translateY(0) scale(0.95); }
-        .btn-primary span { position: relative; z-index: 1; }
+        .btn-primary:hover::before {
+            width: 300px;
+            height: 300px;
+        }
 
-        /* HERO */
+        .btn-primary:hover {
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0) scale(0.95);
+        }
+
+        .btn-primary span {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==================== УЛУЧШЕННАЯ ГЛАВНАЯ СЕКЦИЯ ==================== */
         .hero {
-            margin-top: 72px;
+            margin-top: 60px;
             min-height: auto;
             display: flex;
             align-items: center;
             position: relative;
             overflow: hidden;
-            padding: 60px 20px;
+            padding: 40px 16px;
+        }
+
+        @media (min-width: 768px) {
+            .hero {
+                margin-top: 72px;
+                padding: 60px 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .hero {
+                margin-top: 80px;
+                min-height: 90vh;
+                padding: 100px 40px;
+            }
         }
 
         .hero-background {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15) 0%, transparent 50%), radial-gradient(ellipse at bottom, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
             z-index: 0;
         }
 
         .hero-background::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23667eea' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
             opacity: 0.5;
             animation: patternMove 30s linear infinite;
@@ -376,10 +524,17 @@
             margin: 0 auto;
             display: grid;
             grid-template-columns: 1fr;
-            gap: 40px;
+            gap: 30px;
             align-items: center;
             position: relative;
             z-index: 1;
+        }
+
+        @media (min-width: 1024px) {
+            .hero-container {
+                grid-template-columns: 1fr 1fr;
+                gap: 100px;
+            }
         }
 
         .hero-content {
@@ -387,17 +542,39 @@
             order: 2;
         }
 
+        @media (min-width: 1024px) {
+            .hero-content {
+                order: initial;
+            }
+        }
+
         .hero-title {
-            font-size: 36px;
+            font-size: 32px;
             font-weight: 900;
-            line-height: 1.15;
-            margin-bottom: 20px;
+            line-height: 1.2;
+            margin-bottom: 16px;
             background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             text-align: center;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .hero-title {
+                font-size: 36px;
+                letter-spacing: -1px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .hero-title {
+                font-size: 80px;
+                text-align: left;
+                margin-bottom: 30px;
+            }
         }
 
         .hero-highlight {
@@ -416,32 +593,73 @@
         }
 
         .hero-subtitle {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-secondary);
-            margin-bottom: 30px;
-            line-height: 1.7;
+            margin-bottom: 24px;
+            line-height: 1.6;
             text-align: center;
         }
 
-        .hero-buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        @media (min-width: 768px) {
+            .hero-subtitle {
+                font-size: 15px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .hero-subtitle {
+                font-size: 20px;
+                text-align: left;
+                margin-bottom: 40px;
+            }
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        @media (min-width: 1024px) {
+            .hero-buttons {
+                justify-content: flex-start;
+                gap: 20px;
+            }
+        }
 
         .btn-secondary {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 50px;
+            border-radius: 40px;
             color: white;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             position: relative;
             overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .btn-secondary {
+                padding: 10px 20px;
+                font-size: 13px;
+                gap: 8px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .btn-secondary {
+                padding: 12px 28px;
+                font-size: 14px;
+            }
         }
 
         .btn-secondary::before {
@@ -453,29 +671,64 @@
             transition: opacity 0.4s ease;
         }
 
-        .btn-secondary:hover::before { opacity: 0.1; }
-        .btn-secondary:hover { border-color: rgba(102, 126, 234, 0.5); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2); }
-        .btn-secondary:active { transform: scale(0.95); }
-        .btn-secondary span { position: relative; z-index: 1; }
+        .btn-secondary:hover::before {
+            opacity: 0.1;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.95);
+        }
+
+        .btn-secondary span {
+            position: relative;
+            z-index: 1;
+        }
 
         .hero-image {
             position: relative;
             animation: fadeInRight 1s cubic-bezier(0.4, 0, 0.2, 1);
             order: 1;
-            max-width: 320px;
+            max-width: 280px;
             margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .hero-image {
+                max-width: 320px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .hero-image {
+                order: initial;
+                max-width: 100%;
+            }
         }
 
         .hero-character {
             width: 100%;
             height: auto;
-            border-radius: 24px;
+            border-radius: 20px;
             filter: drop-shadow(0 20px 60px rgba(102, 126, 234, 0.4));
             animation: float 6s ease-in-out infinite;
             transition: transform 0.3s ease;
         }
 
-        .hero-character:hover { transform: scale(1.05); }
+        @media (min-width: 768px) {
+            .hero-character {
+                border-radius: 24px;
+            }
+        }
+
+        .hero-character:hover {
+            transform: scale(1.05);
+        }
 
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
@@ -483,112 +736,286 @@
         }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @keyframes fadeInRight {
-            from { opacity: 0; transform: translateX(40px); }
-            to { opacity: 1; transform: translateX(0); }
+            from {
+                opacity: 0;
+                transform: translateX(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
-        .container { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+        /* ==================== КОНТЕЙНЕР ==================== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
 
-        .section { padding: 80px 0; position: relative; }
+        @media (min-width: 768px) {
+            .container {
+                padding: 0 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding: 0 40px;
+            }
+        }
+
+        /* ==================== УЛУЧШЕННАЯ СЕКЦИЯ ==================== */
+        .section {
+            padding: 60px 0;
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .section {
+                padding: 80px 0;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .section {
+                padding: 120px 0;
+            }
+        }
 
         .section-header {
             text-align: center;
-            margin-bottom: 50px;
+            margin-bottom: 30px;
             animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (min-width: 768px) {
+            .section-header {
+                margin-bottom: 40px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .section-header {
+                margin-bottom: 70px;
+            }
         }
 
         .section-tag {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 20px;
+            gap: 6px;
+            padding: 6px 16px;
             background: rgba(102, 126, 234, 0.1);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 50px;
+            border-radius: 40px;
             color: #667eea;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin-bottom: 20px;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
         }
 
+        @media (min-width: 768px) {
+            .section-tag {
+                padding: 8px 20px;
+                font-size: 12px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .section-tag {
+                padding: 10px 24px;
+                font-size: 13px;
+                margin-bottom: 24px;
+            }
+        }
+
         .section-title {
-            font-size: 32px;
+            font-size: 26px;
             font-weight: 800;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
+            line-height: 1.3;
+            padding: 0 10px;
+        }
+
+        @media (min-width: 768px) {
+            .section-title {
+                font-size: 32px;
+                margin-bottom: 16px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .section-title {
+                font-size: 52px;
+                margin-bottom: 20px;
+            }
         }
 
         .section-description {
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-secondary);
             max-width: 600px;
             margin: 0 auto;
-            padding: 0 20px;
-            line-height: 1.7;
+            padding: 0 16px;
+            line-height: 1.6;
         }
 
-        /* TABS */
+        @media (min-width: 768px) {
+            .section-description {
+                font-size: 15px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .section-description {
+                font-size: 18px;
+                padding: 0;
+            }
+        }
+
+        /* ==================== УЛУЧШЕННЫЕ ВКЛАДКИ ==================== */
         .tabs {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             justify-content: flex-start;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             flex-wrap: nowrap;
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
             -webkit-overflow-scrolling: touch;
-            padding: 0 20px;
+            padding: 0 16px;
         }
 
-        .tabs::-webkit-scrollbar { display: none; }
+        @media (min-width: 768px) {
+            .tabs {
+                gap: 12px;
+                margin-bottom: 40px;
+                padding: 0 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .tabs {
+                gap: 16px;
+                margin-bottom: 60px;
+                padding: 0;
+                justify-content: center;
+                overflow-x: visible;
+            }
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
 
         .tab {
-            padding: 10px 22px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border);
-            border-radius: 50px;
+            padding: 8px 18px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 40px;
             color: var(--text-secondary);
             font-weight: 600;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .tab {
+                padding: 12px 24px;
+                font-size: 13px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .tab {
+                padding: 14px 32px;
+                font-size: 14px;
+            }
+        }
+
+        .tab::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
 
         .tab:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.07);
-            border-color: var(--border-accent);
-            color: rgba(255,255,255,0.8);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
         }
 
         .tab.active {
             background: var(--gradient-primary);
             border-color: transparent;
             color: white;
-            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
         }
 
-        /* ==================== MANGA GRID ==================== */
+        .tab span {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==================== УЛУЧШЕННАЯ СЕТКА МАНГИ ==================== */
         .manga-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            animation: fadeIn 0.6s ease-out;
+            gap: 12px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @media (min-width: 500px) {
+            .manga-grid {
+                gap: 16px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .manga-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                gap: 32px;
+            }
         }
 
         @keyframes fadeIn {
@@ -596,279 +1023,716 @@
             to { opacity: 1; }
         }
 
-        /* Карточка манги — полный редизайн */
         .manga-card {
-            background: var(--bg-card);
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
             border-radius: 16px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.35s ease, border-color 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .manga-card {
+                border-radius: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-card {
+                border-radius: 24px;
+            }
+        }
+
+        .manga-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 0;
+            border-radius: 16px;
+        }
+
+        @media (min-width: 768px) {
+            .manga-card::before {
+                border-radius: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-card::before {
+                border-radius: 24px;
+            }
         }
 
         .manga-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(99, 102, 241, 0.2);
-            border-color: var(--border-accent);
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        @media (min-width: 1024px) {
+            .manga-card:hover {
+                transform: translateY(-8px) scale(1.02);
+            }
         }
 
         .manga-card:active {
             transform: translateY(-3px) scale(0.98);
         }
 
-        /* Обложка */
+        .manga-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            border-radius: 30px;
+            font-size: 9px;
+            font-weight: 700;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4);
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @media (min-width: 768px) {
+            .manga-badge {
+                top: 12px;
+                right: 12px;
+                padding: 5px 12px;
+                font-size: 10px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-badge {
+                top: 16px;
+                right: 16px;
+                padding: 8px 16px;
+                font-size: 12px;
+            }
+        }
+
+        .manga-badge.hot {
+            background: linear-gradient(135deg, #ff9966, #ff5e62);
+        }
+
+        .manga-badge.new {
+            background: linear-gradient(135deg, #a8e063, #56ab2f);
+        }
+
+        .manga-badge.update {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        @keyframes badgePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
         .manga-cover-container {
             position: relative;
             overflow: hidden;
-            aspect-ratio: 2/3;
+            aspect-ratio: 3/4;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            width: 100%;
         }
 
         .manga-cover {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: block;
-            transition: transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            background: #111118;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform;
         }
 
         .manga-card:hover .manga-cover {
-            transform: scale(1.08);
+            transform: scale(1.1);
         }
 
-        /* Затемнение снизу */
-        .manga-cover-container::after {
-            content: '';
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 40%;
-            background: linear-gradient(to top, rgba(10,10,15,0.85) 0%, transparent 100%);
-            pointer-events: none;
-        }
-
-        /* Бейдж */
-        .manga-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 4px 10px;
-            background: rgba(10, 10, 15, 0.75);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(99, 102, 241, 0.4);
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 700;
-            color: #a5b4fc;
-            z-index: 2;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-
-        /* Нижняя информация */
         .manga-info {
-            padding: 12px 14px 14px;
-            background: var(--bg-card);
+            padding: 10px 8px 8px;
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(to top, rgba(20, 20, 20, 0.95), rgba(20, 20, 20, 0.8));
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 768px) {
+            .manga-info {
+                padding: 12px 12px 10px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-info {
+                padding: 20px;
+            }
         }
 
         .manga-title {
             font-weight: 600;
-            font-size: 13px;
-            margin-bottom: 8px;
+            font-size: 12px;
+            margin-bottom: 4px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            line-height: 1.45;
-            color: rgba(255,255,255,0.92);
+            line-height: 1.4;
+            min-height: 2.8em;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        @media (min-width: 768px) {
+            .manga-title {
+                font-size: 13px;
+                margin-bottom: 6px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-title {
+                font-size: 16px;
+                font-weight: 700;
+                min-height: auto;
+            }
         }
 
         .manga-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-secondary);
-            gap: 6px;
+            margin-top: auto;
+        }
+
+        @media (min-width: 768px) {
+            .manga-meta {
+                font-size: 11px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-meta {
+                font-size: 13px;
+            }
         }
 
         .manga-type {
-            padding: 3px 10px;
-            background: rgba(99, 102, 241, 0.12);
-            border: 1px solid rgba(99, 102, 241, 0.25);
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 10px;
-            color: #a5b4fc;
-            letter-spacing: 0.03em;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 8px;
+            color: #a1a1aa;
         }
 
-        /* ==================== SLIDER ==================== */
+        @media (min-width: 768px) {
+            .manga-type {
+                padding: 3px 10px;
+                font-size: 9px;
+                border-radius: 10px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-type {
+                padding: 5px 14px;
+                font-size: 11px;
+                border-radius: 12px;
+            }
+        }
+
+        .manga-rating {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            color: #ffb83b;
+        }
+
+        .manga-rating i {
+            font-size: 8px;
+        }
+
+        @media (min-width: 768px) {
+            .manga-rating i {
+                font-size: 9px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .manga-rating i {
+                font-size: 11px;
+            }
+        }
+
+        /* ==================== УЛУЧШЕННЫЙ СЛАЙДЕР ==================== */
         .slider-container {
             position: relative;
             overflow: hidden;
-            margin: 0 -20px;
-            padding: 10px 20px 20px;
+            margin: 0 -16px;
+            padding: 10px 16px;
+        }
+
+        @media (min-width: 768px) {
+            .slider-container {
+                margin: 0 -20px;
+                padding: 15px 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .slider-container {
+                margin: 0 -40px;
+                padding: 20px 40px;
+            }
         }
 
         .slider {
             display: flex;
-            gap: 14px;
+            gap: 12px;
             overflow-x: auto;
             scroll-behavior: smooth;
             scrollbar-width: none;
             -ms-overflow-style: none;
             -webkit-overflow-scrolling: touch;
             scroll-snap-type: x mandatory;
-            padding: 4px 2px 8px;
+            padding: 5px;
         }
 
-        .slider::-webkit-scrollbar { display: none; }
+        @media (min-width: 768px) {
+            .slider {
+                gap: 16px;
+            }
+        }
 
-        /* Элемент слайдера */
+        .slider::-webkit-scrollbar {
+            display: none;
+        }
+
         .slider-item {
-            min-width: 150px;
-            background: var(--bg-card);
-            border-radius: 14px;
+            min-width: 140px;
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
-            border: 1px solid var(--border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             scroll-snap-align: start;
             flex-shrink: 0;
+            position: relative;
+            box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 500px) {
+            .slider-item {
+                min-width: 160px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .slider-item {
+                min-width: 180px;
+                border-radius: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .slider-item {
+                min-width: calc((100% - 100px) / 6);
+                max-width: 200px;
+                border-radius: 24px;
+            }
+        }
+
+        .slider-item::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 0;
+            border-radius: 16px;
+        }
+
+        @media (min-width: 768px) {
+            .slider-item::before {
+                border-radius: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .slider-item::before {
+                border-radius: 24px;
+            }
         }
 
         .slider-item:hover {
-            transform: translateY(-8px) scale(1.03);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.2);
-            border-color: var(--border-accent);
+            transform: scale(1.03) translateY(-4px);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.3);
         }
 
-        .slider-item:active { transform: translateY(-3px) scale(0.97); }
+        @media (min-width: 1024px) {
+            .slider-item:hover {
+                transform: scale(1.05) translateY(-8px);
+            }
+        }
 
-        .slider-item .manga-cover-container { aspect-ratio: 2/3; }
+        .slider-item:active {
+            transform: scale(0.98);
+        }
 
-        .slider-item .manga-info { padding: 10px 12px 12px; }
+        .slider-item .manga-info {
+            padding: 8px 6px 6px;
+        }
+
+        @media (min-width: 768px) {
+            .slider-item .manga-info {
+                padding: 10px 8px 8px;
+            }
+        }
 
         .slider-item .manga-title {
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 6px;
-            -webkit-line-clamp: 2;
+            font-size: 11px;
+            min-height: 2.6em;
         }
 
-        /* ==================== UPDATES LIST ==================== */
+        @media (min-width: 768px) {
+            .slider-item .manga-title {
+                font-size: 12px;
+            }
+        }
+
+        .slider-item .manga-type {
+            font-size: 7px;
+            padding: 2px 6px;
+        }
+
+        @media (min-width: 768px) {
+            .slider-item .manga-type {
+                font-size: 8px;
+                padding: 2px 8px;
+            }
+        }
+
+        /* Индикаторы прокрутки для слайдера */
+        .slider-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 15px;
+        }
+
+        @media (min-width: 1024px) {
+            .slider-indicators {
+                display: none;
+            }
+        }
+
+        .slider-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .slider-indicator.active {
+            width: 20px;
+            background: var(--gradient-primary);
+        }
+
+        /* ==================== УЛУЧШЕННЫЙ СПИСОК ОБНОВЛЕНИЙ ==================== */
         .updates-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
+        }
+
+        @media (min-width: 768px) {
+            .updates-list {
+                gap: 16px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .updates-list {
+                gap: 20px;
+            }
         }
 
         .update-item {
-            background: var(--bg-card);
-            border-radius: 14px;
-            padding: 12px 14px;
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 12px;
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
             cursor: pointer;
-            transition: background 0.25s ease, border-color 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
-            border: 1px solid var(--border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             position: relative;
             overflow: hidden;
+            box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.4);
         }
 
-        /* Акцентная линия слева */
+        @media (min-width: 768px) {
+            .update-item {
+                padding: 16px;
+                gap: 16px;
+                border-radius: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .update-item {
+                padding: 24px;
+                gap: 24px;
+                border-radius: 24px;
+            }
+        }
+
         .update-item::before {
             content: '';
             position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 3px;
-            background: linear-gradient(to bottom, #667eea, #764ba2);
-            border-radius: 3px 0 0 3px;
+            inset: 0;
+            background: var(--gradient-primary);
             opacity: 0;
-            transition: opacity 0.25s ease;
+            transition: opacity 0.4s ease;
+            z-index: 0;
+        }
+
+        .update-item:hover::before {
+            opacity: 0.08;
         }
 
         .update-item:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-accent);
-            transform: translateX(5px);
+            background: rgba(31, 31, 31, 0.8);
+            transform: translateX(4px) scale(1.01);
+            border-color: rgba(102, 126, 234, 0.3);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
         }
 
-        .update-item:hover::before { opacity: 1; }
-        .update-item:active { transform: translateX(2px) scale(0.99); }
+        @media (min-width: 1024px) {
+            .update-item:hover {
+                transform: translateX(8px) scale(1.02);
+            }
+        }
+
+        .update-item:active {
+            transform: translateX(2px) scale(0.99);
+        }
 
         .update-cover {
-            width: 52px;
-            height: 72px;
+            width: 50px;
+            height: 70px;
             object-fit: cover;
-            border-radius: 8px;
+            border-radius: 10px;
             flex-shrink: 0;
-            background: #111118;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        @media (min-width: 768px) {
+            .update-cover {
+                width: 60px;
+                height: 85px;
+                border-radius: 12px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .update-cover {
+                width: 80px;
+                height: 110px;
+            }
         }
 
         .update-info {
             flex: 1;
             min-width: 0;
+            position: relative;
+            z-index: 1;
         }
 
         .update-title {
             font-weight: 600;
             font-size: 13px;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: rgba(255,255,255,0.9);
+            color: #fff;
+        }
+
+        @media (min-width: 768px) {
+            .update-title {
+                font-size: 14px;
+                margin-bottom: 4px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .update-title {
+                font-size: 18px;
+                margin-bottom: 6px;
+                white-space: normal;
+            }
         }
 
         .update-chapter {
             color: var(--text-secondary);
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 11px;
+            margin-bottom: 4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
+        @media (min-width: 768px) {
+            .update-chapter {
+                font-size: 12px;
+                margin-bottom: 6px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .update-chapter {
+                font-size: 14px;
+                margin-bottom: 8px;
+                white-space: normal;
+            }
+        }
+
         .update-time {
-            color: #6366f1;
-            font-size: 11px;
-            font-weight: 600;
+            color: #4facfe;
+            font-size: 10px;
+            font-weight: 500;
             display: inline-block;
             padding: 3px 8px;
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(79, 172, 254, 0.1);
             border-radius: 6px;
+            border: 1px solid rgba(79, 172, 254, 0.2);
+        }
+
+        @media (min-width: 768px) {
+            .update-time {
+                font-size: 11px;
+                padding: 4px 10px;
+                border-radius: 8px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .update-time {
+                font-size: 13px;
+            }
         }
 
         .update-type {
-            padding: 5px 12px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 700;
-            background: rgba(99, 102, 241, 0.12);
-            border: 1px solid rgba(99, 102, 241, 0.25);
-            color: #a5b4fc;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 9px;
+            font-weight: 600;
+            background: var(--gradient-primary);
             white-space: nowrap;
             flex-shrink: 0;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* ==================== CTA ==================== */
+        @media (min-width: 768px) {
+            .update-type {
+                padding: 6px 14px;
+                font-size: 11px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .update-type {
+                padding: 8px 18px;
+                font-size: 12px;
+            }
+        }
+
+        /* Индикатор нового контента */
+        .new-indicator {
+            width: 8px;
+            height: 8px;
+            background: #ff4757;
+            border-radius: 50%;
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 5;
+            box-shadow: 0 0 10px #ff4757;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ==================== УЛУЧШЕННАЯ CTA СЕКЦИЯ ==================== */
         .cta-section {
-            padding: 100px 20px;
+            padding: 80px 16px;
             text-align: center;
             position: relative;
             overflow: hidden;
         }
 
+        @media (min-width: 768px) {
+            .cta-section {
+                padding: 100px 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .cta-section {
+                padding: 140px 40px;
+            }
+        }
+
         .cta-background {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: var(--gradient-primary);
-            opacity: 0.12;
+            opacity: 0.15;
             z-index: 0;
         }
 
@@ -880,161 +1744,390 @@
             animation: patternMove 40s linear infinite;
         }
 
-        .cta-content { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
+        .cta-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
 
         .cta-title {
-            font-size: 36px;
+            font-size: 28px;
             font-weight: 900;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             line-height: 1.2;
             background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
+        }
+
+        @media (min-width: 768px) {
+            .cta-title {
+                font-size: 36px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .cta-title {
+                font-size: 64px;
+                margin-bottom: 28px;
+            }
         }
 
         .cta-description {
-            font-size: 16px;
+            font-size: 14px;
             color: var(--text-secondary);
-            margin-bottom: 30px;
-            line-height: 1.7;
+            margin-bottom: 24px;
+            line-height: 1.6;
         }
 
-        /* FOOTER */
+        @media (min-width: 768px) {
+            .cta-description {
+                font-size: 16px;
+                margin-bottom: 30px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .cta-description {
+                font-size: 22px;
+                margin-bottom: 50px;
+            }
+        }
+
+        .cta-section .btn-primary {
+            font-size: 14px;
+            padding: 12px 28px;
+        }
+
+        @media (min-width: 768px) {
+            .cta-section .btn-primary {
+                font-size: 16px;
+                padding: 16px 40px;
+            }
+        }
+
+        /* ==================== УЛУЧШЕННЫЙ ПОДВАЛ ==================== */
         .footer {
             background: linear-gradient(to bottom, #0a0a0a 0%, #050505 100%);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 60px 20px 30px;
+            padding: 40px 16px 20px;
             position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .footer {
+                padding: 60px 20px 30px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .footer {
+                padding: 100px 40px 50px;
+            }
         }
 
         .footer::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0;
+            top: 0;
+            left: 0;
+            right: 0;
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.5), transparent);
         }
 
-        .footer-container { max-width: 1400px; margin: 0 auto; }
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
         .footer-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 40px;
-            margin-bottom: 40px;
+            gap: 30px;
+            margin-bottom: 30px;
         }
 
-        .footer-brand { text-align: center; }
+        @media (min-width: 768px) {
+            .footer-grid {
+                gap: 40px;
+                margin-bottom: 40px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .footer-grid {
+                grid-template-columns: 2fr 1fr 1fr 1fr;
+                gap: 60px;
+                margin-bottom: 60px;
+            }
+        }
+
+        .footer-brand {
+            text-align: center;
+        }
+
+        @media (min-width: 1024px) {
+            .footer-brand {
+                max-width: 400px;
+                text-align: left;
+            }
+        }
 
         .footer-logo {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             background: var(--gradient-primary);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             display: inline-block;
         }
 
-        .footer-description { color: var(--text-secondary); font-size: 14px; line-height: 1.7; margin-bottom: 24px; }
+        @media (min-width: 768px) {
+            .footer-logo {
+                font-size: 24px;
+                margin-bottom: 16px;
+            }
+        }
 
-        .footer-column { text-align: center; }
+        @media (min-width: 1024px) {
+            .footer-logo {
+                font-size: 32px;
+                margin-bottom: 20px;
+                text-align: left;
+            }
+        }
+
+        .footer-description {
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .footer-description {
+                font-size: 14px;
+                margin-bottom: 24px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .footer-description {
+                font-size: 15px;
+                margin-bottom: 30px;
+                text-align: left;
+            }
+        }
+
+        .footer-column {
+            text-align: center;
+        }
+
+        @media (min-width: 1024px) {
+            .footer-column {
+                text-align: left;
+            }
+        }
 
         .footer-column h4 {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             color: var(--text-primary);
             position: relative;
             display: inline-block;
         }
 
+        @media (min-width: 768px) {
+            .footer-column h4 {
+                font-size: 16px;
+                margin-bottom: 20px;
+            }
+        }
+
         .footer-column h4::after {
             content: '';
             position: absolute;
-            bottom: -8px;
+            bottom: -6px;
             left: 50%;
             transform: translateX(-50%);
-            width: 30px;
+            width: 25px;
             height: 3px;
             background: var(--gradient-primary);
             border-radius: 2px;
         }
 
-        .footer-links { list-style: none; }
-        .footer-links li { margin-bottom: 12px; }
+        @media (min-width: 1024px) {
+            .footer-column h4::after {
+                left: 0;
+                transform: none;
+            }
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 10px;
+        }
+
+        @media (min-width: 768px) {
+            .footer-links li {
+                margin-bottom: 12px;
+            }
+        }
 
         .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
-            font-size: 14px;
+            font-size: 13px;
             transition: all 0.3s ease;
             display: inline-block;
             position: relative;
         }
 
+        @media (min-width: 768px) {
+            .footer-links a {
+                font-size: 14px;
+            }
+        }
+
         .footer-links a::before {
             content: '';
             position: absolute;
-            bottom: -2px; left: 0;
+            bottom: -2px;
+            left: 0;
             width: 0;
             height: 2px;
             background: var(--gradient-primary);
             transition: width 0.3s ease;
         }
 
-        .footer-links a:hover::before { width: 100%; }
-        .footer-links a:hover { color: var(--text-primary); }
+        .footer-links a:hover::before {
+            width: 100%;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-links a:active {
+            transform: scale(0.95);
+        }
 
         .footer-bottom {
-            padding-top: 30px;
+            padding-top: 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             text-align: center;
             color: var(--text-secondary);
-            font-size: 13px;
+            font-size: 12px;
         }
 
-        /* SHOW MORE */
+        @media (min-width: 768px) {
+            .footer-bottom {
+                padding-top: 30px;
+                font-size: 13px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .footer-bottom {
+                padding-top: 50px;
+                font-size: 14px;
+            }
+        }
+
+        /* ==================== УЛУЧШЕННАЯ КНОПКА "ПОКАЗАТЬ ЕЩЕ" ==================== */
         .show-more-btn {
             display: block;
-            margin: 32px auto 0;
-            padding: 12px 32px;
-            background: transparent;
-            border: 1px solid var(--border-accent);
-            border-radius: 50px;
-            color: #a5b4fc;
+            margin: 30px auto 0;
+            padding: 10px 28px;
+            background: rgba(102, 126, 234, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 40px;
+            color: #667eea;
             font-weight: 600;
             font-size: 13px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            width: calc(100% - 40px);
-            max-width: 300px;
-            letter-spacing: 0.02em;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            width: calc(100% - 32px);
+            max-width: 280px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .show-more-btn {
+                margin: 40px auto 0;
+                padding: 14px 36px;
+                font-size: 14px;
+                width: calc(100% - 40px);
+                max-width: 320px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .show-more-btn {
+                margin: 50px auto 0;
+                padding: 16px 48px;
+                font-size: 15px;
+                width: auto;
+            }
+        }
+
+        .show-more-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .show-more-btn:hover::before {
+            opacity: 0.15;
         }
 
         .show-more-btn:hover {
-            background: rgba(99, 102, 241, 0.1);
-            border-color: rgba(99, 102, 241, 0.5);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.15);
+            border-color: rgba(102, 126, 234, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
         }
 
-        .show-more-btn:active { transform: scale(0.97); }
+        .show-more-btn:active {
+            transform: scale(0.97);
+        }
 
-        /* HIDDEN */
+        .show-more-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ==================== СКРЫТЫЕ ЭЛЕМЕНТЫ ==================== */
         .manga-card.hidden,
         .slider-item.hidden,
-        .update-item.hidden { display: none; }
+        .update-item.hidden {
+            display: none;
+        }
 
-        .manga-grid.limited .manga-card:nth-child(n+7) { display: none; }
+        .manga-grid.limited .manga-card:nth-child(n+7) {
+            display: none;
+        }
 
-        /* SCROLL TOP */
+        /* ==================== УЛУЧШЕННАЯ КНОПКА "НАВЕРХ" ==================== */
         .scroll-top {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
+            bottom: 20px;
+            right: 20px;
             width: 48px;
             height: 48px;
             background: var(--gradient-primary);
@@ -1047,55 +2140,112 @@
             visibility: hidden;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 999;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
 
-        .scroll-top.visible { opacity: 1; visibility: visible; }
-        .scroll-top:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.45); }
-        .scroll-top:active { transform: scale(0.93); }
-        .scroll-top span { font-size: 20px; }
-
-        /* SKELETON */
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
+        @media (min-width: 768px) {
+            .scroll-top {
+                bottom: 30px;
+                right: 30px;
+                width: 56px;
+                height: 56px;
+            }
         }
 
-        .skeleton-line {
-            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
+        @media (min-width: 1024px) {
+            .scroll-top {
+                bottom: 40px;
+                right: 40px;
+                width: 64px;
+                height: 64px;
+            }
+        }
+
+        .scroll-top::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            background: var(--gradient-primary);
+            border-radius: 50%;
+            opacity: 0;
+            filter: blur(10px);
+            transition: opacity 0.4s ease;
+        }
+
+        .scroll-top:hover::before {
+            opacity: 0.6;
+        }
+
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .scroll-top:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
+        }
+
+        .scroll-top:active {
+            transform: translateY(-2px) scale(0.95);
+        }
+
+        .scroll-top span {
+            position: relative;
+            z-index: 1;
+            font-size: 20px;
+            animation: arrowBounce 2s ease-in-out infinite;
+        }
+
+        @media (min-width: 768px) {
+            .scroll-top span {
+                font-size: 24px;
+            }
+        }
+
+        @keyframes arrowBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        /* ==================== АНИМАЦИЯ ЗАГРУЗКИ ==================== */
+        .skeleton {
+            background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
             background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 8px;
-            margin-bottom: 10px;
+            animation: loading 1.5s ease-in-out infinite;
         }
 
-        .skeleton-slider-card {
-            flex: 0 0 150px;
-            height: 225px;
-            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 14px;
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
         }
 
-        .skeleton-update-item {
-            height: 72px;
-            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 14px;
-            margin-bottom: 8px;
+        /* ==================== УЛУЧШЕННЫЙ СКРОЛЛБАР ==================== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
 
-        .skeleton-manga-card {
-            background: linear-gradient(90deg, #1a1a22 25%, #242430 50%, #1a1a22 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 14px;
-            aspect-ratio: 2/3;
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
         }
 
-        /* PERFORMANCE */
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 10px;
+            border: 2px solid var(--bg-dark);
+            transition: background 0.3s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: var(--bg-dark);
+        }
+
+        /* ==================== ОПТИМИЗАЦИИ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ ==================== */
         @media (prefers-reduced-motion: reduce) {
             * {
                 animation-duration: 0.01ms !important;
@@ -1104,96 +2254,120 @@
             }
         }
 
-        /* TABLET */
-        @media (min-width: 600px) and (max-width: 1023px) {
-            .manga-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
-            .hero-title { font-size: 44px; }
-            .hero-subtitle { font-size: 17px; }
-            .section-title { font-size: 36px; }
-            .slider-item { min-width: 170px; }
+        .slider,
+        .tabs {
+            will-change: scroll-position;
         }
 
-        /* DESKTOP */
-        @media (min-width: 1024px) {
-            .header-container { padding: 20px 40px; flex-wrap: nowrap; }
-            .logo { font-size: 28px; gap: 10px; }
-            .logo-icon { font-size: 32px; }
-            .nav { display: flex; }
-            .mobile-menu-btn { display: none; }
-            .search-box { max-width: 500px; order: initial; width: auto; }
-            .search-input { padding: 14px 120px 14px 24px; font-size: 15px; }
-            .search-button { padding: 10px 24px; font-size: 14px; }
-            .btn-primary { padding: 12px 28px; font-size: 14px; order: initial; }
+        .manga-card,
+        .slider-item,
+        .update-item {
+            will-change: transform;
+        }
 
-            .hero { margin-top: 80px; min-height: 90vh; padding: 100px 40px; }
-            .hero-container { grid-template-columns: 1fr 1fr; gap: 100px; }
-            .hero-content { order: initial; }
-            .hero-image { order: initial; max-width: 100%; }
-            .hero-title { font-size: 80px; text-align: left; margin-bottom: 30px; }
-            .hero-subtitle { font-size: 20px; text-align: left; margin-bottom: 40px; }
-            .hero-buttons { justify-content: flex-start; gap: 20px; }
-            .btn-secondary { padding: 12px 28px; font-size: 14px; }
-
-            .container { padding: 0 40px; }
-            .section { padding: 120px 0; }
-            .section-header { margin-bottom: 70px; }
-            .section-tag { font-size: 13px; padding: 10px 24px; margin-bottom: 24px; }
-            .section-title { font-size: 52px; margin-bottom: 20px; }
-            .section-description { font-size: 18px; padding: 0; }
-
-            .tabs { gap: 12px; margin-bottom: 56px; padding: 0; justify-content: center; overflow-x: visible; }
-            .tab { padding: 12px 28px; font-size: 14px; }
-
-            .manga-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
-            .manga-card { border-radius: 16px; }
-            .manga-badge { top: 12px; right: 12px; padding: 5px 11px; font-size: 10px; }
-            .manga-info { padding: 14px 16px 16px; }
-            .manga-title { font-size: 14px; }
-            .manga-meta { font-size: 12px; }
-            .manga-type { padding: 3px 10px; font-size: 10px; }
-
-            .slider-container { margin: 0 -40px; padding: 10px 40px 24px; }
-            .slider { gap: 16px; }
-            .slider-item {
-                min-width: calc((100% - 5 * 16px) / 6);
-                max-width: 200px;
-                border-radius: 16px;
+        /* ==================== ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ ==================== */
+        @keyframes fadeInScale {
+            from { 
+                opacity: 0; 
+                transform: scale(0.95);
             }
-
-            .updates-list { gap: 10px; }
-            .update-item { padding: 16px 20px; gap: 18px; border-radius: 16px; }
-            .update-cover { width: 60px; height: 84px; border-radius: 10px; }
-            .update-title { font-size: 15px; white-space: normal; }
-            .update-chapter { font-size: 13px; white-space: normal; }
-            .update-time { font-size: 12px; }
-            .update-type { padding: 6px 14px; font-size: 10px; border-radius: 8px; }
-
-            .cta-section { padding: 140px 40px; }
-            .cta-title { font-size: 64px; margin-bottom: 28px; }
-            .cta-description { font-size: 22px; margin-bottom: 50px; }
-
-            .footer { padding: 100px 40px 50px; }
-            .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 60px; margin-bottom: 60px; }
-            .footer-brand { max-width: 400px; text-align: left; }
-            .footer-logo { font-size: 32px; margin-bottom: 20px; }
-            .footer-description { font-size: 15px; margin-bottom: 30px; }
-            .footer-column { text-align: left; }
-            .footer-column h4::after { left: 0; transform: none; }
-            .footer-bottom { padding-top: 50px; font-size: 14px; }
-
-            .show-more-btn { margin: 44px auto 0; padding: 13px 40px; font-size: 14px; width: auto; }
-            .scroll-top { bottom: 40px; right: 40px; width: 56px; height: 56px; }
+            to { 
+                opacity: 1; 
+                transform: scale(1);
+            }
         }
 
-        /* SCROLLBAR */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-dark); }
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #4f46e5, #6366f1);
+        .manga-card {
+            animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+
+        .manga-card:nth-child(1) { animation-delay: 0.05s; }
+        .manga-card:nth-child(2) { animation-delay: 0.1s; }
+        .manga-card:nth-child(3) { animation-delay: 0.15s; }
+        .manga-card:nth-child(4) { animation-delay: 0.2s; }
+        .manga-card:nth-child(5) { animation-delay: 0.25s; }
+        .manga-card:nth-child(6) { animation-delay: 0.3s; }
+        .manga-card:nth-child(7) { animation-delay: 0.35s; }
+        .manga-card:nth-child(8) { animation-delay: 0.4s; }
+
+        /* ==================== СКЕЛЕТОН-ЗАГРУЗКА ==================== */
+        @keyframes shimmer {
+            0%   { background-position: -200% 0; }
+            100% { background-position:  200% 0; }
+        }
+        .skeleton-line {
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
             border-radius: 8px;
-            border: 2px solid var(--bg-dark);
+            margin-bottom: 10px;
         }
-        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(135deg, #6366f1, #818cf8); }
+        .skeleton-slider-card {
+            flex: 0 0 140px;
+            height: 210px;
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 16px;
+        }
+
+        @media (min-width: 500px) {
+            .skeleton-slider-card {
+                flex: 0 0 160px;
+                height: 240px;
+            }
+        }
+
+        .skeleton-update-item {
+            height: 70px;
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 16px;
+            margin-bottom: 12px;
+        }
+
+        @media (min-width: 768px) {
+            .skeleton-update-item {
+                height: 80px;
+            }
+        }
+
+        .skeleton-manga-card {
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 16px;
+            aspect-ratio: 3/4;
+        }
+
+        @media (min-width: 768px) {
+            .skeleton-manga-card {
+                border-radius: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .skeleton-manga-card {
+                border-radius: 24px;
+            }
+        }
+
+        /* Улучшенные градиенты для карточек */
+        .manga-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.5) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .manga-card:hover::after {
+            opacity: 1;
+        }
     </style>
     <script>
         if ('serviceWorker' in navigator) {
@@ -1294,11 +2468,7 @@
         <div id="section-trending">
             <section class="section" id="trending">
                 <div class="section-header">
-<<<<<<< HEAD
                     <span class="section-tag">Самые горячие</span>
-=======
-                    <span class="section-tag"> Самые горячие</span>
->>>>>>> master
                     <div class="skeleton-line" style="width:220px;height:26px"></div>
                     <div class="skeleton-line" style="width:300px;height:14px;margin-top:6px"></div>
                 </div>
@@ -1308,7 +2478,7 @@
                     <button class="tab" data-filter="month">Месяц</button>
                 </div>
                 <div class="slider-container">
-                    <div class="slider" id="trendingSlider" style="display:flex;gap:16px">
+                    <div class="slider" id="trendingSlider" style="display:flex;gap:12px">
                         <div class="skeleton-slider-card"></div>
                         <div class="skeleton-slider-card"></div>
                         <div class="skeleton-slider-card"></div>
@@ -1324,11 +2494,7 @@
         <div id="section-updates">
             <section class="section" id="updates">
                 <div class="section-header">
-<<<<<<< HEAD
                     <span class="section-tag">Свежие обновления</span>
-=======
-                    <span class="section-tag"> Свежие обновления</span>
->>>>>>> master
                     <div class="skeleton-line" style="width:200px;height:26px"></div>
                     <div class="skeleton-line" style="width:280px;height:14px;margin-top:6px"></div>
                 </div>
@@ -1354,11 +2520,7 @@
         {% if user_id and subscriptions %}
         <section class="section" id="subscriptions">
             <div class="section-header">
-<<<<<<< HEAD
                 <span class="section-tag">Ваша библиотека</span>
-=======
-                <span class="section-tag"> Ваша библиотека</span>
->>>>>>> master
                 <h2 class="section-title">Мои подписки</h2>
                 <p class="section-description">Следите за любимыми мангами</p>
             </div>
@@ -1368,7 +2530,7 @@
                 <div class="manga-card{% if loop.index > 6 %} hidden{% endif %}" onclick="location.href='/manga/{{ manga.manga_slug }}'">
                     <div class="manga-cover-container">
                         {% if manga.last_chapter_number %}
-                        <span class="manga-badge">Гл. {{ manga.last_chapter_number }}</span>
+                        <span class="manga-badge update">Гл. {{ manga.last_chapter_number }}</span>
                         {% endif %}
                         <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
@@ -1376,8 +2538,8 @@
                     <div class="manga-info">
                         <div class="manga-title">{{ manga.manga_title }}</div>
                         <div class="manga-meta">
-                            <span>{{ manga.views or 0 }}</span>
-                            <span style="color: #4caf50;">✓</span>
+                            <span class="manga-rating">⭐ {{ manga.views or 0 }}</span>
+                            <span class="manga-type">Манга</span>
                         </div>
                     </div>
                 </div>
@@ -1748,36 +2910,21 @@
         }
 
         function buildSliderItems(mangas) {
-            return mangas.slice(0, 8).map(m => {
-                const slug  = m.slug  || m.manga_slug  || '';
-                const title = m.title || m.manga_title || '';
-                const type  = m.type  || m.manga_type  || '';
-                return `
-                <div class="slider-item" onclick="location.href='/manga/${e(slug)}'">
+            return mangas.slice(0, 8).map(m => `
+                <div class="slider-item" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
-<<<<<<< HEAD
-                        <span class="manga-badge">Топ</span>
+                        <span class="manga-badge hot">Топ</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
-=======
-                   
-                        <img src="${e(m.cover_url)}" alt="${e(title)}" class="manga-cover" loading="lazy"
->>>>>>> master
                              onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
                     </div>
                     <div class="manga-info">
-                        <div class="manga-title">${e(title)}</div>
+                        <div class="manga-title">${e(m.title)}</div>
                         <div class="manga-meta">
-<<<<<<< HEAD
-                            <span>${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
+                            <span class="manga-rating">⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
                             <span class="manga-type">${e(typeRu(m.type))}</span>
-=======
-                            <span>⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
-                            <span class="manga-type">${e(typeRu(type))}</span>
->>>>>>> master
                         </div>
                     </div>
-                </div>`;
-            }).join('');
+                </div>`).join('');
         }
 
         function initTrendingSlider() {
@@ -1804,11 +2951,7 @@
             document.getElementById('section-trending').innerHTML = `
                 <section class="section" id="trending">
                     <div class="section-header">
-<<<<<<< HEAD
                         <span class="section-tag">Самые горячие</span>
-=======
-                        <span class="section-tag"> Самые горячие</span>
->>>>>>> master
                         <h2 class="section-title">${e(mostRead.title || 'Самое читаемое')}</h2>
                         <p class="section-description">Самые популярные манги по мнению читателей</p>
                     </div>
@@ -1852,6 +2995,7 @@
             if (!recent || !recent.length) return;
             const items = recent.slice(0, 8).map((ch, i) => `
                 <div class="update-item${i >= 6 ? ' hidden' : ''}" onclick="location.href='${e(ch.chapter_url)}'">
+                    ${i < 3 ? '<span class="new-indicator"></span>' : ''}
                     <img src="${e(ch.cover_url)}" alt="${e(ch.manga_title)}" class="update-cover" loading="lazy"
                          onerror="this.src='https://via.placeholder.com/60x85/1a1a1a/667eea?text=Нет'">
                     <div class="update-info">
@@ -1869,11 +3013,7 @@
             document.getElementById('section-updates').innerHTML = `
                 <section class="section" id="updates">
                     <div class="section-header">
-<<<<<<< HEAD
                         <span class="section-tag">Свежие обновления</span>
-=======
-                        <span class="section-tag"> Свежие обновления</span>
->>>>>>> master
                         <h2 class="section-title">Последние главы</h2>
                         <p class="section-description">Новые главы из ваших любимых манг</p>
                     </div>
@@ -1885,9 +3025,9 @@
         function renderSliderSection(containerId, data, badge, tag, descr) {
             if (!data || !data.mangas || !data.mangas.length) return;
             const items = data.mangas.map(m => `
-                <div class="slider-item" onclick="location.href='/manga/${e(m.slug)}'">
+                <div class="slider-item" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
-                        <span class="manga-badge">${badge}</span>
+                        <span class="manga-badge new">${badge}</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
                     </div>
@@ -1916,19 +3056,16 @@
             if (!popularNew || !popularNew.mangas || !popularNew.mangas.length) return;
             const mangas = popularNew.mangas.slice(0, 14);
             const cards = mangas.map((m, i) => `
-                <div class="manga-card${i >= 6 ? ' hidden' : ''}" onclick="location.href='/manga/${e(m.slug)}'">
+                <div class="manga-card${i >= 6 ? ' hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
-<<<<<<< HEAD
-                        <span class="manga-badge">Горячее</span>
-=======
-                        <span class="manga-badge"> Горячее</span>
->>>>>>> master
+                        <span class="manga-badge hot">Горячее</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
                              onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
                     </div>
                     <div class="manga-info">
                         <div class="manga-title">${e(m.title)}</div>
                         <div class="manga-meta">
+                            <span class="manga-rating">⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
                             <span class="manga-type">${e(typeRu(m.type))}</span>
                         </div>
                     </div>
@@ -1941,11 +3078,7 @@
             document.getElementById('section-popular-new').innerHTML = `
                 <section class="section" id="popular">
                     <div class="section-header">
-<<<<<<< HEAD
                         <span class="section-tag">Восходящие звезды</span>
-=======
-                        <span class="section-tag"> Восходящие звезды</span>
->>>>>>> master
                         <h2 class="section-title">${e(popularNew.title || 'Популярные новинки')}</h2>
                         <p class="section-description">Новые манги, набирающие популярность</p>
                     </div>
@@ -1954,6 +3087,41 @@
                 </section>`;
         }
 
+        // ==================== ФОНОВОЕ ОБНОВЛЕНИЕ МЕТАДАННЫХ МАНГИ ====================
+        (function() {
+            const pending = new Set();
+            let timer = null;
+
+            function flush() {
+                if (!pending.size) return;
+                const slugs = Array.from(pending);
+                pending.clear();
+                fetch('/api/manga/bulk-refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slugs })
+                }).catch(() => {});
+            }
+
+            const io = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    const slug = entry.target.dataset.slug;
+                    if (slug) pending.add(slug);
+                    io.unobserve(entry.target);
+                });
+                clearTimeout(timer);
+                timer = setTimeout(flush, 1500);
+            }, { rootMargin: '150px' });
+
+            window.observeMangaRefresh = function() {
+                document.querySelectorAll('[data-slug]:not([data-refresh-observed])').forEach(el => {
+                    el.dataset.refreshObserved = '1';
+                    io.observe(el);
+                });
+            };
+        })();
+
         // Загрузка данных главной страницы
         Promise.all([
             fetch('/api/home/recent').then(r => r.json()).catch(() => []),
@@ -1961,11 +3129,7 @@
         ]).then(([recent, spotlights]) => {
             renderTrending(spotlights.most_read);
             renderRecent(recent);
-<<<<<<< HEAD
-            renderSliderSection('section-last-manga', spotlights.last_manga, 'Новое', 'Новые поступления', 'Свежие манги в коллекции');
-=======
             renderSliderSection('section-last-manga', spotlights.last_manga, ' Новое', ' Новые поступления', 'Свежие манги в коллекции');
->>>>>>> master
             renderPopularNew(spotlights.popular_new);
             renderSliderSection('section-top-manhwa', spotlights.top_manhwa, '🇰🇷 Манхва', ' Топ манхв', 'Лучшие корейские манги');
             renderSliderSection('section-top-manhua', spotlights.top_manhua, '🇨🇳 Маньхуа', ' Топ маньхуа', 'Лучшие китайские манги');
@@ -1975,6 +3139,8 @@
             if (typeof observeElements === 'function') {
                 setTimeout(observeElements, 100);
             }
+            // Запустить фоновое обновление метаданных для всех карточек
+            setTimeout(window.observeMangaRefresh, 200);
         });
     </script>
 </body>

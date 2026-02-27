@@ -1,443 +1,780 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
-  <meta name="theme-color" content="#667eea"/>
-  <title>{{ profile.display_name }} — BubbleManga</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    :root {
-      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --accent: #667eea;
-      --bg: #0a0a0a;
-      --card: #1a1a1a;
-      --card2: #141414;
-      --border: rgba(255,255,255,.06);
-      --text: #ffffff;
-      --text-2: #b8b8b8;
-      --text-3: #71717a;
-    }
-    html, body {
-      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg); color: var(--text);
-      -webkit-font-smoothing: antialiased; line-height: 1.6;
-    }
-    a { color: inherit; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <title>{{ profile.display_name }} — Профиль</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-    /* ── Шапка ─────────────────────────────────── */
-    .site-header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-      background: rgba(10,10,10,.97);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-    .site-header-inner {
-      max-width: 1400px; margin: 0 auto; padding: 14px 20px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    }
-    .site-logo {
-      font-size: 20px; font-weight: 800; text-decoration: none; letter-spacing: -.5px;
-      background: var(--primary);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      display: flex; align-items: center; gap: 7px;
-    }
-    .site-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .nav-btn {
-      padding: 8px 16px; background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.1); border-radius: 50px;
-      color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
-      cursor: pointer; font-family: inherit; white-space: nowrap;
-      transition: background .2s, transform .15s;
-      display: inline-flex; align-items: center; gap: 5px;
-    }
-    .nav-btn:active { transform: scale(.95); }
-    .nav-btn.active { background: var(--primary); border-color: transparent; }
-    @media(min-width:1024px) {
-      .nav-btn:hover { background: rgba(255,255,255,.09); }
-      .nav-btn.active:hover { opacity: .88; }
-    }
+        :root {
+            --primary: #667eea;
+            --primary2: #764ba2;
+            --accent: #ec4899;
+            --gold: #fbbf24;
+            --bg: #0a0a0a;
+            --bg2: #111111;
+            --bg3: #1a1a1a;
+            --glass: rgba(255,255,255,0.05);
+            --glass2: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.1);
+            --text: #ffffff;
+            --text2: #a1a1aa;
+            --radius: 16px;
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
 
-    /* ── Базовые кнопки ─────────────────────────── */
-    .btn-primary {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 9px 20px; background: var(--primary); border: none; border-radius: 50px;
-      color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
-      transition: opacity .2s, transform .1s;
-    }
-    .btn-primary:hover { opacity: .88; }
-    .btn-primary:active { transform: scale(.95); }
-    .btn-secondary {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 9px 20px; background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.12); border-radius: 50px;
-      color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
-      transition: background .2s, transform .1s;
-    }
-    .btn-secondary:hover { background: rgba(255,255,255,.1); }
-    .btn-secondary:active { transform: scale(.95); }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
 
-    /* ── Страница ───────────────────────────────── */
-    .page-wrap { padding-top: 60px; }
+        /* ─── HEADER ─────────────────────────────────── */
+        header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(10,10,10,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            height: 60px;
+            display: flex; align-items: center; padding: 0 20px; gap: 16px;
+        }
+        header a { color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .2s; }
+        header a:hover { color: var(--text); }
+        .header-logo { font-weight: 800; font-size: 18px; background: linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-right: auto; }
 
-    /* ── Профиль ─────────────────────────────────── */
-    .profile-hero {
-      min-height: 300px; position: relative;
-      display: flex; align-items: flex-end; padding: 2rem; overflow: hidden;
-    }
-    .profile-bg {
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg, #0a0a1a, #1a1040, #0d0d1a);
-      z-index: 0;
-    }
-    .profile-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .4; }
-    .profile-bg::after {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(to top, rgba(10,10,10,.8) 0%, transparent 60%);
-    }
-    .profile-hero-content {
-      position: relative; z-index: 1;
-      display: flex; align-items: flex-end; gap: 1.5rem; width: 100%;
-    }
-    .avatar-wrap { position: relative; flex-shrink: 0; }
-    .avatar-wrap img, .avatar-wrap .avatar-placeholder {
-      width: 110px; height: 110px; border-radius: 50%; object-fit: cover;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2.5rem;
-      background: var(--primary);
-      box-shadow: 0 8px 30px rgba(102,126,234,.35);
-    }
-    .avatar-frame { position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; }
-    .profile-info { flex: 1; min-width: 0; }
-    .profile-name { font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: .25rem; }
-    .profile-badge {
-      display: inline-block;
-      background: var(--primary);
-      padding: .2rem .7rem; border-radius: 20px;
-      font-size: .75rem; font-weight: 600; color: #fff; margin-bottom: .5rem;
-    }
-    .profile-bio { color: var(--text-2); font-size: .9rem; margin-top: .4rem; }
+        /* ─── HERO ───────────────────────────────────── */
+        .profile-hero {
+            position: relative;
+            min-height: 380px;
+            display: flex; align-items: flex-end;
+            padding-top: 60px;
+            overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, #1a0533 0%, #0d1b4b 50%, #0a1a0a 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 12s ease infinite;
+        }
+        .hero-bg-img {
+            position: absolute; inset: 0;
+            background-size: cover; background-position: center;
+            opacity: 0.35;
+            transition: opacity .4s;
+        }
+        .hero-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(to bottom, transparent 0%, rgba(10,10,10,0.6) 60%, var(--bg) 100%);
+        }
+        @keyframes gradientShift {
+            0%,100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
 
-    /* XP */
-    .xp-bar-wrap {
-      background: var(--card2); border: 1px solid var(--border);
-      border-radius: 16px; padding: 1rem 1.5rem;
-      display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
-    }
-    .level-badge {
-      width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
-      background: var(--primary);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem; font-weight: 800; color: #fff;
-      box-shadow: 0 0 20px rgba(102,126,234,.4);
-    }
-    .xp-info { flex: 1; min-width: 160px; }
-    .xp-label { font-size: .8rem; color: var(--text-3); margin-bottom: .3rem; }
-    .xp-bar { height: 10px; border-radius: 5px; background: #2a2a2a; overflow: hidden; }
-    .xp-fill {
-      height: 100%; border-radius: 5px;
-      background: var(--primary); transition: width .6s ease;
-    }
-    .xp-numbers { margin-top: .3rem; font-size: .8rem; color: var(--text-3); }
-    .stat-chips { display: flex; gap: .75rem; flex-wrap: wrap; }
-    .stat-chip {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 10px; padding: .4rem .8rem;
-      font-size: .8rem; color: #d4d4d8; white-space: nowrap;
-    }
-    .stat-chip span { color: var(--accent); font-weight: 700; }
+        /* Particles */
+        .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0;
+            animation: floatUp var(--dur) ease-in-out infinite;
+            animation-delay: var(--delay);
+        }
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(0) scale(0); }
+            20% { opacity: .6; }
+            80% { opacity: .2; }
+            100% { opacity: 0; transform: translateY(-260px) scale(1.5); }
+        }
 
-    /* Секции */
-    .profile-sections {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
-      padding: 1.5rem; max-width: 1200px; margin: 0 auto;
-    }
-    @media(max-width:768px) { .profile-sections { grid-template-columns: 1fr; } }
-    .profile-card {
-      background: var(--card2); border: 1px solid var(--border);
-      border-radius: 16px; padding: 1.25rem;
-    }
-    .card-title {
-      font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 1rem;
-      display: flex; align-items: center; gap: .5rem;
-    }
+        .hero-content {
+            position: relative; z-index: 2;
+            width: 100%; max-width: 960px; margin: 0 auto;
+            padding: 32px 20px 36px;
+            display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap;
+        }
 
-    /* Ачивки */
-    .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .75rem; }
-    .ach-item {
-      background: var(--card); border-radius: 12px; padding: .75rem;
-      text-align: center; border: 1px solid var(--border);
-    }
-    .ach-icon { font-size: 2rem; margin-bottom: .3rem; }
-    .ach-name { font-size: .75rem; font-weight: 600; color: #d4d4d8; }
-    .ach-desc { font-size: .65rem; color: var(--text-3); margin-top: .2rem; }
+        /* Avatar */
+        .avatar-wrap { position: relative; flex-shrink: 0; }
+        .avatar {
+            width: 110px; height: 110px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
+            box-shadow: 0 0 0 3px var(--primary), var(--shadow);
+            background: linear-gradient(135deg, var(--primary), var(--primary2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 40px; font-weight: 700; color: white;
+            overflow: hidden;
+        }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .avatar-edit-btn {
+            position: absolute; bottom: 4px; right: 4px;
+            width: 30px; height: 30px; border-radius: 50%;
+            background: var(--primary); border: 2px solid var(--bg);
+            color: white; font-size: 13px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: transform .2s, background .2s;
+        }
+        .avatar-edit-btn:hover { transform: scale(1.1); background: var(--accent); }
 
-    /* История */
-    .history-list { display: flex; flex-direction: column; gap: .6rem; }
-    .history-item {
-      display: flex; align-items: center; gap: .75rem;
-      background: var(--card); border-radius: 10px; padding: .5rem .75rem;
-      text-decoration: none; color: inherit; transition: background .2s;
-    }
-    .history-item:hover { background: #222; }
-    .history-cover { width: 36px; height: 50px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
-    .history-info { flex: 1; min-width: 0; }
-    .history-title {
-      font-size: .8rem; font-weight: 600; color: #d4d4d8;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .history-ch { font-size: .72rem; color: var(--text-3); }
+        .hero-info { flex: 1; min-width: 200px; }
+        .profile-name { font-size: 26px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,0.5); line-height: 1.2; margin-bottom: 6px; }
+        .profile-bio { font-size: 14px; color: var(--text2); max-width: 480px; line-height: 1.5; margin-bottom: 14px; }
+        .profile-stats { display: flex; gap: 14px; flex-wrap: wrap; }
+        .pstat {
+            display: flex; flex-direction: column; align-items: center;
+            background: var(--glass); backdrop-filter: blur(10px);
+            border: 1px solid var(--border); border-radius: 12px; padding: 8px 16px; min-width: 72px;
+        }
+        .pstat-val { font-size: 18px; font-weight: 700; }
+        .pstat-lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
 
-    /* Редактирование */
-    textarea {
-      width: 100%; background: var(--card); border: 1px solid rgba(255,255,255,.1);
-      border-radius: 10px; color: #d4d4d8; padding: .75rem;
-      font-size: .9rem; resize: vertical; min-height: 80px; font-family: inherit;
-    }
-    .upload-btn {
-      display: inline-block; cursor: pointer;
-      background: var(--card2); border: 1px dashed rgba(255,255,255,.15);
-      border-radius: 10px; padding: .6rem 1.2rem;
-      font-size: .85rem; color: var(--text-2); margin-top: .5rem; transition: all .2s;
-    }
-    .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
-    input[type=file] { display: none; }
-  </style>
+        .hero-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+        .btn-edit {
+            padding: 8px 18px; border-radius: 20px;
+            background: var(--glass2); border: 1px solid var(--border);
+            color: var(--text); font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px;
+        }
+        .btn-edit:hover { background: var(--glass); border-color: var(--primary); color: var(--primary); }
+        .btn-bg { padding: 8px 18px; border-radius: 20px; background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; }
+        .btn-bg:hover { border-color: var(--primary); color: var(--primary); }
+        .level-badge { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--primary), var(--primary2)); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+
+        /* ─── TABS ───────────────────────────────────── */
+        .tabs-bar {
+            position: sticky; top: 60px; z-index: 90;
+            background: rgba(10,10,10,0.9); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+        }
+        .tab-btn {
+            flex: 1; padding: 16px; font-size: 14px; font-weight: 600;
+            color: var(--text2); background: none; border: none;
+            cursor: pointer; position: relative; transition: color .2s; max-width: 200px;
+        }
+        .tab-btn.active { color: var(--primary); }
+        .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 2px; background: var(--primary); border-radius: 2px 2px 0 0; transform: scaleX(0); transition: transform .25s; }
+        .tab-btn.active::after { transform: scaleX(1); }
+
+        /* ─── CONTENT ────────────────────────────────── */
+        .tab-pane { display: none; max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+        .tab-pane.active { display: block; }
+
+        /* XP */
+        .xp-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; }
+        .xp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .xp-label { font-size: 13px; color: var(--text2); }
+        .xp-val { font-size: 13px; color: var(--primary); font-weight: 600; }
+        .xp-track { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .xp-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); position: relative; }
+        .xp-fill::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 20px; background: rgba(255,255,255,0.4); animation: shimmerXp 2s ease-in-out infinite; }
+        @keyframes shimmerXp { 0%,100%{opacity:0} 50%{opacity:1} }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; transition: border-color .2s, transform .2s; }
+        .stat-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .stat-icon { font-size: 22px; margin-bottom: 4px; }
+        .stat-num { font-size: 22px; font-weight: 800; }
+        .stat-name { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
+
+        .section-head { font-size: 16px; font-weight: 700; margin-bottom: 14px; margin-top: 28px; display: flex; align-items: center; gap: 8px; }
+        .section-head:first-child { margin-top: 0; }
+
+        /* Achievements */
+        .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .ach-item { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; transition: border-color .2s, transform .2s; cursor: default; }
+        .ach-item:hover { border-color: var(--gold); transform: scale(1.04); }
+        .ach-icon { font-size: 28px; }
+        .ach-name { font-size: 10px; color: var(--text2); line-height: 1.3; }
+        .ach-empty { color: var(--text2); font-size: 14px; padding: 20px 0; }
+
+        /* ─── LIBRARY ────────────────────────────────── */
+        .lib-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+        .lib-btn { padding: 8px 20px; border-radius: 20px; background: var(--glass); border: 1px solid var(--border); color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+        .lib-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary2)); border-color: transparent; color: white; }
+        .lib-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+        .lib-pane { display: none; }
+        .lib-pane.active { display: block; }
+
+        /* Manga cards */
+        .manga-grid-lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; }
+        .mcard { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform .2s, border-color .2s; position: relative; }
+        .mcard:hover { transform: translateY(-4px); border-color: var(--primary); }
+        .mcard-img { width: 100%; aspect-ratio: 2/3; object-fit: cover; background: var(--bg3); display: block; }
+        .mcard-info { padding: 8px 10px 10px; }
+        .mcard-title { font-size: 12px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+        .mcard-meta { font-size: 10px; color: var(--text2); }
+        .mcard-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(239,68,68,0.85); border: none; color: white; font-size: 12px; cursor: pointer; display: none; align-items: center; justify-content: center; transition: transform .2s; }
+        .mcard:hover .mcard-remove { display: flex; }
+        .mcard-remove:hover { transform: scale(1.15); }
+
+        /* History */
+        .history-list { display: flex; flex-direction: column; gap: 10px; }
+        .hitem { display: flex; align-items: center; gap: 14px; background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; cursor: pointer; transition: border-color .2s, transform .2s; text-decoration: none; color: inherit; }
+        .hitem:hover { border-color: var(--primary); transform: translateX(4px); }
+        .hitem-cover { width: 44px; height: 60px; border-radius: 8px; object-fit: cover; background: var(--bg3); flex-shrink: 0; }
+        .hitem-info { flex: 1; min-width: 0; }
+        .hitem-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hitem-chap { font-size: 12px; color: var(--text2); margin-top: 3px; }
+        .hitem-date { font-size: 11px; color: var(--text2); flex-shrink: 0; }
+
+        /* Collections */
+        .coll-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .btn-create { padding: 8px 18px; border-radius: 20px; background: linear-gradient(135deg, var(--primary), var(--primary2)); border: none; color: white; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .2s, transform .2s; display: flex; align-items: center; gap: 6px; }
+        .btn-create:hover { opacity: .85; transform: translateY(-1px); }
+        .coll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+        .coll-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform .2s, border-color .2s; }
+        .coll-card:hover { transform: translateY(-4px); border-color: var(--primary); }
+        .coll-cover { height: 90px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+        .coll-body { padding: 12px 14px; }
+        .coll-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .coll-desc { font-size: 12px; color: var(--text2); margin-bottom: 8px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .coll-meta { display: flex; justify-content: space-between; align-items: center; }
+        .coll-count { font-size: 11px; color: var(--primary); font-weight: 600; }
+        .coll-actions { display: flex; gap: 6px; }
+        .coll-btn { width: 26px; height: 26px; border-radius: 50%; background: var(--glass2); border: 1px solid var(--border); color: var(--text2); font-size: 12px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; }
+        .coll-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .coll-btn.del:hover { border-color: #ef4444; color: #ef4444; }
+        .coll-detail-back { display: flex; align-items: center; gap: 8px; color: var(--text2); cursor: pointer; font-size: 14px; margin-bottom: 20px; width: fit-content; transition: color .2s; }
+        .coll-detail-back:hover { color: var(--primary); }
+
+        /* ─── MODALS ─────────────────────────────────── */
+        .modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s; }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+        .modal { background: #161616; border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 100%; max-width: 420px; transform: translateY(20px) scale(.97); transition: transform .25s; max-height: 90vh; overflow-y: auto; }
+        .modal-overlay.open .modal { transform: none; }
+        .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-close { width: 32px; height: 32px; border-radius: 50%; background: var(--glass); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all .2s; }
+        .modal-close:hover { background: #ef4444; border-color: #ef4444; color: white; }
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+        .field input, .field textarea { width: 100%; padding: 10px 14px; background: var(--glass); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s; }
+        .field input:focus, .field textarea:focus { border-color: var(--primary); }
+        .field textarea { resize: vertical; min-height: 80px; }
+        .field-file-wrap { border: 2px dashed var(--border); border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: border-color .2s; }
+        .field-file-wrap:hover { border-color: var(--primary); }
+        .field-file-wrap input[type=file] { display: none; }
+        .file-label { font-size: 13px; color: var(--text2); }
+        .file-preview { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 8px auto; display: block; }
+        .file-preview-bg { width: 100%; height: 80px; border-radius: 10px; object-fit: cover; margin: 8px auto; display: block; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-primary-m { flex: 1; padding: 11px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary2)); border: none; color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+        .btn-primary-m:hover { opacity: .85; }
+        .btn-secondary-m { padding: 11px 18px; border-radius: 12px; background: var(--glass); border: 1px solid var(--border); color: var(--text2); font-size: 14px; cursor: pointer; transition: all .2s; }
+        .btn-secondary-m:hover { color: var(--text); }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+        .toggle { position: relative; width: 44px; height: 24px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; inset: 0; border-radius: 12px; background: var(--glass2); cursor: pointer; transition: background .2s; }
+        .toggle-slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: white; transition: transform .2s; }
+        .toggle input:checked + .toggle-slider { background: var(--primary); }
+        .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+        /* Utils */
+        .loading-spin { display: flex; justify-content: center; padding: 40px; }
+        .spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { text-align: center; padding: 48px 20px; color: var(--text2); font-size: 14px; }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1f1f1f; border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 14px; z-index: 300; transition: transform .3s; white-space: nowrap; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { border-color: #22c55e; color: #22c55e; }
+        .toast.error { border-color: #ef4444; color: #ef4444; }
+
+        @media (max-width: 600px) {
+            .hero-content { flex-direction: column; align-items: flex-start; padding: 24px 16px 28px; }
+            .profile-name { font-size: 22px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .manga-grid-lib { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+            .coll-grid { grid-template-columns: 1fr 1fr; }
+            .tab-pane { padding: 20px 14px 48px; }
+        }
+    </style>
 </head>
 <body>
 
-<!-- Шапка -->
-<header class="site-header">
-  <div class="site-header-inner">
-    <a href="/" class="site-logo"><span>B</span><span>BubbleManga</span></a>
-    <nav class="site-nav">
-      <a href="/" class="nav-btn">Главная</a>
-      <a href="/top" class="nav-btn">Топ</a>
-      <a href="/shop" class="nav-btn">Магазин</a>
-      {% if user_id %}
-      <a href="/profile/me" class="nav-btn active">Профиль</a>
-      <a href="/logout" class="nav-btn">Выйти</a>
-      {% else %}
-      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span></span><span>Войти</span>
-      </a>
-      {% endif %}
-    </nav>
-  </div>
+<!-- HEADER -->
+<header>
+    <a href="/" class="header-logo">BubbleManga</a>
+    <a href="/">Главная</a>
+    <a href="/top">Топ</a>
+    <a href="/shop">Магазин</a>
+    {% if user_id %}
+    <a href="/profile/me" style="color:var(--primary)">Профиль</a>
+    <a href="/logout" style="margin-left:auto;color:var(--text2)">Выйти</a>
+    {% else %}
+    <a href="https://t.me/hookah_p_bot" target="_blank" style="margin-left:auto;color:var(--primary)">Войти</a>
+    {% endif %}
 </header>
 
-<div class="page-wrap">
-  <div id="react-profile-root"></div>
+<!-- HERO -->
+<div class="profile-hero">
+    <div class="hero-bg"></div>
+    <div class="hero-bg-img" id="heroBgImg"
+         {% if profile.profile and profile.profile.background_url %}
+         style="background-image:url('{{ profile.profile.background_url }}')"
+         {% endif %}></div>
+    <div class="hero-overlay"></div>
+    <div class="particles" id="particles"></div>
+
+    <div class="hero-content">
+        <div class="avatar-wrap">
+            <div class="avatar" id="avatarEl">
+                {% if profile.profile and profile.profile.avatar_url %}
+                <img src="{{ profile.profile.avatar_url }}" alt="Avatar" onerror="this.style.display='none'">
+                {% else %}
+                {{ profile.display_name[0]|upper }}
+                {% endif %}
+            </div>
+            {% if is_own %}
+            <button class="avatar-edit-btn" onclick="openModal('avatarModal')" title="Сменить аватар">📷</button>
+            {% endif %}
+        </div>
+
+        <div class="hero-info">
+            <div class="level-badge">⚡ Уровень {{ profile.level }}</div>
+            <h1 class="profile-name">{{ profile.display_name }}</h1>
+            <p class="profile-bio" id="heroBio">{{ profile.profile.bio if profile.profile and profile.profile.bio else 'Нет описания' }}</p>
+            <div class="profile-stats">
+                <div class="pstat">
+                    <span class="pstat-val">{{ profile.stats.total_chapters_read or 0 }}</span>
+                    <span class="pstat-lbl">Глав</span>
+                </div>
+                <div class="pstat">
+                    <span class="pstat-val">{{ profile.xp }}</span>
+                    <span class="pstat-lbl">XP</span>
+                </div>
+                <div class="pstat">
+                    <span class="pstat-val">{{ profile.coins }}</span>
+                    <span class="pstat-lbl">Монет</span>
+                </div>
+            </div>
+            {% if is_own %}
+            <div class="hero-actions">
+                <button class="btn-edit" onclick="openModal('editModal')">✏️ Редактировать</button>
+                <button class="btn-bg" onclick="openModal('bgModal')">🖼 Фон</button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
-<script type="importmap">
-{"imports":{"react":"https://esm.sh/react@18","react-dom/client":"https://esm.sh/react-dom@18/client"}}
-</script>
-<script type="module">
-import React,{useState,useRef} from 'react';
-import {createRoot} from 'react-dom/client';
+<!-- TABS -->
+<div class="tabs-bar">
+    <button class="tab-btn active" data-tab="profile">📊 Профиль</button>
+    <button class="tab-btn" data-tab="library">📚 Библиотека</button>
+</div>
 
-const {createElement:h,Fragment} = React;
+<!-- ПРОФИЛЬ -->
+<div id="tab-profile" class="tab-pane active">
+    <div class="xp-card">
+        <div class="xp-header">
+            <span class="xp-label">Прогресс до уровня {{ profile.level + 1 }}</span>
+            <span class="xp-val">{{ profile.xp_for_next }} XP осталось</span>
+        </div>
+        <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+    </div>
 
-// Данные из Flask
-const DATA = {
-  profile:    {{ profile | tojson }},
-  isOwn:      {{ is_own | tojson }},
-  userId:     {{ user_id | tojson }},
-  viewerCoins:{{ viewer_coins | tojson }},
-};
+    <div class="stats-grid">
+        <div class="stat-card"><span class="stat-icon">📖</span><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><span class="stat-name">Глав прочитано</span></div>
+        <div class="stat-card"><span class="stat-icon">📄</span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
+        <div class="stat-card"><span class="stat-icon">⚡</span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
+        <div class="stat-card"><span class="stat-icon">🪙</span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Монеты</span></div>
+    </div>
 
-function Avatar({url,frameCss,size=110}){
-  const style={width:size,height:size,borderRadius:'50%',objectFit:'cover',display:'block'};
-  const wrap={position:'relative',width:size,height:size,flexShrink:0};
-  return h('div',{style:wrap},
-    url
-      ? h('img',{src:url,style,alt:'avatar'})
-      : h('div',{style:{...style,background:'linear-gradient(135deg,#667eea,#764ba2)',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:size*0.4,color:'#fff'}}, ''),
-    frameCss && h('div',{style:{position:'absolute',inset:-4,borderRadius:'50%',
-      ...(Object.fromEntries(frameCss.split(';').filter(Boolean).map(s=>{
-        const [k,...v]=s.trim().split(':');
-        return [k.trim().replace(/-([a-z])/g,(_,c)=>c.toUpperCase()),v.join(':').trim()];
-      }))
-    }})
-  );
-}
+    <div class="section-head">🏆 Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
+    {% if profile.achievements %}
+    <div class="ach-grid">
+        {% for a in profile.achievements %}
+        <div class="ach-item" title="{{ a.description }}">
+            <span class="ach-icon">{{ a.icon }}</span>
+            <span class="ach-name">{{ a.name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="ach-empty">Пока нет достижений. Читай мангу — получай награды!</p>
+    {% endif %}
+</div>
 
-function XpBar({pct,xpForNext,xp,level,chapters,coins}){
-  return h('div',{className:'xp-bar-wrap'},
-    h('div',{className:'level-badge'},level),
-    h('div',{className:'xp-info'},
-      h('div',{className:'xp-label'},`Уровень ${level}`),
-      h('div',{className:'xp-bar'},h('div',{className:'xp-fill',style:{width:`${pct}%`}})),
-      h('div',{className:'xp-numbers'},`${xpForNext} XP до следующего уровня`)
-    ),
-    h('div',{className:'stat-chips'},
-      h('div',{className:'stat-chip'},'Глав: ',h('span',null,chapters)),
-      h('div',{className:'stat-chip'},'XP: ',h('span',null,xp.toLocaleString())),
-      h('div',{className:'stat-chip'},'Монеты: ',h('span',null,coins.toLocaleString()))
-    )
-  );
-}
+<!-- БИБЛИОТЕКА -->
+<div id="tab-library" class="tab-pane">
+    <div class="lib-tabs">
+        <button class="lib-btn active" data-lib="history">📜 История</button>
+        <button class="lib-btn" data-lib="subscriptions">🔔 Подписки</button>
+        <button class="lib-btn" data-lib="collections">📁 Коллекции</button>
+    </div>
 
-function AchGrid({achievements}){
-  if(!achievements.length) return h('p',{style:{color:'#71717a',fontSize:'.85rem'}},'Ачивок пока нет — читайте больше манги!');
-  return h('div',{className:'ach-grid'},
-    achievements.map(a=>
-      h('div',{key:a.id,className:'ach-item'},
-        h('div',{className:'ach-icon'},a.icon),
-        h('div',{className:'ach-name'},a.name),
-        h('div',{className:'ach-desc'},a.description)
-      )
-    )
-  );
-}
+    <div id="lib-history" class="lib-pane active">
+        <div id="historyContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    </div>
+    <div id="lib-subscriptions" class="lib-pane">
+        <div id="subsContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    </div>
+    <div id="lib-collections" class="lib-pane">
+        {% if is_own %}
+        <div class="coll-header">
+            <span style="font-size:15px;font-weight:700">Мои коллекции</span>
+            <button class="btn-create" onclick="openModal('collModal')">＋ Создать</button>
+        </div>
+        {% endif %}
+        <div id="collsContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    </div>
+</div>
 
-function HistoryList({history}){
-  if(!history.length) return h('p',{style:{color:'#71717a',fontSize:'.85rem'}},'История чтения пуста');
-  return h('div',{className:'history-list'},
-    history.map((h2,i)=>
-      h('a',{key:i,href:`/read/${h2.manga_slug}/${h2.chapter_slug}`,className:'history-item'},
-        h('img',{src:h2.cover_url||'',className:'history-cover',alt:'',onError:e=>e.target.style.display='none'}),
-        h('div',{className:'history-info'},
-          h('div',{className:'history-title'},h2.manga_title),
-          h('div',{className:'history-ch'},`Глава ${h2.chapter_number}`)
-        )
-      )
-    )
-  );
-}
+<!-- ════ MODALS ════ -->
+{% if is_own %}
+<!-- Редактировать -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-title">✏️ Редактировать профиль <button class="modal-close" onclick="closeModal('editModal')">✕</button></div>
+        <div class="field">
+            <label>Описание профиля</label>
+            <textarea id="bioInput" maxlength="300" placeholder="Расскажи о себе...">{{ profile.profile.bio if profile.profile and profile.profile.bio else '' }}</textarea>
+            <div style="font-size:11px;color:var(--text2);text-align:right;margin-top:4px"><span id="bioCount">0</span>/300</div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary-m" onclick="closeModal('editModal')">Отмена</button>
+            <button class="btn-primary-m" onclick="saveBio()">Сохранить</button>
+        </div>
+    </div>
+</div>
 
-function EditPanel({profile,onSaved}){
-  const [bio,setBio]=useState(profile.profile.bio||'');
-  const [saving,setSaving]=useState(false);
-  const avatarRef=useRef();
-  const bgRef=useRef();
+<!-- Аватар -->
+<div class="modal-overlay" id="avatarModal">
+    <div class="modal">
+        <div class="modal-title">📷 Сменить аватар <button class="modal-close" onclick="closeModal('avatarModal')">✕</button></div>
+        <div class="field">
+            <div class="field-file-wrap" onclick="document.getElementById('avatarFile').click()">
+                <input type="file" id="avatarFile" accept="image/*" onchange="previewFile(this,'avatarPreview','circle')">
+                <img id="avatarPreview" class="file-preview" style="display:none">
+                <p class="file-label">Нажми для выбора фото<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP до 5 МБ</span></p>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary-m" onclick="closeModal('avatarModal')">Отмена</button>
+            <button class="btn-primary-m" onclick="uploadAvatar()">Загрузить</button>
+        </div>
+    </div>
+</div>
 
-  async function saveBio(){
-    setSaving(true);
-    await fetch('/api/profile/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bio})});
-    setSaving(false);
-    onSaved();
-  }
+<!-- Фон -->
+<div class="modal-overlay" id="bgModal">
+    <div class="modal">
+        <div class="modal-title">🖼 Фон профиля <button class="modal-close" onclick="closeModal('bgModal')">✕</button></div>
+        <div class="field">
+            <div class="field-file-wrap" onclick="document.getElementById('bgFile').click()">
+                <input type="file" id="bgFile" accept="image/*" onchange="previewFile(this,'bgPreview','rect')">
+                <img id="bgPreview" class="file-preview-bg" style="display:none">
+                <p class="file-label">Нажми для выбора изображения<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP до 10 МБ</span></p>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary-m" onclick="closeModal('bgModal')">Отмена</button>
+            <button class="btn-primary-m" onclick="uploadBg()">Загрузить</button>
+        </div>
+    </div>
+</div>
 
-  async function upload(ref,endpoint){
-    const file=ref.current.files[0];
-    if(!file) return;
-    const fd=new FormData();fd.append('file',file);
-    const r=await fetch(endpoint,{method:'POST',body:fd});
-    const d=await r.json();
-    if(d.error) alert(d.error);
-    else { onSaved(); }
-  }
+<!-- Коллекция -->
+<div class="modal-overlay" id="collModal">
+    <div class="modal">
+        <div class="modal-title"><span id="collModalTitle">📁 Новая коллекция</span> <button class="modal-close" onclick="closeModal('collModal')">✕</button></div>
+        <div class="field"><label>Название *</label><input type="text" id="collName" maxlength="100" placeholder="Например: Любимые isekai"></div>
+        <div class="field"><label>Описание</label><textarea id="collDesc" maxlength="500" placeholder="Необязательно..."></textarea></div>
+        <div class="field">
+            <div class="toggle-row">
+                <label style="margin:0;font-size:13px;color:var(--text2)">Публичная коллекция</label>
+                <label class="toggle"><input type="checkbox" id="collPublic" checked><span class="toggle-slider"></span></label>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary-m" onclick="closeModal('collModal')">Отмена</button>
+            <button class="btn-primary-m" id="collSaveBtn" onclick="saveCollection()">Создать</button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
-  return h(Fragment,null,
-    h('div',{className:'profile-card',style:{marginBottom:'1rem'}},
-      h('div',{className:'card-title'},'Редактировать профиль'),
-      h('label',{style:{color:'#b8b8b8',fontSize:'.85rem',display:'block',marginBottom:'.4rem'}},'О себе'),
-      h('textarea',{value:bio,onChange:e=>setBio(e.target.value),maxLength:300}),
-      h('button',{className:'btn-primary',style:{marginTop:'.5rem'},onClick:saveBio,disabled:saving},
-        saving?'Сохранение…':'Сохранить'),
-    ),
-    h('div',{className:'profile-card'},
-      h('div',{className:'card-title'},'Медиафайлы'),
-      h('p',{style:{color:'#71717a',fontSize:'.8rem',marginBottom:'.5rem'}},
-        'Слот аватара и фона покупаются в Магазине'),
-      h('label',{className:'upload-btn'},
-<<<<<<< HEAD
-        'Загрузить аватар',
-=======
-        ' Загрузить аватар',
->>>>>>> master
-        h('input',{type:'file',ref:avatarRef,accept:'image/*',onChange:()=>upload(avatarRef,'/upload/avatar')})
-      ),
-      h('br'),
-      h('label',{className:'upload-btn',style:{marginTop:'.5rem'}},
-<<<<<<< HEAD
-        'Загрузить фон профиля',
-=======
-        ' Загрузить фон профиля',
->>>>>>> master
-        h('input',{type:'file',ref:bgRef,accept:'image/*',onChange:()=>upload(bgRef,'/upload/background')})
-      )
-    )
-  );
-}
+<div class="toast" id="toast"></div>
 
-function ProfilePage(){
-  const {profile,isOwn}=DATA;
-  const [editMode,setEditMode]=useState(false);
-  const [data,setData]=useState(profile);
+<script>
+    const IS_OWN = {{ 'true' if is_own else 'false' }};
+    const XP_PCT = {{ profile.xp_progress_pct }};
 
-  async function refresh(){
-    const r=await fetch(`/api/user/stats`);
-    const s=await r.json();
-    setData(d=>({...d,stats:{...d.stats,xp:s.xp,coins:s.coins,level:s.level},
-      level:s.level,xp:s.xp,coins:s.coins,xp_progress_pct:s.xp_progress_pct}));
-    setEditMode(false);
-    window.location.reload();
-  }
+    // Particles
+    (function() {
+        const wrap = document.getElementById('particles');
+        const colors = ['#667eea','#764ba2','#ec4899','#fbbf24','#22c55e'];
+        for (let i = 0; i < 20; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = 3 + Math.random() * 7;
+            p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;bottom:-10px;background:${colors[i%colors.length]};--dur:${4+Math.random()*7}s;--delay:${Math.random()*7}s;`;
+            wrap.appendChild(p);
+        }
+    })();
 
-  const frameCss = data.items?.find(i=>i.type==='frame'&&i.is_equipped)?.css_value;
-  const badge    = data.items?.find(i=>i.type==='badge'&&i.is_equipped)?.css_value;
-  const bgItem   = data.items?.find(i=>i.type==='background'&&i.is_equipped)?.css_value;
-  const bgStyle  = data.profile?.background_url
-    ? {backgroundImage:`url(${data.profile.background_url})`,backgroundSize:'cover',backgroundPosition:'center'}
-    : bgItem
-      ? (()=>{const s={};bgItem.split(';').filter(Boolean).forEach(kv=>{const[k,...v]=kv.trim().split(':');s[k.trim().replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=v.join(':').trim()});return s;})()
-      : {background:'linear-gradient(135deg,#0a0a1a,#1a1040,#0d0d1a)'};
+    // XP fill
+    setTimeout(() => { document.getElementById('xpFill').style.width = XP_PCT + '%'; }, 300);
 
-  return h(Fragment,null,
-    h('div',{className:'profile-hero'},
-      h('div',{className:'profile-bg',style:bgStyle}),
-      h('div',{className:'profile-hero-content'},
-        h(Avatar,{url:data.profile?.avatar_url,frameCss,size:110}),
-        h('div',{className:'profile-info'},
-          h('div',{className:'profile-name'},data.display_name),
-          badge && h('div',{className:'profile-badge'},badge),
-          data.profile?.bio && h('div',{className:'profile-bio'},data.profile.bio)
-        ),
-        isOwn && h('button',{
-          className:'btn-secondary',
-          style:{marginLeft:'auto',padding:'.5rem 1rem',fontSize:'.85rem'},
-          onClick:()=>setEditMode(e=>!e)
-        }, editMode?'✕ Закрыть':'Изменить')
-      )
-    ),
+    // Main tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+            if (btn.dataset.tab === 'library') initLibrary();
+        });
+    });
 
-    h('div',{style:{padding:'1rem 1.5rem',maxWidth:'1200px',margin:'0 auto'}},
-      h(XpBar,{
-        pct:data.xp_progress_pct,
-        xpForNext:data.xp_for_next,
-        xp:data.xp,
-        level:data.level,
-        chapters:data.stats?.total_chapters_read||0,
-        coins:data.coins
-      })
-    ),
+    // Library sub-tabs
+    const libLoaded = {};
+    document.querySelectorAll('.lib-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.lib-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.lib-pane').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('lib-' + btn.dataset.lib).classList.add('active');
+            loadLibPane(btn.dataset.lib);
+        });
+    });
 
-    editMode && h('div',{style:{padding:'0 1.5rem',maxWidth:'1200px',margin:'0 auto'}},
-      h(EditPanel,{profile:data,onSaved:refresh})
-    ),
+    function initLibrary() { loadLibPane('history'); }
+    function loadLibPane(name) {
+        if (libLoaded[name]) return;
+        libLoaded[name] = true;
+        if (name === 'history') fetchHistory();
+        else if (name === 'subscriptions') fetchSubs();
+        else if (name === 'collections') fetchColls();
+    }
 
-    h('div',{className:'profile-sections'},
-      h('div',{className:'profile-card'},
-        h('div',{className:'card-title'},'Ачивки (',data.achievements.length,')'),
-        h(AchGrid,{achievements:data.achievements})
-      ),
-      h('div',{className:'profile-card'},
-        h('div',{className:'card-title'},'История чтения'),
-        h(HistoryList,{history:data.history})
-      )
-    )
-  );
-}
+    // History
+    function fetchHistory() {
+        fetch('/api/user/history?limit=50')
+            .then(r => r.json())
+            .then(rows => {
+                const el = document.getElementById('historyContent');
+                if (!rows.length) { el.innerHTML = emptyState('📜', 'История пуста', 'Начни читать мангу!'); return; }
+                el.innerHTML = '<div class="history-list">' + rows.map(r => `
+                    <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}" class="hitem">
+                        <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">
+                        <div class="hitem-info">
+                            <div class="hitem-title">${esc(r.manga_title)}</div>
+                            <div class="hitem-chap">Глава ${esc(String(r.chapter_number))}</div>
+                        </div>
+                        <div class="hitem-date">${fmtDate(r.last_read)}</div>
+                    </a>`).join('') + '</div>';
+            }).catch(() => { document.getElementById('historyContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
+    }
 
-createRoot(document.getElementById('react-profile-root')).render(h(ProfilePage));
+    // Subscriptions
+    function fetchSubs() {
+        fetch('/api/user/subscriptions')
+            .then(r => r.json())
+            .then(rows => {
+                const el = document.getElementById('subsContent');
+                if (!rows.length) { el.innerHTML = emptyState('🔔', 'Нет подписок', 'Подпишись на любимые манги на их страницах'); return; }
+                el.innerHTML = '<div class="manga-grid-lib">' + rows.map(m => `
+                    <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
+                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <div class="mcard-info">
+                            <div class="mcard-title">${esc(m.manga_title)}</div>
+                            <div class="mcard-meta">${typeRu(m.manga_type)}</div>
+                        </div>
+                    </div>`).join('') + '</div>';
+            }).catch(() => { document.getElementById('subsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
+    }
+
+    // Collections
+    let editingCollId = null;
+    function fetchColls() {
+        fetch('/api/user/collections')
+            .then(r => r.json())
+            .then(renderColls)
+            .catch(() => { document.getElementById('collsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
+    }
+
+    function renderColls(colls) {
+        const el = document.getElementById('collsContent');
+        if (!colls.length) { el.innerHTML = emptyState('📁', 'Нет коллекций', IS_OWN ? 'Создай первую коллекцию!' : 'Пока нет публичных коллекций'); return; }
+        const emojis = ['📚','🎌','⚔️','🌸','🔥','👾','💫','🎭'];
+        el.innerHTML = '<div class="coll-grid">' + colls.map((c, i) => `
+            <div class="coll-card" onclick="openColl(${c.id}, ${JSON.stringify(c.name)})">
+                <div class="coll-cover">${emojis[i % emojis.length]}</div>
+                <div class="coll-body">
+                    <div class="coll-name">${esc(c.name)}</div>
+                    <div class="coll-desc">${esc(c.description || '—')}</div>
+                    <div class="coll-meta">
+                        <span class="coll-count">📖 ${c.items_count} манг</span>
+                        ${IS_OWN ? `<div class="coll-actions" onclick="event.stopPropagation()">
+                            <button class="coll-btn" onclick="editColl(${c.id},${JSON.stringify(c.name)},${JSON.stringify(c.description||'')},${c.is_public})" title="Изменить">✏️</button>
+                            <button class="coll-btn del" onclick="deleteColl(${c.id})" title="Удалить">🗑</button>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>`).join('') + '</div>';
+    }
+
+    function openColl(id, name) {
+        const el = document.getElementById('collsContent');
+        el.innerHTML = `<div class="coll-detail-back" onclick="backToColls()">← Назад к коллекциям</div>
+            <div style="font-size:18px;font-weight:800;margin-bottom:16px">${esc(name)}</div>
+            <div id="collItemsContent"><div class="loading-spin"><div class="spin"></div></div></div>`;
+        fetch(`/api/collections/${id}/items`)
+            .then(r => r.json())
+            .then(items => {
+                const box = document.getElementById('collItemsContent');
+                if (!items.length) { box.innerHTML = emptyState('📖', 'Коллекция пуста', IS_OWN ? 'Добавляй мангу со страниц манги' : ''); return; }
+                box.innerHTML = '<div class="manga-grid-lib">' + items.map(m => `
+                    <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
+                        ${IS_OWN ? `<button class="mcard-remove" onclick="event.stopPropagation();removeManga(${id},'${esc(m.manga_id)}',this.closest('.mcard'))" title="Убрать">✕</button>` : ''}
+                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <div class="mcard-info">
+                            <div class="mcard-title">${esc(m.manga_title)}</div>
+                            <div class="mcard-meta">${typeRu(m.manga_type)}</div>
+                        </div>
+                    </div>`).join('') + '</div>';
+            });
+    }
+
+    function backToColls() { libLoaded['collections'] = false; fetchColls(); }
+
+    function editColl(id, name, desc, isPublic) {
+        editingCollId = id;
+        document.getElementById('collModalTitle').textContent = '✏️ Изменить коллекцию';
+        document.getElementById('collName').value = name;
+        document.getElementById('collDesc').value = desc;
+        document.getElementById('collPublic').checked = !!isPublic;
+        document.getElementById('collSaveBtn').textContent = 'Сохранить';
+        openModal('collModal');
+    }
+
+    async function deleteColl(id) {
+        if (!confirm('Удалить коллекцию?')) return;
+        const r = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
+        if (r.ok) { toast('Коллекция удалена', 'success'); libLoaded['collections'] = false; fetchColls(); }
+        else toast('Ошибка удаления', 'error');
+    }
+
+    async function removeManga(collId, mangaId, cardEl) {
+        const r = await fetch(`/api/collections/${collId}/manga/${mangaId}`, { method: 'DELETE' });
+        if (r.ok) { cardEl.remove(); toast('Убрано из коллекции', 'success'); }
+        else toast('Ошибка', 'error');
+    }
+
+    async function saveCollection() {
+        const name = document.getElementById('collName').value.trim();
+        if (!name) { toast('Введи название', 'error'); return; }
+        const body = { name, description: document.getElementById('collDesc').value.trim(), is_public: document.getElementById('collPublic').checked };
+        const url = editingCollId ? `/api/collections/${editingCollId}` : '/api/collections';
+        const method = editingCollId ? 'PUT' : 'POST';
+        const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const d = await r.json();
+        if (d.success || d.id) {
+            toast(editingCollId ? 'Обновлено' : 'Коллекция создана', 'success');
+            closeModal('collModal');
+            editingCollId = null;
+            document.getElementById('collName').value = '';
+            document.getElementById('collDesc').value = '';
+            document.getElementById('collModalTitle').textContent = '📁 Новая коллекция';
+            document.getElementById('collSaveBtn').textContent = 'Создать';
+            libLoaded['collections'] = false;
+            fetchColls();
+        } else toast(d.error || 'Ошибка', 'error');
+    }
+
+    // Bio
+    const bioInput = document.getElementById('bioInput');
+    const bioCount = document.getElementById('bioCount');
+    if (bioInput) {
+        bioCount.textContent = bioInput.value.length;
+        bioInput.addEventListener('input', () => { bioCount.textContent = bioInput.value.length; });
+    }
+
+    async function saveBio() {
+        const bio = bioInput.value.trim();
+        const r = await fetch('/api/profile/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({bio}) });
+        const d = await r.json();
+        if (d.success) { document.getElementById('heroBio').textContent = bio || 'Нет описания'; toast('Профиль обновлён', 'success'); closeModal('editModal'); }
+        else toast(d.error || 'Ошибка', 'error');
+    }
+
+    // File preview
+    function previewFile(input, previewId, shape) {
+        const file = input.files[0]; if (!file) return;
+        const img = document.getElementById(previewId);
+        img.style.display = 'block';
+        img.style.borderRadius = shape === 'circle' ? '50%' : '10px';
+        const reader = new FileReader();
+        reader.onload = e => img.src = e.target.result;
+        reader.readAsDataURL(file);
+    }
+
+    async function uploadAvatar() {
+        const input = document.getElementById('avatarFile');
+        if (!input.files[0]) { toast('Выбери файл', 'error'); return; }
+        const fd = new FormData(); fd.append('file', input.files[0]);
+        const r = await fetch('/upload/avatar', { method:'POST', body:fd });
+        const d = await r.json();
+        if (d.avatar_url) {
+            document.getElementById('avatarEl').innerHTML = `<img src="${d.avatar_url}" alt="Avatar">`;
+            toast('Аватар обновлён!', 'success'); closeModal('avatarModal');
+        } else toast(d.error || 'Ошибка', 'error');
+    }
+
+    async function uploadBg() {
+        const input = document.getElementById('bgFile');
+        if (!input.files[0]) { toast('Выбери файл', 'error'); return; }
+        const fd = new FormData(); fd.append('file', input.files[0]);
+        const r = await fetch('/upload/background', { method:'POST', body:fd });
+        const d = await r.json();
+        if (d.background_url) {
+            const el = document.getElementById('heroBgImg');
+            el.style.backgroundImage = `url('${d.background_url}')`;
+            toast('Фон обновлён!', 'success'); closeModal('bgModal');
+        } else toast(d.error || 'Ошибка', 'error');
+    }
+
+    // Modals
+    function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
+    document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); }));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id)); });
+
+    // Toast
+    let toastTimer;
+    function toast(msg, type='') {
+        const el = document.getElementById('toast');
+        el.textContent = msg; el.className = 'toast show ' + type;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // Helpers
+    function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function fmtDate(s) {
+        if (!s) return '';
+        const d = new Date(s), now = new Date(), diff = (now - d) / 1000;
+        if (diff < 3600) return Math.floor(diff/60) + ' мин назад';
+        if (diff < 86400) return Math.floor(diff/3600) + ' ч назад';
+        if (diff < 604800) return Math.floor(diff/86400) + ' д назад';
+        return d.toLocaleDateString('ru-RU', {day:'numeric',month:'short'});
+    }
+    function typeRu(t) { return {MANGA:'Манга',MANHWA:'Манхва',MANHUA:'Маньхуа',NOVEL:'Новелла'}[t] || t || ''; }
+    function emptyState(icon, title, sub='') {
+        return `<div class="empty-state"><div class="empty-icon">${icon}</div><div style="font-weight:700;margin-bottom:4px">${title}</div>${sub?`<div style="font-size:13px">${sub}</div>`:''}</div>`;
+    }
 </script>
 </body>
 </html>

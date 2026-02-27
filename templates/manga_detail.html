@@ -492,6 +492,14 @@
             font-weight: 600;
         }
 
+        .chapter-item--read {
+            opacity: 0.6;
+        }
+
+        .chapter-item--read .chapter-number {
+            color: #a1a1aa;
+        }
+
         .chapter-arrow {
             color: #667eea;
             font-size: 20px;
@@ -834,6 +842,9 @@
                     <span>Подписаться</span>
                     {% endif %}
                 </button>
+                <button class="btn" onclick="openCollectionPicker('{{ manga.manga_id }}')" style="background:rgba(102,126,234,0.15);border-color:rgba(102,126,234,0.3);color:#818cf8" title="Добавить в коллекцию">
+                    📁 В коллекцию
+                </button>
 
                 {% if reading_history %}
                 <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
@@ -866,7 +877,6 @@
                     {% if manga.manga_status %}
                     <div class="manga-status-badge">
                         {% if manga.manga_status == 'ONGOING' %}
-<<<<<<< HEAD
                         Онгоинг
                         {% elif manga.manga_status == 'FINISHED' %}
                         Завершена
@@ -874,15 +884,6 @@
                         Пауза
                         {% elif manga.manga_status == 'CANCELLED' %}
                         Отменена
-=======
-                         Онгоинг
-                        {% elif manga.manga_status == 'FINISHED' %}
-                         Завершена
-                        {% elif manga.manga_status == 'HIATUS' %}
-                         Пауза
-                        {% elif manga.manga_status == 'CANCELLED' %}
-                         Отменена
->>>>>>> master
                         {% else %}
                         {{ manga.manga_status }}
                         {% endif %}
@@ -904,19 +905,11 @@
                             <span class="meta-label">Тип</span>
                             <span class="meta-value">
                                 {% if manga.manga_type == 'MANGA' %}
-<<<<<<< HEAD
                                 Манга
                                 {% elif manga.manga_type == 'MANHWA' %}
                                 Манхва
                                 {% elif manga.manga_type == 'MANHUA' %}
                                 Маньхуа
-=======
-                                 Манга
-                                {% elif manga.manga_type == 'MANHWA' %}
-                                 Манхва
-                                {% elif manga.manga_type == 'MANHUA' %}
-                                 Маньхуа
->>>>>>> master
                                 {% elif manga.manga_type == 'COMICS' %}
                                 Комикс
                                 {% else %}
@@ -939,11 +932,7 @@
                         <div class="meta-item">
                             <span class="meta-label">Просмотры</span>
                             <span class="meta-value">
-<<<<<<< HEAD
                                 {{ "{:,}".format(manga.views|int).replace(",", " ") }}
-=======
-                                 {{ "{:,}".format(manga.views|int).replace(",", " ") }}
->>>>>>> master
                             </span>
                         </div>
                         {% endif %}
@@ -952,11 +941,7 @@
                         <div class="meta-item">
                             <span class="meta-label">Глав</span>
                             <span class="meta-value">
-<<<<<<< HEAD
                                 {{ manga.chapters_count }}
-=======
-                                 {{ manga.chapters_count }}
->>>>>>> master
                             </span>
                         </div>
                         {% endif %}
@@ -966,19 +951,11 @@
                             <span class="meta-label">Перевод</span>
                             <span class="meta-value">
                                 {% if manga.translation_status == 'IN_PROGRESS' %}
-<<<<<<< HEAD
                                 В процессе
                                 {% elif manga.translation_status == 'COMPLETED' %}
                                 Завершен
                                 {% elif manga.translation_status == 'ABANDONED' %}
                                 Заброшен
-=======
-                                 В процессе
-                                {% elif manga.translation_status == 'COMPLETED' %}
-                                 Завершен
-                                {% elif manga.translation_status == 'ABANDONED' %}
-                                 Заброшен
->>>>>>> master
                                 {% else %}
                                 {{ manga.translation_status }}
                                 {% endif %}
@@ -1027,11 +1004,7 @@
             <!-- Описание -->
             {% if manga.description %}
             <div class="manga-description">
-<<<<<<< HEAD
                 <h3>Описание</h3>
-=======
-                <h3> Описание</h3>
->>>>>>> master
                 <p>{{ manga.description }}</p>
             </div>
             {% endif %}
@@ -1094,7 +1067,8 @@
                      data-total="{{ manga.chapters_count or 0 }}"
                      data-is-loading="{{ 'true' if is_loading_more else 'false' }}">
                     {% for chapter in chapters %}
-                    <a href="/read/{{ manga.manga_slug }}/{{ chapter.chapter_slug }}" class="chapter-item">
+                    <a href="/read/{{ manga.manga_slug }}/{{ chapter.chapter_slug }}"
+                       class="chapter-item" data-chapter-id="{{ chapter.chapter_id }}">
                         <div class="chapter-info">
                             <div class="chapter-title">
                                 <span class="chapter-number">Глава {{ chapter.chapter_number }}</span>
@@ -1107,9 +1081,7 @@
                             </div>
                             <div class="chapter-meta">
                                 <span>{{ chapter.created_at[:10] if chapter.created_at else '' }}</span>
-                                {% if reading_history and reading_history.chapter_id == chapter.chapter_id %}
-                                <span class="chapter-read">✓ Читали</span>
-                                {% endif %}
+                                <span class="chapter-read" style="display:none">✓ Читали</span>
                             </div>
                         </div>
                         <div class="chapter-arrow">→</div>
@@ -1302,6 +1274,7 @@
                 const a = document.createElement('a');
                 a.href = `/read/${mangaSlug}/${ch.chapter_slug}`;
                 a.className = 'chapter-item';
+                a.dataset.chapterId = ch.chapter_id;
                 const date = ch.created_at ? String(ch.created_at).slice(0, 10) : '';
                 const vol  = ch.chapter_volume ? `<span class="chapter-volume">(Том ${ch.chapter_volume})</span>` : '';
                 const name = ch.chapter_name   ? `<span class="chapter-name">- ${ch.chapter_name}</span>`       : '';
@@ -1311,12 +1284,18 @@
                             <span class="chapter-number">Глава ${ch.chapter_number}</span>
                             ${vol}${name}
                         </div>
-                        <div class="chapter-meta"><span>${date}</span></div>
+                        <div class="chapter-meta">
+                            <span>${date}</span>
+                            <span class="chapter-read" style="display:none">✓ Читали</span>
+                        </div>
                     </div>
                     <div class="chapter-arrow">→</div>`;
                 a.addEventListener('click', () => {
                     sessionStorage.setItem('chapListScroll', list.scrollTop);
                 });
+                if (window._readChapterIds && window._readChapterIds.has(ch.chapter_id)) {
+                    applyReadMark(a);
+                }
                 return a;
             }
 
@@ -1396,6 +1375,66 @@
                 list.scrollTop = parseInt(savedScroll, 10);
                 sessionStorage.removeItem('chapListScroll');
             }
+        })();
+
+        // ==================== КОЛЛЕКЦИИ ====================
+        function openCollectionPicker(mangaId) {
+            fetch('/api/user/collections')
+                .then(r => r.json())
+                .then(colls => {
+                    let html = '<div style="position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px" id="collPicker">';
+                    html += '<div style="background:#161616;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:24px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto">';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:800">📁 Добавить в коллекцию</span><button onclick="document.getElementById(\'collPicker\').remove()" style="background:none;border:none;color:#a1a1aa;font-size:18px;cursor:pointer">✕</button></div>';
+                    if (!colls.length) {
+                        html += '<p style="color:#a1a1aa;font-size:14px;text-align:center;padding:20px 0">Нет коллекций.<br><a href="/profile/me" style="color:#667eea">Создай на странице профиля</a></p>';
+                    } else {
+                        html += colls.map(c => `<div onclick="addToCollection(${c.id},'${mangaId}')" style="padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .2s" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)'"><div style="font-weight:600;font-size:14px">${c.name}</div><div style="font-size:12px;color:#a1a1aa">📖 ${c.items_count} манг</div></div>`).join('');
+                    }
+                    html += '</div></div>';
+                    document.body.insertAdjacentHTML('beforeend', html);
+                    document.getElementById('collPicker').addEventListener('click', e => { if (e.target.id === 'collPicker') e.target.remove(); });
+                })
+                .catch(() => alert('Войдите в аккаунт'));
+        }
+
+        async function addToCollection(collId, mangaId) {
+            const r = await fetch(`/api/collections/${collId}/manga`, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ manga_id: mangaId })
+            });
+            document.getElementById('collPicker')?.remove();
+            const d = await r.json();
+            if (d.success) {
+                const t = document.createElement('div');
+                t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f1f1f;border:1px solid #22c55e;border-radius:12px;padding:12px 20px;color:#22c55e;font-size:14px;z-index:1000;font-family:Poppins,sans-serif';
+                t.textContent = '✓ Добавлено в коллекцию';
+                document.body.appendChild(t);
+                setTimeout(() => t.remove(), 2500);
+            }
+        }
+
+        // ==================== ПРОЧИТАННЫЕ ГЛАВЫ ====================
+        function applyReadMark(el) {
+            el.classList.add('chapter-item--read');
+            const mark = el.querySelector('.chapter-read');
+            if (mark) mark.style.display = '';
+        }
+
+        (function loadReadChapters() {
+            const list = document.getElementById('chapters-list');
+            if (!list) return;
+            const slug = list.dataset.mangaSlug;
+            fetch(`/api/manga/${slug}/read-chapters`)
+                .then(r => r.json())
+                .then(ids => {
+                    window._readChapterIds = new Set(ids);
+                    document.querySelectorAll('.chapter-item[data-chapter-id]').forEach(el => {
+                        if (window._readChapterIds.has(el.dataset.chapterId)) {
+                            applyReadMark(el);
+                        }
+                    });
+                })
+                .catch(() => {});
         })();
     </script>
 </body>
