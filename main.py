@@ -18,7 +18,6 @@ from telegram.ext import (
 )
 from functools import wraps
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from flask_compress import Compress
 from senkuro_api import SenkuroAPI
 
@@ -69,12 +68,17 @@ def filter_rating_ru(v):
     return _RATING_RU.get((v or '').upper(), v or '')
 
 telegram_app = None
+_bot_loop = None  # event loop потока Telegram-бота (для run_coroutine_threadsafe)
 
 # Клиент API Senkuro
 api = SenkuroAPI()
 
 # Словарь для отслеживания фоновой загрузки глав: manga_slug -> True
 _manga_loading = {}
+
+# ── In-memory кеш user_stats для /api/user/stats ─────────────────────────
+_stats_cache: dict = {}          # {user_id: {'data': dict, 'expires': float}}
+_stats_cache_lock = threading.Lock()
 
 # ==================== БАЗА ДАННЫХ ====================
 
@@ -427,6 +431,10 @@ def award_xp(user_id, amount, reason, ref_id=None):
     new_achievements = check_achievements(user_id, conn)
 
     conn.close()
+
+    # Инвалидируем кеш статистики
+    with _stats_cache_lock:
+        _stats_cache.pop(user_id, None)
 
     return {
         'xp': new_xp,
@@ -1608,13 +1616,12 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
     conn.close()
     
     for sub in subscribers:
-        user_id = sub[0]
-        asyncio.run(send_telegram_notification(
-            user_id, 
-            manga_title, 
-            chapter_data, 
-            chapter_url
-        ))
+        uid = sub[0]
+        coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
+        if _bot_loop and _bot_loop.is_running():
+            asyncio.run_coroutine_threadsafe(coro, _bot_loop)
+        else:
+            asyncio.run(coro)
 
 def check_new_chapters():
     """Проверка новых глав и обновление БД всеми 21 главой из API"""
@@ -1939,13 +1946,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_telegram_bot():
     """Запуск Telegram бота"""
     global telegram_app
-    
+
     def start_bot():
         """Запуск бота в отдельном потоке с явным созданием event loop"""
+        global _bot_loop
         try:
             # Явно создаем новый event loop для этого потока
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+            _bot_loop = loop  # сохраняем для run_coroutine_threadsafe
             
             # Теперь создаем приложение
             telegram_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -2354,7 +2363,6 @@ def read_chapter(manga_slug, chapter_slug):
                           user_id=user_id,
                           prev_chapter=prev_chapter,
                           next_chapter=next_chapter)
-from datetime import datetime
 
 # ==================== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ====================
 
@@ -2531,154 +2539,118 @@ def api_manga_chapters(manga_slug):
 
 @app.route('/manga/<manga_slug>')
 def manga_detail(manga_slug):
-    """ИСПРАВЛЕННАЯ ВЕРСИЯ - детальная страница манги"""
-    
-    # Проверяем параметр обновления
+    """Детальная страница манги"""
+
     force_refresh = request.args.get('refresh') == 'true'
-    
+
     # Сначала пытаемся получить из БД
     conn = get_db()
     c = conn.cursor()
     c.execute('SELECT * FROM manga WHERE manga_slug = ?', (manga_slug,))
     manga_db = c.fetchone()
-    
-    # Проверяем свежесть данных (если не force_refresh)
+    conn.close()
+
+    # Проверяем свежесть данных
     need_api_update = force_refresh
     if manga_db and not force_refresh:
         last_updated = manga_db['last_updated']
-        # Обновляем если данные старше 1 часа
         if last_updated:
             try:
-                last_update_time = datetime.fromisoformat(last_updated)
-                if datetime.now() - last_update_time > timedelta(hours=1):
+                if datetime.now() - datetime.fromisoformat(last_updated) > timedelta(hours=1):
                     need_api_update = True
                     logger.info(f"Данные устарели для {manga_slug}, обновляем...")
-            except:
+            except Exception:
                 need_api_update = True
     elif not manga_db:
         need_api_update = True
-    
-    # Получаем главы из БД
-    chapters_db = []
-    if manga_db:
-        manga_id = dict(manga_db)['manga_id']
-        c.execute('''SELECT * FROM chapters 
-                     WHERE manga_id = ? 
-                     ORDER BY CAST(chapter_number AS FLOAT) DESC 
-                     LIMIT 10000''', (manga_id,))
-        chapters_db = [dict(row) for row in c.fetchall()]
-        logger.info(f"📚 Найдено {len(chapters_db)} глав в БД для {manga_slug}")
-    
-    conn.close()
-    
-    # Если нужно обновление через API
+
+    # Обновляем только метаданные манги через API (быстро, без глав)
     if need_api_update:
-        logger.info(f"📄 Обновление данных через API для {manga_slug}")
-        manga_details, chapters_api = get_manga_details_with_chapters(manga_slug, 10000)
-        
+        logger.info(f"📄 Обновление метаданных через API для {manga_slug}")
+        manga_details = get_manga_details_api(manga_slug)
         if not manga_details:
             if manga_db:
-                # Используем данные из БД если API не ответил
                 logger.warning(f"⚠️ API не ответил, используем данные из БД")
                 manga_data = dict(manga_db)
-                chapters = chapters_db
             else:
                 return "Манга не найдена", 404
         else:
-            # Используем данные из API
             manga_data = manga_details
-            
-            # Объединяем главы из API и БД
-            chapters = []
-            chapter_ids_seen = set()
-            
-            # Сначала добавляем главы из API (они свежее)
-            for chapter in chapters_api:
-                if chapter['chapter_id'] not in chapter_ids_seen:
-                    chapters.append({
-                        'chapter_id': chapter['chapter_id'],
-                        'chapter_slug': chapter['chapter_slug'],
-                        'chapter_number': chapter['chapter_number'],
-                        'chapter_volume': chapter['chapter_volume'],
-                        'chapter_name': chapter['chapter_name'],
-                        'created_at': chapter['created_at'],
-                        'chapter_url': f"http://144.31.49.103:5000/read/{manga_slug}/{chapter['chapter_slug']}"
-                    })
-                    chapter_ids_seen.add(chapter['chapter_id'])
-            
-            # Добавляем главы из БД которых нет в API
-            for chapter in chapters_db:
-                if chapter['chapter_id'] not in chapter_ids_seen:
-                    chapters.append({
-                        'chapter_id': chapter['chapter_id'],
-                        'chapter_slug': chapter['chapter_slug'],
-                        'chapter_number': chapter['chapter_number'],
-                        'chapter_volume': chapter['chapter_volume'],
-                        'chapter_name': chapter['chapter_name'],
-                        'created_at': chapter.get('created_at'),
-                        'chapter_url': chapter.get('chapter_url', 
-                                      f"http://144.31.49.103:5000/read/{manga_slug}/{chapter['chapter_slug']}")
-                    })
-                    chapter_ids_seen.add(chapter['chapter_id'])
-            
-            logger.info(f"✅ Всего глав после объединения: {len(chapters)}")
     else:
-        # Используем данные из БД
         logger.info(f"📦 Используем закешированные данные для {manga_slug}")
         manga_data = dict(manga_db)
-        chapters = []
-        for chapter in chapters_db:
-            chapters.append({
-                'chapter_id': chapter['chapter_id'],
-                'chapter_slug': chapter['chapter_slug'],
-                'chapter_number': chapter['chapter_number'],
-                'chapter_volume': chapter['chapter_volume'],
-                'chapter_name': chapter['chapter_name'],
-                'created_at': chapter.get('created_at'),
-                'chapter_url': chapter.get('chapter_url', 
-                              f"http://144.31.49.103:5000/read/{manga_slug}/{chapter['chapter_slug']}")
-            })
-    
-    # Сортируем главы по номеру
-    try:
-        chapters.sort(
-            key=lambda x: float(x['chapter_number']) if x.get('chapter_number') and str(x['chapter_number']).replace('.', '').replace('-', '').isdigit() else 0, 
-            reverse=True
+
+    manga_id = manga_data.get('manga_id')
+
+    # Берём только первые 50 глав для начального рендера (#15)
+    chapters = []
+    total_in_db = 0
+    if manga_id:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute(
+            '''SELECT chapter_id, chapter_slug, chapter_number, chapter_volume,
+                      chapter_name, created_at, chapter_url
+               FROM chapters
+               WHERE manga_id = ?
+               ORDER BY CAST(chapter_number AS FLOAT) DESC
+               LIMIT 50''',
+            (manga_id,)
         )
-    except Exception as e:
-        logger.error(f"❌ Ошибка сортировки глав: {e}")
-    
+        chapters = [dict(row) for row in c.fetchall()]
+        c.execute('SELECT COUNT(*) as cnt FROM chapters WHERE manga_id = ?', (manga_id,))
+        total_in_db = c.fetchone()['cnt']
+        conn.close()
+
+    # Запускаем фоновую загрузку глав если они неполные (#14)
+    expected_chapters = manga_data.get('chapters_count', 0)
+    is_loading_more = manga_slug in _manga_loading
+    if manga_id and not is_loading_more and expected_chapters > 0 and total_in_db < expected_chapters:
+        _manga_loading[manga_slug] = True
+        threading.Thread(
+            target=_bg_load_all_chapters,
+            args=(manga_slug,),
+            daemon=True
+        ).start()
+        is_loading_more = True
+        logger.info(f"🔄 Фоновая загрузка глав: {manga_slug} ({total_in_db}/{expected_chapters})")
+
     # Проверяем подписку
     subscribed = False
     user_id = session.get('user_id')
-    if user_id and manga_data.get('manga_id'):
-        subscribed = is_subscribed(user_id, manga_data['manga_id'])
-    
+    if user_id and manga_id:
+        subscribed = is_subscribed(user_id, manga_id)
+
     # Проверяем историю чтения
     reading_history = None
-    if user_id and manga_data.get('manga_id'):
+    if user_id and manga_id:
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT rh.*, c.chapter_slug, c.chapter_number 
-                     FROM reading_history rh 
-                     JOIN chapters c ON rh.chapter_id = c.chapter_id 
-                     WHERE rh.user_id = ? AND rh.manga_id = ? 
-                     ORDER BY rh.last_read DESC LIMIT 1''',
-                  (user_id, manga_data['manga_id']))
+        c.execute(
+            '''SELECT rh.*, c.chapter_slug, c.chapter_number
+               FROM reading_history rh
+               JOIN chapters c ON rh.chapter_id = c.chapter_id
+               WHERE rh.user_id = ? AND rh.manga_id = ?
+               ORDER BY rh.last_read DESC LIMIT 1''',
+            (user_id, manga_id)
+        )
         history = c.fetchone()
         conn.close()
-        
         if history:
             reading_history = dict(history)
-    
-    logger.info(f"📄 Отображаем {len(chapters)} глав для {manga_slug}")
-    
+
+    logger.info(
+        f"📄 Рендер {manga_slug}: {len(chapters)} глав показано, "
+        f"{total_in_db} в БД, {expected_chapters} ожидается"
+    )
+
     return render_template('manga_detail.html',
-                         manga=manga_data,
-                         chapters=chapters,
-                         subscribed=subscribed,
-                         reading_history=reading_history,
-                         user_id=user_id)
+                           manga=manga_data,
+                           chapters=chapters,
+                           subscribed=subscribed,
+                           reading_history=reading_history,
+                           is_loading_more=is_loading_more,
+                           user_id=user_id)
 
 # ==================== ПРОФИЛИ / ТОП / МАГАЗИН ====================
 
@@ -2984,10 +2956,19 @@ def api_user_stats():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'authenticated': False})
+
+    # Проверяем in-memory кеш (30 сек)
+    now = time.time()
+    with _stats_cache_lock:
+        cached = _stats_cache.get(user_id)
+        if cached and cached['expires'] > now:
+            return jsonify(cached['data'])
+
     stats = get_or_create_user_stats(user_id)
     if not stats:
         return jsonify({'authenticated': True, 'xp': 0, 'level': 1, 'coins': 0})
-    return jsonify({
+
+    data = {
         'authenticated': True,
         'xp': stats['xp'],
         'coins': stats['coins'],
@@ -2996,7 +2977,12 @@ def api_user_stats():
             (stats['xp'] - get_xp_for_level(stats['level'])) /
             max(1, get_xp_for_level(stats['level'] + 1) - get_xp_for_level(stats['level'])) * 100
         ))
-    })
+    }
+
+    with _stats_cache_lock:
+        _stats_cache[user_id] = {'data': data, 'expires': now + 30}
+
+    return jsonify(data)
 
 
 # ==================== ЗАПУСК ====================
