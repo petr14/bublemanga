@@ -814,6 +814,242 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* ==================== КОММЕНТАРИИ ==================== */
+        .comments-section {
+            margin: 40px 0 60px;
+        }
+        .comments-section .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .comments-section .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .comments-count {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Форма */
+        .comment-form {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .comment-form textarea {
+            width: 100%;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 10px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 10px 14px;
+            resize: none;
+            outline: none;
+            transition: border-color .2s;
+            min-height: 70px;
+        }
+        .comment-form textarea:focus { border-color: #667eea; }
+        .comment-form-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .comment-chars {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .comment-chars.over { color: #ef4444; }
+        .btn-comment-submit {
+            padding: 8px 20px;
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity .2s, transform .1s;
+        }
+        .btn-comment-submit:hover { opacity: .85; }
+        .btn-comment-submit:active { transform: scale(.95); }
+        .btn-comment-submit:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+        .comment-login-notice {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            padding: 16px;
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        .comment-login-notice a { color: #667eea; text-decoration: none; }
+
+        /* Список комментариев */
+        .comments-list { display: flex; flex-direction: column; gap: 14px; }
+
+        .comment-item {
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            gap: 12px;
+            position: relative;
+            animation: fadeIn .25s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+        .comment-avatar {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: linear-gradient(135deg,#667eea,#764ba2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 700; flex-shrink: 0; overflow: hidden;
+        }
+        .comment-avatar img { width:100%; height:100%; object-fit:cover; }
+
+        .comment-body { flex: 1; min-width: 0; }
+        .comment-header {
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 6px; flex-wrap: wrap;
+        }
+        .comment-name {
+            font-weight: 700; font-size: 13px; color: #e4e4e7;
+        }
+        .comment-premium-crown {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: linear-gradient(135deg,#f59e0b,#fbbf24);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 9px; flex-shrink: 0;
+            box-shadow: 0 0 5px rgba(251,191,36,.5);
+        }
+        .comment-level {
+            font-size: 11px; color: #667eea; font-weight: 600;
+            background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.25);
+            border-radius: 20px; padding: 1px 7px;
+        }
+        .comment-date {
+            font-size: 11px; color: var(--text-secondary); margin-left: auto;
+        }
+        .comment-text {
+            font-size: 14px; line-height: 1.55; color: #d4d4d8;
+            word-break: break-word; white-space: pre-wrap;
+        }
+        .btn-comment-delete {
+            position: absolute; top: 10px; right: 10px;
+            width: 24px; height: 24px; border-radius: 50%;
+            background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.2);
+            color: #f87171; font-size: 12px; cursor: pointer;
+            display: none; align-items: center; justify-content: center;
+            transition: background .2s;
+        }
+        .comment-item:hover .btn-comment-delete.visible { display: flex; }
+        .btn-comment-delete:hover { background: rgba(239,68,68,.3); }
+
+        .comments-load-more {
+            text-align: center; margin-top: 16px;
+        }
+        .btn-load-more {
+            padding: 9px 24px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            font-family: inherit; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all .2s;
+        }
+        .btn-load-more:hover { border-color: #667eea; color: #667eea; }
+        .btn-load-more:disabled { opacity: .4; cursor: not-allowed; }
+        .comments-empty {
+            text-align: center; padding: 32px 0;
+            color: var(--text-secondary); font-size: 14px;
+        }
+
+        /* Ответы */
+        .comment-actions {
+            display: flex; gap: 14px; margin-top: 8px;
+        }
+        .btn-reply {
+            background: none; border: none; color: #667eea;
+            font-family: inherit; font-size: 12px; font-weight: 600;
+            cursor: pointer; padding: 0; transition: color .2s;
+        }
+        .btn-reply:hover { color: #a5b4fc; }
+
+        .comment-replies {
+            margin-left: 50px;
+            margin-top: 10px;
+            display: flex; flex-direction: column; gap: 8px;
+            border-left: 2px solid rgba(255,255,255,.06);
+            padding-left: 14px;
+        }
+        .comment-item.is-reply {
+            padding: 10px 12px;
+            border-radius: 12px;
+        }
+        .comment-item.is-reply .comment-avatar {
+            width: 30px; height: 30px; font-size: 13px;
+        }
+        .comment-item.is-reply .comment-text { font-size: 13px; }
+
+        /* Inline reply form */
+        .inline-reply-form {
+            margin-top: 6px;
+        }
+        .reply-form-inner {
+            display: flex; flex-direction: column; gap: 8px;
+            background: rgba(102,126,234,.06);
+            border: 1px solid rgba(102,126,234,.2);
+            border-radius: 12px; padding: 12px;
+        }
+        .reply-to-label {
+            font-size: 12px; color: #a5b4fc; font-weight: 600;
+        }
+        .reply-textarea {
+            width: 100%; background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 8px; color: #fff;
+            font-family: inherit; font-size: 13px; line-height: 1.5;
+            padding: 8px 12px; resize: none; outline: none;
+            min-height: 60px; transition: border-color .2s;
+        }
+        .reply-textarea:focus { border-color: #667eea; }
+        .reply-form-footer {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .btn-reply-cancel {
+            background: none; border: 1px solid rgba(255,255,255,.12);
+            border-radius: 20px; color: var(--text-secondary);
+            font-family: inherit; font-size: 12px; font-weight: 600;
+            padding: 5px 14px; cursor: pointer; transition: all .2s;
+        }
+        .btn-reply-cancel:hover { border-color: rgba(255,255,255,.3); color: #fff; }
+        .btn-reply-submit {
+            background: var(--primary-gradient); border: none;
+            border-radius: 20px; color: #fff;
+            font-family: inherit; font-size: 12px; font-weight: 700;
+            padding: 5px 16px; cursor: pointer; transition: opacity .2s;
+        }
+        .btn-reply-submit:hover { opacity: .85; }
+        .btn-reply-submit:disabled { opacity: .4; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -987,7 +1223,12 @@
                             </a>
                             {% endif %}
                         {% endif %}
-                            
+
+                        <a href="#comments" class="btn" onclick="document.getElementById('comments').scrollIntoView({behavior:'smooth'});return false;">
+                            <span>💬</span>
+                            <span>Комментарии</span>
+                        </a>
+
                         <a href="/search?q={{ manga.manga_title|urlencode }}" class="btn">
                             <span></span>
                             <span>Похожие</span>
@@ -1099,6 +1340,41 @@
                 </div>
                 {% endif %}
             </div>
+
+            <!-- ==================== КОММЕНТАРИИ ==================== -->
+            <div class="comments-section" id="comments">
+                <div class="section-header">
+                    <h2 class="section-title">💬 Комментарии</h2>
+                    <span class="comments-count" id="comments-count"></span>
+                </div>
+
+                {% if user_id %}
+                <div class="comment-form">
+                    <textarea id="comment-textarea" placeholder="Напишите комментарий..." maxlength="1000"
+                              oninput="onCommentInput(this)"></textarea>
+                    <div class="comment-form-footer">
+                        <span class="comment-chars" id="comment-chars">0 / 1000</span>
+                        <button class="btn-comment-submit" id="comment-submit" onclick="submitComment()">
+                            Отправить
+                        </button>
+                    </div>
+                </div>
+                {% else %}
+                <div class="comment-login-notice">
+                    Чтобы оставить комментарий, <a href="https://t.me/hookah_p_bot" target="_blank">войди через Telegram</a>
+                </div>
+                {% endif %}
+
+                <div class="comments-list" id="comments-list">
+                    <div class="comments-empty" id="comments-empty" style="display:none">
+                        Комментариев пока нет. Будь первым!
+                    </div>
+                </div>
+                <div class="comments-load-more" id="comments-load-more" style="display:none">
+                    <button class="btn-load-more" onclick="loadComments()">Загрузить ещё</button>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -1435,6 +1711,306 @@
                     });
                 })
                 .catch(() => {});
+        })();
+
+        // ==================== КОММЕНТАРИИ ====================
+        (function() {
+            const MANGA_SLUG = '{{ manga.manga_slug }}';
+            const MY_USER_ID = {{ user_id | tojson }};
+            const LIMIT = 20;
+            let offset = 0;
+            let total  = 0;
+            let loading = false;
+            let activeReplyFor = null; // id комментария, на который сейчас отвечаем
+
+            /* ── Утилиты ── */
+            function escHtml(s) {
+                return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            }
+            function escAttr(s) {
+                return escHtml(s).replace(/'/g,'&#39;');
+            }
+            function formatDate(str) {
+                if (!str) return '';
+                try {
+                    const d = new Date(str.includes('+') || str.endsWith('Z') ? str : str + 'Z');
+                    const now = new Date();
+                    const diff = (now - d) / 1000;
+                    if (diff < 60)    return 'только что';
+                    if (diff < 3600)  return Math.floor(diff/60) + ' мин. назад';
+                    if (diff < 86400) return Math.floor(diff/3600) + ' ч. назад';
+                    return d.toLocaleDateString('ru-RU', {day:'numeric', month:'short',
+                        year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined});
+                } catch(e) { return str.slice(0, 10); }
+            }
+            function updateCount() {
+                const el = document.getElementById('comments-count');
+                if (el) el.textContent = total ? `${total} комм.` : '';
+            }
+
+            /* ── Построение DOM ── */
+            function buildAvatarHTML(c) {
+                const init = (c.telegram_first_name || c.telegram_username || '?')[0].toUpperCase();
+                const style = c.frame_css ? ` style="${escAttr(c.frame_css)}"` : '';
+                if (c.avatar_url)
+                    return `<div class="comment-avatar"${style}><img src="${escAttr(c.avatar_url)}" alt="" onerror="this.style.display='none'"></div>`;
+                return `<div class="comment-avatar"${style}>${init}</div>`;
+            }
+
+            function buildMetaHTML(c) {
+                const name = c.telegram_first_name || c.telegram_username || `#${c.user_id}`;
+                return `
+                    <span class="comment-name">${escHtml(name)}</span>
+                    ${c.is_premium ? '<span class="comment-premium-crown" title="Premium">👑</span>' : ''}
+                    ${c.level ? `<span class="comment-level">Lv.${c.level}</span>` : ''}
+                    <span class="comment-date">${formatDate(c.created_at)}</span>`;
+            }
+
+            // Строит элемент ответа (is-reply)
+            function buildReplyEl(c) {
+                const isOwn = MY_USER_ID && c.user_id === MY_USER_ID;
+                const el = document.createElement('div');
+                el.className = 'comment-item is-reply';
+                el.dataset.id = c.id;
+                el.innerHTML = `
+                    ${buildAvatarHTML(c)}
+                    <div class="comment-body">
+                        <div class="comment-header">${buildMetaHTML(c)}</div>
+                        <div class="comment-text">${escHtml(c.text)}</div>
+                    </div>
+                    <button class="btn-comment-delete${isOwn ? ' visible' : ''}"
+                            onclick="deleteComment(${c.id})" title="Удалить">✕</button>`;
+                return el;
+            }
+
+            // Строит wrapper = верхнеуровневый комментарий + блок ответов
+            function buildCommentEl(c) {
+                const name = c.telegram_first_name || c.telegram_username || `#${c.user_id}`;
+                const isOwn = MY_USER_ID && c.user_id === MY_USER_ID;
+                const replies = c.replies || [];
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'comment-wrapper';
+                wrapper.dataset.commentId = c.id;
+
+                const item = document.createElement('div');
+                item.className = 'comment-item';
+                item.dataset.id = c.id;
+                item.innerHTML = `
+                    ${buildAvatarHTML(c)}
+                    <div class="comment-body">
+                        <div class="comment-header">${buildMetaHTML(c)}</div>
+                        <div class="comment-text">${escHtml(c.text)}</div>
+                        ${MY_USER_ID ? `<div class="comment-actions">
+                            <button class="btn-reply"
+                                    data-parent-id="${c.id}"
+                                    data-parent-name="${escAttr(name)}"
+                                    onclick="openReply(this)">↩ Ответить</button>
+                        </div>` : ''}
+                    </div>
+                    <button class="btn-comment-delete${isOwn ? ' visible' : ''}"
+                            onclick="deleteComment(${c.id})" title="Удалить">✕</button>`;
+                wrapper.appendChild(item);
+
+                // Блок ответов
+                const repliesDiv = document.createElement('div');
+                repliesDiv.className = 'comment-replies';
+                repliesDiv.id = `replies-${c.id}`;
+                if (!replies.length) repliesDiv.style.display = 'none';
+                replies.forEach(r => repliesDiv.appendChild(buildReplyEl(r)));
+                wrapper.appendChild(repliesDiv);
+
+                return wrapper;
+            }
+
+            // Inline-форма ответа
+            function buildReplyFormEl(parentId, parentName) {
+                const div = document.createElement('div');
+                div.className = 'inline-reply-form';
+                div.dataset.parentId = parentId;
+                div.innerHTML = `
+                    <div class="reply-form-inner">
+                        <span class="reply-to-label">↩ Ответ для <b>@${escHtml(parentName)}</b></span>
+                        <textarea class="reply-textarea" placeholder="Напишите ответ..." maxlength="1000"
+                                  oninput="onReplyInput(this,${parentId})"></textarea>
+                        <div class="reply-form-footer">
+                            <span class="comment-chars" id="reply-chars-${parentId}">0 / 1000</span>
+                            <div style="display:flex;gap:8px">
+                                <button class="btn-reply-cancel" onclick="cancelReply(${parentId})">Отмена</button>
+                                <button class="btn-reply-submit" id="reply-submit-${parentId}"
+                                        onclick="submitReply(${parentId})" disabled>Ответить</button>
+                            </div>
+                        </div>
+                    </div>`;
+                return div;
+            }
+
+            /* ── Загрузка ── */
+            window.loadComments = async function() {
+                if (loading) return;
+                loading = true;
+                const btn = document.querySelector('#comments-load-more button');
+                if (btn) btn.disabled = true;
+                try {
+                    const r = await fetch(`/api/manga/${MANGA_SLUG}/comments?offset=${offset}&limit=${LIMIT}`);
+                    const data = await r.json();
+                    total = data.total;
+                    updateCount();
+                    const list  = document.getElementById('comments-list');
+                    const empty = document.getElementById('comments-empty');
+                    if (data.comments.length === 0 && offset === 0) {
+                        if (empty) empty.style.display = '';
+                    } else {
+                        if (empty) empty.style.display = 'none';
+                        data.comments.forEach(c => list.appendChild(buildCommentEl(c)));
+                        offset += data.comments.length;
+                    }
+                    const lm = document.getElementById('comments-load-more');
+                    if (lm) lm.style.display = data.has_more ? '' : 'none';
+                } catch(e) { console.error('Ошибка загрузки комментариев:', e); }
+                loading = false;
+                if (btn) btn.disabled = false;
+            };
+
+            /* ── Главная форма (верхнеуровневый комментарий) ── */
+            window.onCommentInput = function(ta) {
+                const len = ta.value.length;
+                const span = document.getElementById('comment-chars');
+                if (span) { span.textContent = `${len} / 1000`; span.className = 'comment-chars' + (len > 1000 ? ' over' : ''); }
+                const btn = document.getElementById('comment-submit');
+                if (btn) btn.disabled = len === 0 || len > 1000;
+            };
+
+            window.submitComment = async function() {
+                const ta = document.getElementById('comment-textarea');
+                const text = ta ? ta.value.trim() : '';
+                if (!text) return;
+                const btn = document.getElementById('comment-submit');
+                if (btn) btn.disabled = true;
+                try {
+                    const r = await fetch(`/api/manga/${MANGA_SLUG}/comments`, {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({text})
+                    });
+                    const data = await r.json();
+                    if (!r.ok) { alert(data.error || 'Ошибка'); return; }
+                    if (ta) { ta.value = ''; onCommentInput(ta); }
+                    total += 1; offset += 1;
+                    updateCount();
+                    const list  = document.getElementById('comments-list');
+                    const empty = document.getElementById('comments-empty');
+                    if (empty) empty.style.display = 'none';
+                    data.comment.replies = [];
+                    list.insertBefore(buildCommentEl(data.comment), list.firstChild);
+                } catch(e) { alert('Ошибка отправки'); }
+                if (btn) btn.disabled = false;
+            };
+
+            /* ── Ответы ── */
+            window.openReply = function(btn) {
+                const parentId   = parseInt(btn.dataset.parentId);
+                const parentName = btn.dataset.parentName;
+
+                // Закрыть предыдущую форму
+                if (activeReplyFor !== null && activeReplyFor !== parentId) cancelReply(activeReplyFor);
+
+                // Уже открыта?
+                if (document.querySelector(`.inline-reply-form[data-parent-id="${parentId}"]`)) {
+                    document.querySelector(`.inline-reply-form[data-parent-id="${parentId}"] textarea`).focus();
+                    return;
+                }
+
+                activeReplyFor = parentId;
+                const repliesDiv = document.getElementById(`replies-${parentId}`);
+                if (!repliesDiv) return;
+                repliesDiv.style.display = '';
+                const form = buildReplyFormEl(parentId, parentName);
+                repliesDiv.appendChild(form);
+                form.querySelector('textarea').focus();
+            };
+
+            window.cancelReply = function(parentId) {
+                const form = document.querySelector(`.inline-reply-form[data-parent-id="${parentId}"]`);
+                if (form) form.remove();
+                if (activeReplyFor === parentId) activeReplyFor = null;
+                const repliesDiv = document.getElementById(`replies-${parentId}`);
+                if (repliesDiv && !repliesDiv.querySelector('.comment-item.is-reply'))
+                    repliesDiv.style.display = 'none';
+            };
+
+            window.onReplyInput = function(ta, parentId) {
+                const len = ta.value.length;
+                const span = document.getElementById(`reply-chars-${parentId}`);
+                if (span) { span.textContent = `${len} / 1000`; span.className = 'comment-chars' + (len > 1000 ? ' over' : ''); }
+                const btn = document.getElementById(`reply-submit-${parentId}`);
+                if (btn) btn.disabled = len === 0 || len > 1000;
+            };
+
+            window.submitReply = async function(parentId) {
+                const form = document.querySelector(`.inline-reply-form[data-parent-id="${parentId}"]`);
+                if (!form) return;
+                const ta   = form.querySelector('textarea');
+                const text = ta ? ta.value.trim() : '';
+                if (!text) return;
+                const btn = document.getElementById(`reply-submit-${parentId}`);
+                if (btn) btn.disabled = true;
+                try {
+                    const r = await fetch(`/api/manga/${MANGA_SLUG}/comments`, {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({text, parent_id: parentId})
+                    });
+                    const data = await r.json();
+                    if (!r.ok) { alert(data.error || 'Ошибка'); if (btn) btn.disabled = false; return; }
+                    const repliesDiv = document.getElementById(`replies-${parentId}`);
+                    if (repliesDiv) {
+                        repliesDiv.style.display = '';
+                        repliesDiv.insertBefore(buildReplyEl(data.comment), form);
+                    }
+                    total += 1;
+                    updateCount();
+                    cancelReply(parentId);
+                } catch(e) { alert('Ошибка отправки'); if (btn) btn.disabled = false; }
+            };
+
+            /* ── Удаление ── */
+            window.deleteComment = async function(id) {
+                if (!confirm('Удалить комментарий?')) return;
+                const r = await fetch(`/api/comments/${id}`, {method: 'DELETE'});
+                if (!r.ok) return;
+
+                const el = document.querySelector(`.comment-item[data-id="${id}"]`);
+                if (!el) return;
+
+                const isReply = el.classList.contains('is-reply');
+                const fade = target => {
+                    target.style.opacity = '0';
+                    target.style.transition = 'opacity .2s';
+                    setTimeout(() => target.remove(), 200);
+                };
+
+                if (isReply) {
+                    const repliesDiv = el.closest('.comment-replies');
+                    fade(el);
+                    setTimeout(() => {
+                        if (repliesDiv && !repliesDiv.querySelector('.comment-item.is-reply'))
+                            repliesDiv.style.display = 'none';
+                    }, 250);
+                    total = Math.max(0, total - 1);
+                } else {
+                    // Удаляем весь wrapper (включая ответы)
+                    const wrapper = el.closest('.comment-wrapper') || el;
+                    const replyCount = wrapper.querySelectorAll('.comment-item.is-reply').length;
+                    fade(wrapper);
+                    offset = Math.max(0, offset - 1);
+                    total  = Math.max(0, total - 1 - replyCount);
+                }
+                updateCount();
+            };
+
+            /* ── Инициализация ── */
+            const submitBtn = document.getElementById('comment-submit');
+            if (submitBtn) submitBtn.disabled = true;
+            loadComments();
         })();
     </script>
 </body>

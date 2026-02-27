@@ -33,6 +33,9 @@ logger = logging.getLogger(__name__)
 # Конфигурация
 TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 
+# Список Telegram ID администраторов (заполни своим ID, узнать можно у @userinfobot)
+ADMIN_TELEGRAM_IDS: list = []
+
 app = Flask(__name__)
 
 # Постоянный secret_key — читаем из файла, чтобы сессии не сбрасывались при рестарте
@@ -330,6 +333,17 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_collection_items ON collection_items(collection_id)')
 
+    # Комментарии к манге
+    c.execute('''CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        manga_slug TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_comments_manga ON comments(manga_slug, created_at DESC)')
+
     # ── Seed: ачивки ───────────────────────────────────────────────────────
     ACHIEVEMENTS = [
         ('first_chapter',  'Первый шаг',        'Прочитать первую главу',          '📖', 50,   'chapters_read', 1),
@@ -379,6 +393,33 @@ def init_db():
            VALUES (?, ?, ?, ?, ?, ?, ?)''',
         SHOP_ITEMS
     )
+
+    # ── Миграция: Premium поля ─────────────────────────────────────────────
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # колонка уже существует
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN premium_granted_at TIMESTAMP')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN premium_expires_at TIMESTAMP')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute('ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute('ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
@@ -1765,6 +1806,22 @@ def check_new_chapters():
         import traceback
         traceback.print_exc()
 
+def _revoke_premium_loans(c, user_id):
+    """Удалить все временно активированные Premium-предметы пользователя"""
+    col_map = {'frame': 'frame_item_id', 'badge': 'badge_item_id', 'title': 'title_item_id'}
+    c.execute(
+        '''SELECT ui.item_id, si.type FROM user_items ui
+           JOIN shop_items si ON ui.item_id = si.id
+           WHERE ui.user_id = ? AND ui.is_premium_loan = 1 AND ui.is_equipped = 1''',
+        (user_id,)
+    )
+    for row in c.fetchall():
+        col = col_map.get(row['type'])
+        if col:
+            c.execute(f'UPDATE user_profile SET {col} = NULL WHERE user_id = ?', (user_id,))
+    c.execute('DELETE FROM user_items WHERE user_id = ? AND is_premium_loan = 1', (user_id,))
+
+
 def background_checker():
     """Фоновый процесс проверки"""
     logger.info("🤖 Фоновый мониторинг запущен!")
@@ -1774,10 +1831,92 @@ def background_checker():
         try:
             time.sleep(60)  # Проверка каждую минуту
             check_new_chapters()
+            # Проверяем истёкшие Premium подписки
+            try:
+                now_iso = datetime.utcnow().isoformat()
+                conn_bg = get_db()
+                c_bg = conn_bg.cursor()
+                c_bg.execute(
+                    'SELECT id FROM users WHERE is_premium=1 AND premium_expires_at IS NOT NULL AND premium_expires_at < ?',
+                    (now_iso,)
+                )
+                expired = c_bg.fetchall()
+                for row in expired:
+                    c_bg.execute('UPDATE users SET is_premium=0, premium_expires_at=NULL WHERE id=?', (row['id'],))
+                    _revoke_premium_loans(c_bg, row['id'])
+                if expired:
+                    conn_bg.commit()
+                    logger.info(f"⏰ Premium истёк у {len(expired)} пользователей")
+                conn_bg.close()
+            except Exception as e_prem:
+                logger.error(f"❌ Ошибка проверки Premium: {e_prem}")
         except Exception as e:
             logger.error(f"❌ Ошибка в background_checker: {e}")
             time.sleep(60)
 # ==================== TELEGRAM BOT ====================
+
+async def premium_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /premium <user_id> — выдать/снять Premium (только для администраторов)"""
+    if update.effective_user.id not in ADMIN_TELEGRAM_IDS:
+        await update.message.reply_text("❌ У вас нет доступа к этой команде.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "Использование: /premium <user_id> [days]\n"
+            "Пример: /premium 42 30\n"
+            "По умолчанию 30 дней. Повторная команда снимает Premium."
+        )
+        return
+
+    target = args[0].lstrip('@')
+    days = 30
+    if len(args) > 1:
+        try:
+            days = int(args[1])
+        except ValueError:
+            await update.message.reply_text("❌ Неверное значение дней")
+            return
+
+    conn = get_db()
+    c = conn.cursor()
+
+    if target.isdigit():
+        c.execute('SELECT id, telegram_first_name, telegram_username, is_premium FROM users WHERE id = ?', (int(target),))
+    else:
+        c.execute('SELECT id, telegram_first_name, telegram_username, is_premium FROM users WHERE telegram_username = ?', (target,))
+
+    user = c.fetchone()
+    if not user:
+        conn.close()
+        await update.message.reply_text("❌ Пользователь не найден")
+        return
+
+    now = datetime.utcnow().isoformat()
+    name = user['telegram_first_name'] or user['telegram_username'] or f"ID {user['id']}"
+
+    if user['is_premium']:
+        # Снять Premium
+        c.execute('UPDATE users SET is_premium=0, premium_expires_at=NULL WHERE id=?', (user['id'],))
+        _revoke_premium_loans(c, user['id'])
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(f"❌ Premium снят для {name} (ID: {user['id']})")
+    else:
+        # Выдать Premium на days дней
+        expires = (datetime.utcnow() + timedelta(days=days)).isoformat()
+        c.execute(
+            'UPDATE users SET is_premium=1, premium_granted_at=?, premium_expires_at=? WHERE id=?',
+            (now, expires, user['id'])
+        )
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(
+            f"✅ Premium выдан для {name} (ID: {user['id']}) на {days} дней\n"
+            f"Истекает: {expires[:10]}"
+        )
+
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start - регистрация/вход"""
@@ -2050,6 +2189,7 @@ def run_telegram_bot():
             # Команды
             telegram_app.add_handler(CommandHandler("start", start_command))
             telegram_app.add_handler(CommandHandler("search", search_manga_command))
+            telegram_app.add_handler(CommandHandler("premium", premium_command))
             
             # Callback кнопки
             telegram_app.add_handler(CallbackQueryHandler(handle_callback))
@@ -2897,6 +3037,7 @@ def top_page():
     c = conn.cursor()
     c.execute(
         '''SELECT u.id, u.telegram_first_name, u.telegram_username,
+                  u.is_premium,
                   s.xp, s.level, s.total_chapters_read,
                   p.avatar_url,
                   (SELECT si.css_value FROM shop_items si
@@ -2929,26 +3070,39 @@ def shop_page():
 
     # Купленные товары текущего пользователя
     owned_ids = set()
+    loaned_ids = set()
     equipped = {}
     coins = 0
+    is_premium = 0
+    premium_expires_at = None
     if user_id:
-        c.execute('SELECT item_id, is_equipped FROM user_items WHERE user_id = ?', (user_id,))
+        c.execute('SELECT item_id, is_equipped, is_premium_loan FROM user_items WHERE user_id = ?', (user_id,))
         for row in c.fetchall():
             owned_ids.add(row['item_id'])
+            if row['is_premium_loan']:
+                loaned_ids.add(row['item_id'])
             if row['is_equipped']:
                 equipped[row['item_id']] = True
         c.execute('SELECT coins FROM user_stats WHERE user_id = ?', (user_id,))
         r = c.fetchone()
         coins = r['coins'] if r else 0
+        c.execute('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', (user_id,))
+        ur = c.fetchone()
+        if ur:
+            is_premium = ur['is_premium']
+            premium_expires_at = ur['premium_expires_at']
 
     conn.close()
 
     return render_template('shop.html',
                            items=items,
                            owned_ids=list(owned_ids),
+                           loaned_ids=list(loaned_ids),
                            equipped=equipped,
                            coins=coins,
-                           user_id=user_id)
+                           user_id=user_id,
+                           is_premium=is_premium,
+                           premium_expires_at=premium_expires_at)
 
 
 @app.route('/api/shop/buy/<int:item_id>', methods=['POST'])
@@ -2968,11 +3122,12 @@ def shop_buy(item_id):
         conn.close()
         return jsonify({'error': 'Товар не найден'}), 404
 
-    # Уже куплен?
-    c.execute('SELECT id FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
-    if c.fetchone():
+    # Уже куплен навсегда?
+    c.execute('SELECT id, is_premium_loan FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
+    existing = c.fetchone()
+    if existing and not existing['is_premium_loan']:
         conn.close()
-        return jsonify({'error': 'Уже куплено'}), 400
+        return jsonify({'error': 'Уже куплено навсегда'}), 400
 
     # Проверяем монеты
     c.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
@@ -2984,6 +3139,10 @@ def shop_buy(item_id):
         conn.close()
         return jsonify({'error': 'Недостаточно монет'}), 400
 
+    # Если был loan — удалить его (переход к постоянному владению)
+    if existing and existing['is_premium_loan']:
+        c.execute('DELETE FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
+
     # Списываем монеты и добавляем товар
     c.execute('UPDATE user_stats SET coins = coins - ? WHERE user_id = ?', (item['price'], user_id))
     c.execute('INSERT INTO user_items (user_id, item_id) VALUES (?, ?)', (user_id, item_id))
@@ -2994,6 +3153,172 @@ def shop_buy(item_id):
     conn.close()
 
     return jsonify({'success': True, 'coins': new_coins})
+
+
+@app.route('/api/shop/activate/<int:item_id>', methods=['POST'])
+def shop_activate(item_id):
+    """Premium: бесплатно активировать любой товар (loan)"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Проверяем Premium
+    c.execute('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', (user_id,))
+    u = c.fetchone()
+    now_iso = datetime.utcnow().isoformat()
+    if not u or not u['is_premium'] or (u['premium_expires_at'] and u['premium_expires_at'] < now_iso):
+        conn.close()
+        return jsonify({'error': 'Требуется Premium подписка'}), 403
+
+    # Проверяем товар
+    c.execute('SELECT * FROM shop_items WHERE id = ?', (item_id,))
+    item = c.fetchone()
+    if not item:
+        conn.close()
+        return jsonify({'error': 'Товар не найден'}), 404
+
+    # Проверяем, есть ли уже у пользователя
+    c.execute('SELECT id, is_premium_loan FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
+    existing = c.fetchone()
+    if existing and not existing['is_premium_loan']:
+        conn.close()
+        return jsonify({'error': 'Уже куплено навсегда, предмет активен'}), 400
+    if existing and existing['is_premium_loan']:
+        conn.close()
+        return jsonify({'error': 'Уже активировано'}), 400
+
+    c.execute('INSERT INTO user_items (user_id, item_id, is_premium_loan) VALUES (?, ?, 1)', (user_id, item_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'activated': True})
+
+
+# ==================== КОММЕНТАРИИ ====================
+
+_COMMENT_QUERY = '''
+    SELECT cm.id, cm.parent_id, cm.text, cm.created_at,
+           u.id as user_id, u.telegram_first_name, u.telegram_username, u.is_premium,
+           p.avatar_url, s.level,
+           (SELECT si.css_value FROM shop_items si
+            JOIN user_items ui ON si.id = ui.item_id
+            WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
+            LIMIT 1) as frame_css
+    FROM comments cm
+    JOIN users u ON cm.user_id = u.id
+    LEFT JOIN user_profile p ON u.id = p.user_id
+    LEFT JOIN user_stats s ON u.id = s.user_id
+'''
+
+
+@app.route('/api/manga/<manga_slug>/comments')
+def get_comments(manga_slug):
+    offset = max(0, int(request.args.get('offset', 0)))
+    limit  = min(50, max(1, int(request.args.get('limit', 20))))
+    conn = get_db()
+    c = conn.cursor()
+
+    # Верхнеуровневые комментарии (без ответов)
+    c.execute(
+        _COMMENT_QUERY + 'WHERE cm.manga_slug = ? AND cm.parent_id IS NULL ORDER BY cm.created_at DESC LIMIT ? OFFSET ?',
+        (manga_slug, limit, offset)
+    )
+    top_comments = [dict(r) for r in c.fetchall()]
+
+    # Количество верхнеуровневых (для пагинации)
+    c.execute('SELECT COUNT(*) FROM comments WHERE manga_slug = ? AND parent_id IS NULL', (manga_slug,))
+    top_total = c.fetchone()[0]
+
+    # Общее количество (включая ответы — для счётчика)
+    c.execute('SELECT COUNT(*) FROM comments WHERE manga_slug = ?', (manga_slug,))
+    total_all = c.fetchone()[0]
+
+    # Загрузить ответы для этих комментариев одним запросом
+    if top_comments:
+        parent_ids = [cmt['id'] for cmt in top_comments]
+        placeholders = ','.join('?' * len(parent_ids))
+        c.execute(
+            _COMMENT_QUERY + f'WHERE cm.parent_id IN ({placeholders}) ORDER BY cm.created_at ASC',
+            parent_ids
+        )
+        replies = [dict(r) for r in c.fetchall()]
+        reply_map = {}
+        for r in replies:
+            reply_map.setdefault(r['parent_id'], []).append(r)
+        for cmt in top_comments:
+            cmt['replies'] = reply_map.get(cmt['id'], [])
+
+    conn.close()
+    return jsonify({
+        'comments': top_comments,
+        'total': total_all,
+        'has_more': offset + limit < top_total
+    })
+
+
+@app.route('/api/manga/<manga_slug>/comments', methods=['POST'])
+def post_comment(manga_slug):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    body = request.json or {}
+    text = body.get('text', '').strip()
+    parent_id = body.get('parent_id')
+    if not text:
+        return jsonify({'error': 'Пустой комментарий'}), 400
+    if len(text) > 1000:
+        return jsonify({'error': 'Максимум 1000 символов'}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Проверить parent_id и «выровнять» до верхнего уровня
+    if parent_id:
+        c.execute('SELECT id, parent_id, manga_slug FROM comments WHERE id = ?', (parent_id,))
+        parent_row = c.fetchone()
+        if not parent_row or parent_row['manga_slug'] != manga_slug:
+            conn.close()
+            return jsonify({'error': 'Родительский комментарий не найден'}), 404
+        # Ответ на ответ → прикрепить к верхнему родителю
+        if parent_row['parent_id'] is not None:
+            parent_id = parent_row['parent_id']
+
+    c.execute('INSERT INTO comments (manga_slug, user_id, text, parent_id) VALUES (?, ?, ?, ?)',
+              (manga_slug, user_id, text, parent_id))
+    comment_id = c.lastrowid
+    conn.commit()
+    c.execute(_COMMENT_QUERY + 'WHERE cm.id = ?', (comment_id,))
+    comment = dict(c.fetchone())
+    conn.close()
+    return jsonify({'success': True, 'comment': comment})
+
+
+@app.route('/api/comments/<int:comment_id>', methods=['DELETE'])
+def delete_comment(comment_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT user_id, parent_id FROM comments WHERE id = ?', (comment_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Не найдено'}), 404
+    c.execute('SELECT telegram_id FROM users WHERE id = ?', (user_id,))
+    u = c.fetchone()
+    is_admin = u and u['telegram_id'] in ADMIN_TELEGRAM_IDS
+    if row['user_id'] != user_id and not is_admin:
+        conn.close()
+        return jsonify({'error': 'Нет доступа'}), 403
+    # Удалить сам комментарий и все ответы на него
+    c.execute('DELETE FROM comments WHERE id = ? OR parent_id = ?', (comment_id, comment_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 
 @app.route('/api/profile/equip/<int:item_id>', methods=['POST'])
@@ -3069,13 +3394,19 @@ def profile_update():
 
 @app.route('/upload/avatar', methods=['POST'])
 def upload_avatar():
-    """Загрузить аватар"""
+    """Загрузить аватар (только Premium)"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Не авторизован'}), 401
 
     conn = get_db()
     c = conn.cursor()
+
+    c.execute('SELECT is_premium FROM users WHERE id = ?', (user_id,))
+    u = c.fetchone()
+    if not u or not u['is_premium']:
+        conn.close()
+        return jsonify({'error': 'Требуется Premium подписка', 'premium_required': True}), 403
 
     if 'file' not in request.files:
         conn.close()
@@ -3103,13 +3434,19 @@ def upload_avatar():
 
 @app.route('/upload/background', methods=['POST'])
 def upload_background():
-    """Загрузить фон профиля (требует купленный слот)"""
+    """Загрузить фон профиля (только Premium)"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Не авторизован'}), 401
 
     conn = get_db()
     c = conn.cursor()
+
+    c.execute('SELECT is_premium FROM users WHERE id = ?', (user_id,))
+    u = c.fetchone()
+    if not u or not u['is_premium']:
+        conn.close()
+        return jsonify({'error': 'Требуется Premium подписка', 'premium_required': True}), 403
 
     if 'file' not in request.files:
         conn.close()
