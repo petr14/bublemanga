@@ -11,25 +11,19 @@
 .g-inner {
   max-width: 1400px; margin: 0 auto;
   display: flex; align-items: center; gap: 12px;
-  height: 58px; padding: 0 20px;
+  height: 160px; padding: 0 20px;
 }
 
 /* Logo */
 .g-logo {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center;
   text-decoration: none; flex-shrink: 0;
 }
-.g-logo-b {
-  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(135deg,#667eea,#764ba2);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 16px; color: #fff;
+.g-logo-img-desktop {
+  height: 150px; width: auto; display: block; object-fit: contain;
 }
-.g-logo-text {
-  font-weight: 800; font-size: 17px;
-  background: linear-gradient(135deg,#667eea,#ec4899);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  white-space: nowrap;
+.g-logo-img-mobile {
+  height: 90px; width: auto; display: none; object-fit: contain;
 }
 
 /* Nav links */
@@ -173,15 +167,17 @@
   .g-search-form { max-width: 200px; }
 }
 @media (max-width: 700px) {
+  .g-inner { height: 100px; }
   .g-nav { display: none; }
   .g-burger { display: flex; }
   .g-search-form { display: none; }
   .g-uname { display: none; }
   .g-user-trigger { padding: 5px; }
+  .g-logo-img-desktop { display: none; }
+  .g-logo-img-mobile  { display: block; }
 }
 @media (max-width: 400px) {
   .g-inner { padding: 0 12px; gap: 8px; }
-  .g-logo-text { display: none; }
 }
 </style>
 
@@ -189,8 +185,8 @@
   <div class="g-inner">
 
     <a href="/" class="g-logo">
-      <div class="g-logo-b">B</div>
-      <span class="g-logo-text">BubbleManga</span>
+      <img src="/static/logo_desktop.png" class="g-logo-img-desktop" alt="BubbleManga">
+      <img src="/static/logo_mobile.png"  class="g-logo-img-mobile"  alt="BubbleManga">
     </a>
 
     <nav class="g-nav">
