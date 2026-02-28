@@ -162,70 +162,87 @@ class SenkuroAPI:
             return {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
     # ── Поиск ─────────────────────────────────────────────────────────────
 
-    def search(self, query):
+    def search(self, query, max_results=50):
         """
-        Поиск манги по названию.
+        Поиск манги по названию с пагинацией.
 
         Args:
             query: строка поиска
+            max_results: максимальное количество результатов
 
         Returns:
             list[dict]: список манг (manga_id, manga_slug, manga_title, cover_url и т.д.)
         """
-        payload = {
-            "extensions": {
-                "persistedQuery": {
-                    "sha256Hash": "e64937b4fc9c921c2141f2995473161bed921c75855c5de934752392175936bc",
-                    "version": 1
+        results = []
+        after = None
+
+        while len(results) < max_results:
+            payload = {
+                "extensions": {
+                    "persistedQuery": {
+                        "sha256Hash": "e64937b4fc9c921c2141f2995473161bed921c75855c5de934752392175936bc",
+                        "version": 1
+                    }
+                },
+                "operationName": "search",
+                "variables": {
+                    "query": query,
+                    "type": "MANGA",
+                    "first": 20,
+                    "after": after
                 }
-            },
-            "operationName": "search",
-            "variables": {
-                "query": query,
-                "type": "MANGA"
             }
-        }
 
-        try:
-            data = self._post(payload)
-            if not data:
-                logger.warning(f"⚠️ search: API вернул пустой ответ для «{query}»")
-                return []
-            if data.get("errors"):
-                logger.error(f"❌ search GraphQL errors: {data['errors']}")
-            edges = (data.get("data") or {}).get("search", {}).get("edges", [])
-            logger.info(f"🔍 search: найдено {len(edges)} результатов для «{query}»")
+            try:
+                data = self._post(payload)
+                if not data:
+                    logger.warning(f"⚠️ search: API вернул пустой ответ для «{query}»")
+                    break
+                if data.get("errors"):
+                    logger.error(f"❌ search GraphQL errors: {data['errors']}")
+                    break
 
-            results = []
-            for edge in edges:
-                node = edge.get("node") or {}
+                search_data = (data.get("data") or {}).get("search", {})
+                edges = search_data.get("edges") or []
+                page_info = search_data.get("pageInfo") or {}
 
-                titles = node.get("titles") or []
-                ru_title = next((t.get("content") for t in titles if t and t.get("lang") == "RU"), None)
-                en_title = titles[0].get("content", "") if titles else node.get("originalName", "")
+                logger.info(f"🔍 search: страница after={after!r} → {len(edges)} результатов для «{query}»")
 
-                cover = node.get("cover") or {}
-                cover_url = (
-                    (cover.get("original") or {}).get("url", "") or
-                    (cover.get("preview") or {}).get("url", "")
-                )
+                for edge in edges:
+                    node = edge.get("node") or {}
 
-                results.append({
-                    'manga_id': node.get('id'),
-                    'manga_slug': node.get('slug'),
-                    'manga_title': ru_title or en_title,
-                    'original_name': node.get('originalName'),
-                    'manga_type': node.get('mangaType'),
-                    'manga_status': node.get('mangaStatus'),
-                    'rating': node.get('mangaRating'),
-                    'cover_url': cover_url,
-                    'translation_status': node.get('translitionStatus')
-                })
+                    titles = node.get("titles") or []
+                    ru_title = next((t.get("content") for t in titles if t and t.get("lang") == "RU"), None)
+                    en_title = titles[0].get("content", "") if titles else node.get("originalName", "")
 
-            return results
-        except Exception as e:
-            logger.error(f"❌ Ошибка поиска по запросу «{query}»: {e}")
-            return []
+                    cover = node.get("cover") or {}
+                    cover_url = (
+                        (cover.get("original") or {}).get("url", "") or
+                        (cover.get("preview") or {}).get("url", "")
+                    )
+
+                    results.append({
+                        'manga_id': node.get('id'),
+                        'manga_slug': node.get('slug'),
+                        'manga_title': ru_title or en_title,
+                        'original_name': node.get('originalName'),
+                        'manga_type': node.get('mangaType'),
+                        'manga_status': node.get('mangaStatus'),
+                        'rating': node.get('mangaRating'),
+                        'cover_url': cover_url,
+                        'translation_status': node.get('translitionStatus')
+                    })
+
+                if not page_info.get("hasNextPage") or not page_info.get("endCursor"):
+                    break
+                after = page_info["endCursor"]
+
+            except Exception as e:
+                logger.error(f"❌ Ошибка поиска по запросу «{query}»: {e}")
+                break
+
+        logger.info(f"🔍 search: итого {len(results)} результатов для «{query}»")
+        return results[:max_results]
 
     # ── Детальная информация о манге ──────────────────────────────────────
 

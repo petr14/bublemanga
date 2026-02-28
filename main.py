@@ -1306,15 +1306,15 @@ def get_most_read_manga(period="WEEK", limit=12):
 
 # ==================== ФУНКЦИИ ПОИСКА ====================
 
-def search_manga_api(query, limit=200):
+def search_manga_api(query, limit=50):
     """Поиск манги через API с кешированием результатов в БД"""
-    results = api.search(query)
+    results = api.search(query, max_results=limit)
 
     # Кешируем результаты в БД
     for manga in results:
         save_manga_search_result(manga)
 
-    return results[:limit]
+    return results
 
 def save_manga_search_result(manga_data):
     """Сохранить результат поиска в БД"""
@@ -2142,7 +2142,7 @@ async def send_daily_digest():
     global telegram_app
     if not telegram_app:
         return
-    today = datetime.utcnow().strftime('%Y-%m-%d')
+    today = (datetime.utcnow() + timedelta(hours=3)).strftime('%Y-%m-%d')
     try:
         conn = get_db()
         c = conn.cursor()
@@ -2219,10 +2219,11 @@ def background_checker():
             time.sleep(60)  # Проверка каждую минуту
             check_new_chapters()
 
-            # Ежедневный дайджест: один раз в день
-            today = datetime.utcnow().strftime('%Y-%m-%d')
-            if _last_digest_day != today:
-                _last_digest_day = today
+            # Ежедневный дайджест в 22:00 по Москве (UTC+3)
+            now_msk = datetime.utcnow() + timedelta(hours=3)
+            msk_date = now_msk.strftime('%Y-%m-%d')
+            if now_msk.hour >= 22 and _last_digest_day != msk_date:
+                _last_digest_day = msk_date
                 coro = send_daily_digest()
                 if _bot_loop and _bot_loop.is_running():
                     asyncio.run_coroutine_threadsafe(coro, _bot_loop)
@@ -2920,7 +2921,7 @@ def search():
         save_search_history(user_id, query)
     
     # Ищем мангу
-    results = search_manga_api(query, 30)
+    results = search_manga_api(query, 50)
     
     return render_template('search.html',
                          query=query,
