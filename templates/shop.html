@@ -119,10 +119,22 @@
     .toast.ok  { border-color:rgba(102,126,234,.4); color:#a5b4fc; }
     .toast.err { border-color:rgba(239,68,68,.4); color:#fca5a5; }
 
+    /* ── Пакеты монет ── */
+    .coins-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-top:1rem; }
+    .coin-pkg-card { background:var(--card2); border:1px solid var(--border); border-radius:18px; padding:1.4rem 1.2rem; display:flex; flex-direction:column; align-items:center; gap:.7rem; transition:border-color .2s,transform .15s; text-align:center; }
+    .coin-pkg-card:hover { border-color:rgba(250,204,21,.35); transform:translateY(-2px); }
+    .coin-pkg-amount { font-size:2rem; font-weight:800; color:#fcd34d; line-height:1; }
+    .coin-pkg-label { font-size:.78rem; color:var(--text-2); font-weight:600; }
+    .coin-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(250,204,21,.1); border:1px solid rgba(250,204,21,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#fcd34d; }
+    .btn-stars { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#000; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
+    .btn-stars:hover { opacity:.88; transform:scale(1.03); }
+    .btn-stars:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+
     @media(max-width:600px){
       .shop-hero h1 { font-size:1.65rem; }
       .items-grid        { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; }
       .items-grid-avatar { grid-template-columns:repeat(auto-fill,minmax(125px,1fr)); gap:.7rem; }
+      .coins-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); }
     }
   </style>
 </head>
@@ -141,7 +153,7 @@
 <script type="module">
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-const {createElement:h,Fragment,useState,useCallback,useMemo} = React;
+const {createElement:h,Fragment,useState,useCallback,useMemo,useEffect} = React;
 
 const ALL_ITEMS       = {{ items | tojson }};
 const OWNED_IDS       = new Set({{ owned_ids | tojson }});
@@ -159,6 +171,7 @@ const TABS = [
   {id:'background', label:'Фоны'},
   {id:'badge',      label:'Значки'},
   {id:'other',      label:'Слоты'},
+  {id:'buy',        label:'⭐ Монеты'},
 ];
 const OTHER_TYPES = new Set(['avatar_slot','bg_slot']);
 
@@ -286,6 +299,62 @@ function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
   );
 }
 
+// ── Покупка монет за Stars ────────────────────────────────────────────────────
+function BuyCoins({onBalanceUpdate}){
+  const [pkgs, setPkgs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(()=>{
+    fetch('/api/shop/packages').then(r=>r.json()).then(setPkgs).catch(()=>{});
+  },[]);
+
+  const buy = useCallback(async (pkg)=>{
+    if(!USER_ID){ toast('Войдите через Telegram','err'); return; }
+    setLoading(true);
+    try {
+      const r = await fetch('/api/shop/create-invoice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:pkg.id})});
+      const j = await r.json();
+      if(!r.ok){ toast(j.error||'Ошибка создания счёта','err'); return; }
+      const url = j.url;
+      const tg = window.Telegram?.WebApp;
+      if(tg && tg.openInvoice){
+        tg.openInvoice(url, (status)=>{
+          if(status==='paid'){
+            setTimeout(async ()=>{
+              const br = await fetch('/api/user/balance');
+              const bj = await br.json();
+              if(bj.coins !== undefined) onBalanceUpdate(bj.coins);
+              toast(`✅ ${pkg.coins} монет зачислено!`);
+            }, 2000);
+          }
+        });
+      } else {
+        window.open(url,'_blank');
+        toast('Завершите оплату в Telegram');
+      }
+    } catch(e){
+      toast('Ошибка сети','err');
+    } finally {
+      setLoading(false);
+    }
+  },[onBalanceUpdate]);
+
+  if(!USER_ID) return h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram'));
+
+  return h(Fragment,null,
+    h('div',{className:'section-head'},'⭐ Купить монеты за Telegram Stars'),
+    h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'.5rem'}},'Монеты зачисляются мгновенно после оплаты.'),
+    h('div',{className:'coins-grid'},
+      pkgs.map(pkg=>h('div',{key:pkg.id,className:'coin-pkg-card'},
+        h('div',{className:'coin-pkg-amount'},'💰 '+pkg.coins.toLocaleString()),
+        h('div',{className:'coin-pkg-label'},'монет'),
+        h('div',{className:'coin-pkg-price'},'⭐ '+pkg.stars+' Stars'),
+        h('button',{className:'btn-stars',disabled:loading,onClick:()=>buy(pkg)},'Купить')
+      ))
+    )
+  );
+}
+
 // ── Страница ─────────────────────────────────────────────────────────────────
 function ShopPage(){
   const [coins,   setCoins]  = useState(INIT_COINS);
@@ -378,8 +447,12 @@ function ShopPage(){
     ),
 
     h('div',{className:'shop-container'},
-      !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
-      activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)
+      activeTab==='buy'
+        ? h(BuyCoins,{onBalanceUpdate:setCoins})
+        : h(Fragment,null,
+            !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
+            activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)
+          )
     )
   );
 }

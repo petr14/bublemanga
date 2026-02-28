@@ -8,13 +8,14 @@ import secrets
 import json
 import asyncio
 import re
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
     MessageHandler,
+    PreCheckoutQueryHandler,
     filters
 )
 from functools import wraps
@@ -35,6 +36,13 @@ TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 
 # Список Telegram ID администраторов (заполни своим ID, узнать можно у @userinfobot)
 ADMIN_TELEGRAM_IDS: list = [319026942,649144994]
+
+COIN_PACKAGES = [
+    {'id': 'coins_100',  'coins': 100,  'stars': 15,  'label': '100 монет'},
+    {'id': 'coins_300',  'coins': 300,  'stars': 40,  'label': '300 монет'},
+    {'id': 'coins_700',  'coins': 700,  'stars': 85,  'label': '700 монет'},
+    {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'label': '1500 монет'},
+]
 
 app = Flask(__name__)
 
@@ -336,6 +344,17 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+
+    # Покупки монет за Stars
+    c.execute('''CREATE TABLE IF NOT EXISTS coin_purchases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        package_id TEXT NOT NULL,
+        stars_paid INTEGER NOT NULL,
+        coins_received INTEGER NOT NULL,
+        payment_id TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
 
     # Задания (квесты)
     c.execute('''CREATE TABLE IF NOT EXISTS quests (
@@ -2339,6 +2358,56 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
     
     await query.edit_message_text(message, reply_markup=reply_markup)
 
+async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /buy — показывает inline кнопки с пакетами монет"""
+    keyboard = [
+        [InlineKeyboardButton(f"💰 {p['coins']} монет — {p['stars']} ⭐", callback_data=f"buy_coins:{p['id']}")]
+        for p in COIN_PACKAGES
+    ]
+    await update.message.reply_text("Выберите пакет монет:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обязательный ответ на pre_checkout_query"""
+    await update.pre_checkout_query.answer(ok=True)
+
+
+async def successful_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начисляет монеты после успешной оплаты Stars"""
+    payment = update.message.successful_payment
+    payload = payment.invoice_payload  # format: "{package_id}:{user_id}"
+    payment_id = payment.telegram_payment_charge_id
+
+    try:
+        package_id, user_id_str = payload.rsplit(':', 1)
+        user_id = int(user_id_str)
+    except (ValueError, AttributeError):
+        await update.message.reply_text("Ошибка обработки платежа. Обратитесь к администратору.")
+        return
+
+    pkg = next((p for p in COIN_PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        await update.message.reply_text("Пакет не найден. Обратитесь к администратору.")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute(
+            'INSERT OR IGNORE INTO coin_purchases (user_id, package_id, stars_paid, coins_received, payment_id) VALUES (?, ?, ?, ?, ?)',
+            (user_id, package_id, payment.total_amount, pkg['coins'], payment_id)
+        )
+        if c.rowcount > 0:
+            c.execute('UPDATE user_stats SET coins = coins + ? WHERE user_id = ?', (pkg['coins'], user_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+    await update.message.reply_text(
+        f"✅ Оплата прошла успешно!\n\n💰 Начислено {pkg['coins']} монет.\nСпасибо за поддержку!"
+    )
+
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback кнопок"""
     query = update.callback_query
@@ -2354,6 +2423,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await unsubscribe_callback(update, context)
     elif query.data == "back_to_start":
         await back_to_start_callback(update, context)
+    elif query.data.startswith("buy_coins:"):
+        pkg_id = query.data[len("buy_coins:"):]
+        pkg = next((p for p in COIN_PACKAGES if p['id'] == pkg_id), None)
+        if not pkg:
+            await query.answer("Пакет не найден", show_alert=True)
+            return
+        telegram_id = query.from_user.id
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT id FROM users WHERE telegram_id = ?', (telegram_id,))
+        row = c.fetchone()
+        conn.close()
+        if not row:
+            await query.answer("Сначала войдите на сайт BubbleManga", show_alert=True)
+            return
+        user_id = row['id']
+        payload = f"{pkg['id']}:{user_id}"
+        await context.bot.send_invoice(
+            chat_id=query.message.chat_id,
+            title=pkg['label'],
+            description=f"{pkg['coins']} монет для BubbleManga",
+            payload=payload,
+            currency="XTR",
+            provider_token="",
+            prices=[LabeledPrice(label=pkg['label'], amount=pkg['stars'])],
+        )
 
 
 def run_telegram_bot():
@@ -2376,13 +2471,18 @@ def run_telegram_bot():
             telegram_app.add_handler(CommandHandler("start", start_command))
             telegram_app.add_handler(CommandHandler("search", search_manga_command))
             telegram_app.add_handler(CommandHandler("premium", premium_command))
-            
+            telegram_app.add_handler(CommandHandler("buy", buy_command))
+
             # Callback кнопки
             telegram_app.add_handler(CallbackQueryHandler(handle_callback))
-            
+
+            # Payments
+            telegram_app.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
+            telegram_app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
+
             # Сообщения
             telegram_app.add_handler(MessageHandler(
-                filters.TEXT & ~filters.COMMAND, 
+                filters.TEXT & ~filters.COMMAND,
                 handle_search_message
             ))
             
@@ -3381,6 +3481,64 @@ def shop_activate(item_id):
     conn.close()
 
     return jsonify({'success': True, 'activated': True})
+
+
+@app.route('/api/shop/packages')
+def shop_packages():
+    """Возвращает доступные пакеты монет за Stars"""
+    return jsonify(COIN_PACKAGES)
+
+
+@app.route('/api/shop/create-invoice', methods=['POST'])
+def shop_create_invoice():
+    """Создаёт Telegram Stars invoice для покупки монет"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    data = request.get_json(silent=True) or {}
+    package_id = data.get('package_id')
+    pkg = next((p for p in COIN_PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        return jsonify({'error': 'Пакет не найден'}), 404
+
+    if not _bot_loop or not _bot_loop.is_running() or not telegram_app:
+        return jsonify({'error': 'Бот недоступен'}), 503
+
+    payload = f"{pkg['id']}:{user_id}"
+
+    async def _create_link():
+        return await telegram_app.bot.create_invoice_link(
+            title=pkg['label'],
+            description=f"{pkg['coins']} монет для BubbleManga",
+            payload=payload,
+            currency="XTR",
+            provider_token="",
+            prices=[LabeledPrice(label=pkg['label'], amount=pkg['stars'])],
+        )
+
+    future = asyncio.run_coroutine_threadsafe(_create_link(), _bot_loop)
+    try:
+        url = future.result(timeout=10)
+    except Exception as e:
+        return jsonify({'error': f'Ошибка создания счёта: {e}'}), 500
+
+    return jsonify({'url': url})
+
+
+@app.route('/api/user/balance')
+def user_balance():
+    """Возвращает текущий баланс монет пользователя"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT coins FROM user_stats WHERE user_id = ?', (user_id,))
+    row = c.fetchone()
+    conn.close()
+    coins = row['coins'] if row else 0
+    return jsonify({'coins': coins})
 
 
 # ==================== КОММЕНТАРИИ ====================

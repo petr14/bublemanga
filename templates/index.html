@@ -2431,15 +2431,13 @@
                     <button class="tab" data-filter="week">Неделя</button>
                     <button class="tab" data-filter="month">Месяц</button>
                 </div>
-                <div class="slider-container">
-                    <div class="slider" id="trendingSlider" style="display:flex;gap:12px">
-                        <div class="skeleton-slider-card"></div>
-                        <div class="skeleton-slider-card"></div>
-                        <div class="skeleton-slider-card"></div>
-                        <div class="skeleton-slider-card"></div>
-                        <div class="skeleton-slider-card"></div>
-                        <div class="skeleton-slider-card"></div>
-                    </div>
+                <div class="manga-grid">
+                    <div class="skeleton-manga-card"></div>
+                    <div class="skeleton-manga-card"></div>
+                    <div class="skeleton-manga-card"></div>
+                    <div class="skeleton-manga-card"></div>
+                    <div class="skeleton-manga-card"></div>
+                    <div class="skeleton-manga-card"></div>
                 </div>
             </section>
         </div>
@@ -2864,8 +2862,8 @@
         }
 
         function buildSliderItems(mangas) {
-            return mangas.slice(0, 8).map(m => `
-                <div class="slider-item" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
+            return mangas.slice(0, 8).map((m, i) => `
+                <div class="manga-card${i >= 6 ? ' hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
                         <span class="manga-badge hot">Топ</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
@@ -2914,12 +2912,8 @@
                         <button class="tab" data-period="WEEK">Неделя</button>
                         <button class="tab" data-period="DAY">Сегодня</button>
                     </div>
-                    <div class="slider-container">
-                        <div class="slider" id="trendingSlider">${items}</div>
-                    </div>
+                    <div class="manga-grid limited" id="trendingGrid">${items}</div>
                 </section>`;
-
-            initTrendingSlider();
 
             // Вкладки: загружают популярное по периоду
             document.querySelectorAll('#section-trending .tab').forEach(tab => {
@@ -2929,17 +2923,17 @@
                     tab.classList.add('active');
 
                     const period = tab.dataset.period;
-                    const slider = document.getElementById('trendingSlider');
+                    const grid = document.getElementById('trendingGrid');
                     // Скелетон пока грузим
-                    slider.innerHTML = Array(6).fill(
-                        '<div class="skeleton-slider-card"></div>'
+                    grid.innerHTML = Array(6).fill(
+                        '<div class="skeleton-manga-card"></div>'
                     ).join('');
 
                     try {
                         const data = await fetch(`/api/home/popular?period=${period}`).then(r => r.json());
-                        slider.innerHTML = buildSliderItems(data);
+                        grid.innerHTML = buildSliderItems(data);
                     } catch {
-                        slider.innerHTML = '<p style="color:#a1a1aa;padding:20px">Не удалось загрузить</p>';
+                        grid.innerHTML = '<p style="color:#a1a1aa;padding:20px">Не удалось загрузить</p>';
                     }
                 });
             });
@@ -2978,12 +2972,13 @@
 
         function renderSliderSection(containerId, data, badge, tag, descr) {
             if (!data || !data.mangas || !data.mangas.length) return;
-            const items = data.mangas.map(m => `
-                <div class="slider-item" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
+            const mangas = data.mangas.slice(0, 12);
+            const cards = mangas.map((m, i) => `
+                <div class="manga-card${i >= 6 ? ' hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
                         <span class="manga-badge new">${badge}</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
+                             onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
                     </div>
                     <div class="manga-info">
                         <div class="manga-title">${e(m.title)}</div>
@@ -2993,6 +2988,10 @@
                     </div>
                 </div>`).join('');
 
+            const showMoreBtn = mangas.length > 6
+                ? `<button class="show-more-btn" onclick="showAllManga('${containerId}-grid')">Показать еще (${mangas.length - 6})</button>`
+                : '';
+
             document.getElementById(containerId).innerHTML = `
                 <section class="section">
                     <div class="section-header">
@@ -3000,9 +2999,8 @@
                         <h2 class="section-title">${e(data.title || '')}</h2>
                         <p class="section-description">${descr}</p>
                     </div>
-                    <div class="slider-container">
-                        <div class="slider">${items}</div>
-                    </div>
+                    <div class="manga-grid limited" id="${containerId}-grid">${cards}</div>
+                    ${showMoreBtn}
                 </section>`;
         }
 
