@@ -62,7 +62,7 @@
     }
 
     /* ── Страница ───────────────────────────────── */
-    .page-wrap { padding-top: 60px; }
+    .page-wrap { padding-top: 72px; }
 
     /* ── Hero ─────────────────────────────────────── */
     .top-hero {
@@ -209,7 +209,7 @@ function Podium(){
     order.map((u,i)=>
       h('a',{key:u.id, className:'podium-item', href:`/profile/${u.id}`},
         h('div',{className:'podium-avatar'}, h(Av,{url:u.avatar_url,size:72,fontSize:'1.8rem'})),
-        h('div',{className:'podium-name'}, u.telegram_first_name||u.telegram_username||`#${u.id}`),
+        h('div',{className:'podium-name'}, u.custom_name||u.telegram_first_name||u.telegram_username||`#${u.id}`),
         h('div',{className:'podium-xp'}, `${(u.xp||0).toLocaleString()} XP`),
         h('div',{className:`podium-stand ${stands[i]}`}, medals[i])
       )
@@ -218,7 +218,7 @@ function Podium(){
 }
 
 function LbRow({u, rank}){
-  const name = u.telegram_first_name||u.telegram_username||`Пользователь #${u.id}`;
+  const name = u.custom_name||u.telegram_first_name||u.telegram_username||`Пользователь #${u.id}`;
   const isMe = u.id === MY_ID;
   return h('a',{className:`lb-row${isMe?' me':''}`, href:`/profile/${u.id}`},
     h('div',{className:`lb-rank${rank<=3?' top3':''}`},

@@ -356,6 +356,8 @@ def init_db():
         ("ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0",),
         ("ALTER TABLE achievements ADD COLUMN icon_url TEXT",),
         ("ALTER TABLE coin_purchases ADD COLUMN payment_method TEXT DEFAULT 'stars'",),
+        ("ALTER TABLE user_profile ADD COLUMN name_change_count INTEGER DEFAULT 0",),
+        ("ALTER TABLE user_profile ADD COLUMN name_change_month TEXT DEFAULT NULL",),
     ]
     for (sql,) in _migrations:
         try:
@@ -3394,6 +3396,7 @@ def top_page():
                   u.is_premium,
                   s.xp, s.level, s.total_chapters_read,
                   p.avatar_url,
+                  COALESCE(p.custom_name, '') as custom_name,
                   (SELECT si.css_value FROM shop_items si
                    JOIN user_items ui ON si.id = ui.item_id
                    WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
@@ -4078,8 +4081,29 @@ def profile_update():
     conn = get_db()
     c = conn.cursor()
     c.execute('INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)', (user_id,))
-    c.execute('UPDATE user_profile SET bio = ?, custom_name = ? WHERE user_id = ?',
-              (bio, custom_name, user_id))
+
+    # Проверяем ограничение смены ника (2 раза в месяц)
+    current_month = datetime.utcnow().strftime('%Y-%m')
+    c.execute('SELECT custom_name, name_change_count, name_change_month FROM user_profile WHERE user_id = ?', (user_id,))
+    row = c.fetchone()
+    old_name = (row['custom_name'] or '') if row else ''
+    name_changing = custom_name != old_name
+
+    if name_changing and custom_name:  # смена ника только если новое значение непустое
+        count = row['name_change_count'] or 0 if row else 0
+        month = row['name_change_month'] if row else None
+        if month != current_month:
+            count = 0  # новый месяц — сбрасываем счётчик
+        if count >= 2:
+            conn.close()
+            return jsonify({'error': 'Ник можно менять не более 2 раз в месяц', 'name_limit': True}), 429
+        c.execute(
+            'UPDATE user_profile SET bio = ?, custom_name = ?, name_change_count = ?, name_change_month = ? WHERE user_id = ?',
+            (bio, custom_name, count + 1, current_month, user_id)
+        )
+    else:
+        c.execute('UPDATE user_profile SET bio = ? WHERE user_id = ?', (bio, user_id))
+
     conn.commit()
     conn.close()
     display_name = custom_name or None
