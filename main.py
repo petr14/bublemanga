@@ -3406,8 +3406,16 @@ def top_page():
            LEFT JOIN user_profile p ON u.id = p.user_id
            ORDER BY s.xp DESC
            LIMIT 100''')
-    leaders = [dict(row) for row in c.fetchall()]
+    rows = c.fetchall()
     conn.close()
+    leaders = []
+    for row in rows:
+        r = dict(row)
+        r['display_name'] = (r.get('custom_name') or '').strip() or \
+                             r.get('telegram_first_name') or \
+                             r.get('telegram_username') or \
+                             f"#{r['id']}"
+        leaders.append(r)
 
     user_id = session.get('user_id')
     return render_template('top.html', leaders=leaders, user_id=user_id)

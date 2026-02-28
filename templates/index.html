@@ -473,19 +473,19 @@
             align-items: center;
             position: relative;
             overflow: hidden;
-            padding: 40px 16px;
+            padding: 40px 16px 60px;
         }
 
         @media (min-width: 768px) {
             .hero {
-                padding: 60px 20px;
+                padding: 60px 20px 80px;
             }
         }
 
         @media (min-width: 1024px) {
             .hero {
                 min-height: 80vh;
-                padding: 80px 40px;
+                padding: 80px 40px 110px;
             }
         }
 
@@ -1697,111 +1697,6 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* ==================== УЛУЧШЕННАЯ CTA СЕКЦИЯ ==================== */
-        .cta-section {
-            padding: 80px 16px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-            .cta-section {
-                padding: 100px 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .cta-section {
-                padding: 140px 40px;
-            }
-        }
-
-        .cta-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--gradient-primary);
-            opacity: 0.15;
-            z-index: 0;
-        }
-
-        .cta-background::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23667eea' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
-            animation: patternMove 40s linear infinite;
-        }
-
-        .cta-content {
-            position: relative;
-            z-index: 1;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .cta-title {
-            font-size: 28px;
-            font-weight: 900;
-            margin-bottom: 16px;
-            line-height: 1.2;
-            background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.5px;
-        }
-
-        @media (min-width: 768px) {
-            .cta-title {
-                font-size: 36px;
-                margin-bottom: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .cta-title {
-                font-size: 64px;
-                margin-bottom: 28px;
-            }
-        }
-
-        .cta-description {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-            line-height: 1.6;
-        }
-
-        @media (min-width: 768px) {
-            .cta-description {
-                font-size: 16px;
-                margin-bottom: 30px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .cta-description {
-                font-size: 22px;
-                margin-bottom: 50px;
-            }
-        }
-
-        .cta-section .btn-primary {
-            font-size: 14px;
-            padding: 12px 28px;
-        }
-
-        @media (min-width: 768px) {
-            .cta-section .btn-primary {
-                font-size: 16px;
-                padding: 16px 40px;
-            }
-        }
-
         /* ==================== УЛУЧШЕННЫЙ ПОДВАЛ ==================== */
         .footer {
             background: linear-gradient(to bottom, #0a0a0a 0%, #050505 100%);
@@ -2386,21 +2281,20 @@
                     Тысячи манг с регулярными обновлениями. Подписывайтесь на любимые тайтлы и получайте мгновенные уведомления!
                 </p>
                 <div class="hero-buttons">
-                    {% if user_id %}
-                    <a href="#subscriptions" class="btn-primary">
-                        <span></span>
-                        <span>Мои подписки</span>
-                    </a>
-                    {% else %}
                     <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
                         <span></span>
-                        <span>Начать</span>
+                        <span>Начать в Telegram</span>
                     </a>
-                    {% endif %}
                     <a href="#trending" class="btn-secondary">
                         <span></span>
                         <span>Популярное</span>
                     </a>
+                    {% if user_id %}
+                    <a href="#subscriptions" class="btn-secondary">
+                        <span></span>
+                        <span>Мои подписки</span>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="hero-image">
@@ -2492,21 +2386,6 @@
         </section>
         {% endif %}
     </div>
-
-    <!-- CTA секция -->
-    <section class="cta-section">
-        <div class="cta-background"></div>
-        <div class="cta-content">
-            <h2 class="cta-title">Готовы начать читать?</h2>
-            <p class="cta-description">
-                Присоединяйтесь к тысячам фанатов. Получайте уведомления о новых главах!
-            </p>
-            <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary" style="font-size: 16px; padding: 16px 40px;">
-                <span></span>
-                <span>Начать в Telegram</span>
-            </a>
-        </div>
-    </section>
 
     <!-- Подвал -->
     <footer class="footer">
