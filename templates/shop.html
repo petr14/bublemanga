@@ -132,21 +132,20 @@
 
     /* ── Premium карточки ── */
     .premium-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
-    .prem-pkg-card { background:var(--card2); border:1px solid var(--border); border-radius:18px; padding:1.5rem 1.3rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .2s,transform .15s; position:relative; overflow:hidden; }
-    .prem-pkg-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(217,119,6,.03)); pointer-events:none; }
-    .prem-pkg-card:hover { border-color:rgba(245,158,11,.4); transform:translateY(-2px); }
-    .prem-pkg-card.popular { border-color:rgba(245,158,11,.5); box-shadow:0 0 0 1px rgba(245,158,11,.25),0 0 24px rgba(245,158,11,.1); }
-    .prem-popular-badge { position:absolute; top:.6rem; right:.6rem; background:linear-gradient(135deg,#f59e0b,#d97706); border-radius:20px; padding:.15rem .55rem; font-size:.6rem; font-weight:800; color:#000; letter-spacing:.3px; }
-    .prem-pkg-name { font-size:1.05rem; font-weight:800; color:#fcd34d; }
+    .prem-pkg-card { background:var(--card2); border:1px solid rgba(102,126,234,.2); border-radius:18px; padding:1.5rem 1.3rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .2s,transform .15s; position:relative; overflow:hidden; }
+    .prem-pkg-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(102,126,234,.07),rgba(118,75,162,.04)); pointer-events:none; }
+    .prem-pkg-card:hover { border-color:rgba(102,126,234,.5); transform:translateY(-2px); }
+    .prem-pkg-card.popular { border-color:#667eea; box-shadow:0 0 0 1px rgba(102,126,234,.3),0 0 24px rgba(102,126,234,.12); }
+    .prem-popular-badge { position:absolute; top:.6rem; right:.6rem; background:linear-gradient(135deg,#667eea,#764ba2); border-radius:20px; padding:.15rem .55rem; font-size:.6rem; font-weight:800; color:#fff; letter-spacing:.3px; }
+    .prem-pkg-name { font-size:1.05rem; font-weight:800; color:#a5b4fc; }
     .prem-pkg-desc { font-size:.75rem; color:var(--text-3); }
     .prem-features { display:flex; flex-direction:column; gap:.32rem; }
     .prem-feature { font-size:.74rem; color:var(--text-2); display:flex; align-items:center; gap:.4rem; }
-    .prem-feature::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:#f59e0b; flex-shrink:0; }
-    .prem-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#fcd34d; align-self:flex-start; }
-    .btn-premium { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
+    .prem-feature::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:#667eea; flex-shrink:0; }
+    .prem-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(102,126,234,.1); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#a5b4fc; align-self:flex-start; }
+    .btn-premium { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
     .btn-premium:hover { opacity:.88; transform:scale(1.03); }
     .btn-premium:disabled { opacity:.45; cursor:not-allowed; transform:none; }
-    .prem-active-banner { background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.35); border-radius:14px; padding:.85rem 1rem; margin-bottom:.5rem; font-size:.82rem; color:#fcd34d; font-weight:600; text-align:center; }
 
     @media(max-width:600px){
       .premium-grid { grid-template-columns:1fr; }
@@ -512,9 +511,6 @@ function BuyPremium(){
     h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'1rem'}},
       'Открывает эксклюзивные возможности и предметы для украшения профиля.'
     ),
-    IS_PREMIUM && premExpStr && h('div',{className:'prem-active-banner'},
-      'Premium активен до '+premExpStr
-    ),
     h('div',{className:'premium-grid'},
       PREMIUM_PACKAGES_STATIC.map(pkg=>
         h('div',{key:pkg.id, className:'prem-pkg-card'+(pkg.popular?' popular':'')},
@@ -612,7 +608,7 @@ function ShopPage(){
   return h(Fragment,null,
     h('div',{className:'shop-hero'},
       h('h1',null,'🛒 Магазин'),
-      h('p',null,'Украшай профиль — покупай за пузырики, заработанные чтением'),
+      h('p',null,'Украшай профиль — покупай за шарики, заработанные чтением'),
       USER_ID && h('div',{className:'balance-chip'},
         h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
         h('span',null,coins.toLocaleString(),' шариков')
@@ -631,7 +627,9 @@ function ShopPage(){
       activeTab==='premium' ? h(BuyPremium,null) :
       h(Fragment,null,
         !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
-        activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)
+        activeTab==='all'
+          ? h(Fragment,null, h(BuyPremium,null), h(BuyCoins,null), renderAll())
+          : renderGrid(visible, activeTab)
       )
     )
   );

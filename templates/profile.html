@@ -508,9 +508,9 @@
 <!-- БИБЛИОТЕКА -->
 <div id="tab-library" class="tab-pane">
     <div class="lib-tabs">
-        {% if is_own %}<button class="lib-btn active" data-lib="history"> История</button>{% endif %}
-        <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">🔔 Подписки</button>
-        <button class="lib-btn" data-lib="collections"> Коллекции</button>
+        {% if is_own %}<button class="lib-btn active" data-lib="history">История</button>{% endif %}
+        <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">Подписки</button>
+        <button class="lib-btn" data-lib="collections">Коллекции</button>
     </div>
 
     {% if is_own %}
