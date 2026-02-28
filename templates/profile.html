@@ -41,7 +41,7 @@
             position: relative;
             min-height: 380px;
             display: flex; align-items: flex-end;
-            padding-top: 60px;
+            padding-top: 72px;
             overflow: hidden;
         }
         .hero-bg {
@@ -554,7 +554,7 @@
                 <input type="text" id="nameInput" maxlength="50"
                        value="{{ profile.profile.custom_name if profile.profile and profile.profile.custom_name else '' }}"
                        placeholder="{{ profile.display_name }}">
-                <div style="font-size:11px;color:var(--text2);margin-top:4px">Оставь пустым — будет использоваться имя Telegram</div>
+                <div style="font-size:11px;color:var(--text2);margin-top:4px">Оставь пустым — будет использоваться имя Telegram · Можно менять 2 раза в месяц</div>
             </div>
             <div class="field">
                 <label>Описание профиля</label>
