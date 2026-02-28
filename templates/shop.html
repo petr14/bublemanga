@@ -153,23 +153,23 @@ const PREMIUM_EXPIRES = {{ premium_expires_at | tojson }};
 const LOANED_IDS      = new Set({{ loaned_ids | tojson }});
 
 const TABS = [
-  {id:'all',        label:'✨ Все'},
-  {id:'avatar',     label:'👤 Аватары'},
-  {id:'frame',      label:'🖼 Рамки'},
-  {id:'background', label:'🌄 Фоны'},
-  {id:'badge',      label:'🏅 Значки'},
-  {id:'other',      label:'⚙️ Слоты'},
+  {id:'all',        label:' Все'},
+  {id:'avatar',     label:' Аватары'},
+  {id:'frame',      label:'Рамки'},
+  {id:'background', label:'Фоны'},
+  {id:'badge',      label:'Значки'},
+  {id:'other',      label:'Слоты'},
 ];
 const OTHER_TYPES = new Set(['avatar_slot','bg_slot']);
 
 const GROUP_ORDER  = ['avatar','frame','background','badge','avatar_slot','bg_slot'];
 const GROUP_LABELS = {
-  avatar:     '👤 Аватары',
-  frame:      '🖼 Рамки аватара',
-  background: '🌄 Фоны профиля',
-  badge:      '🏅 Значки',
-  avatar_slot:'📤 Загрузка аватара',
-  bg_slot:    '📤 Загрузка фона',
+  avatar:     ' Аватары',
+  frame:      'Рамки аватара',
+  background: 'Фоны профиля',
+  badge:      'Значки',
+  avatar_slot:'Загрузка аватара',
+  bg_slot:    'Загрузка фона',
 };
 
 function toast(msg,type='ok'){
@@ -186,7 +186,7 @@ function PreviewAvatar({item}){
     h('div',{className:'avatar-circle'},
       item.preview_url
         ? h('img',{src:item.preview_url,alt:'',loading:'lazy'})
-        : h('div',{className:'av-placeholder'},'👤')
+        : h('div',{className:'av-placeholder'},'')
     )
   );
 }
@@ -251,22 +251,22 @@ function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
   } else if(loaned){
     btns = h('div',{className:'item-footer-col'},
       h('button',{className:equipped?'btn-unequip':'btn-equip',onClick:()=>onEquip(item)},equipped?'Снять':'Надеть'),
-      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} пузыриков`,onClick:()=>onBuy(item)},`Купить (${item.price.toLocaleString()})`)
+      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} шариков`,onClick:()=>onBuy(item)},`Купить (${item.price.toLocaleString()})`)
     );
   } else if(USER_ID&&IS_PREMIUM){
     btns = h('div',{className:'item-footer-col'},
       h('button',{className:'btn-activate',onClick:()=>onActivate(item)},'Активировать'),
-      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} пузыриков`,onClick:()=>onBuy(item)},`Купить (${item.price.toLocaleString()})`)
+      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} шариков`,onClick:()=>onBuy(item)},`Купить (${item.price.toLocaleString()})`)
     );
   } else if(USER_ID){
-    btns = h('button',{className:'btn-buy',disabled:!canAfford,title:canAfford?'':`Нужно ${item.price} пузыриков`,onClick:()=>onBuy(item)},'Купить');
+    btns = h('button',{className:'btn-buy',disabled:!canAfford,title:canAfford?'':`Нужно ${item.price} шариков`,onClick:()=>onBuy(item)},'Купить');
   } else {
     btns = h('button',{className:'btn-buy',disabled:true},'Войти');
   }
 
   return h('div',{className:cls},
     equipped && h('div',{className:'item-badge-equipped'},'✓ Надето'),
-    loaned   && h('div',{className:'loan-badge'},'✨ Premium'),
+    loaned   && h('div',{className:'loan-badge'},' Premium'),
     h(ItemPreview,{item}),
     h('div',{className:'item-body'},
       h('div',{className:'item-name'},item.name),
@@ -366,9 +366,9 @@ function ShopPage(){
       h('p',null,'Украшай профиль — покупай за пузырики, заработанные чтением'),
       USER_ID && h('div',{className:'balance-chip'},
         h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
-        h('span',null,coins.toLocaleString(),' пузыриков')
+        h('span',null,coins.toLocaleString(),' шариков')
       ),
-      IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'✨ Premium активен до ',premiumExpStr)
+      IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},' Premium активен до ',premiumExpStr)
     ),
 
     h('div',{className:'shop-tabs-wrap'},
