@@ -240,7 +240,8 @@
         .quest-reward-badge { display: flex; align-items: center; gap: 6px; border-radius: 10px; padding: 6px 10px; min-width: 60px; }
         .quest-reward-badge.xp { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.2); }
         .quest-reward-badge.coins { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.2); }
-        .quest-reward-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .quest-reward-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: hidden; padding: 4px; }
+        .quest-reward-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .quest-reward-badge.xp .quest-reward-icon { background: rgba(34,197,94,.2); }
         .quest-reward-badge.coins .quest-reward-icon { background: rgba(251,191,36,.18); }
         .quest-reward-val { font-size: 16px; font-weight: 800; }
@@ -680,7 +681,7 @@
             ? `<span class="quest-card-badge-done">✓ Готово</span>`
             : `<span class="quest-card-badge-new">Ур. ${q.required_level}+</span>`;
         const rewards = [];
-        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon"><img src="/static/xp.png"  alt=""></div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
+        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon"><img src="/static/xp.svg"  alt=""></div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
         if (q.coins_reward) rewards.push(`<div class="quest-reward-badge coins"><div class="quest-reward-icon"><img src="/static/bubbles.svg"  alt=""></div><span class="quest-reward-val">${q.coins_reward}</span></div>`);
         return `
         <div class="quest-card${done ? ' done' : ''}">
