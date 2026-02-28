@@ -11,11 +11,8 @@
 .g-inner {
   max-width: 1400px; margin: 0 auto;
   display: flex; align-items: center; gap: 12px;
-<<<<<<< HEAD
+
   height: 160px; padding: 0 20px;
-=======
-  height: 72px; padding: 0 20px;
->>>>>>> b487250bca3b59878a162bc2e86508a9d8a90c77
 }
 
 /* Logo */
@@ -176,13 +173,11 @@
   .g-burger { display: flex; }
   .g-search-form { display: none; }
   .g-uname { display: none; }
-<<<<<<< HEAD
+
   .g-user-trigger { padding: 5px; }
   .g-logo-img-desktop { display: none; }
   .g-logo-img-mobile  { display: block; }
-=======
-  .g-user-trigger { padding: 6px; }
->>>>>>> b487250bca3b59878a162bc2e86508a9d8a90c77
+
 }
 @media (max-width: 400px) {
   .g-inner { padding: 0 12px; gap: 8px; }
@@ -200,6 +195,7 @@
     <nav class="g-nav">
       <a href="/" class="g-nav-a{% if g_active == 'home' %} active{% endif %}">Главная</a>
       <a href="/top" class="g-nav-a{% if g_active == 'top' %} active{% endif %}">Топ</a>
+      <a href="/collections/top" class="g-nav-a{% if g_active == 'collections_top' %} active{% endif %}">Коллекции</a>
       <a href="/shop" class="g-nav-a{% if g_active == 'shop' %} active{% endif %}">Магазин</a>
     </nav>
 
@@ -231,9 +227,9 @@
           <span class="g-caret">▾</span>
         </button>
         <div class="g-dropdown" id="gDropdown">
-          <a href="/profile/me" class="g-dd-a">👤 Мой профиль</a>
+          <a href="/profile/me" class="g-dd-a">Мой профиль</a>
           <div class="g-dd-sep"></div>
-          <a href="/logout" class="g-dd-a g-dd-logout">🚪 Выйти</a>
+          <a href="/logout" class="g-dd-a g-dd-logout">Выйти</a>
         </div>
       </div>
       {% else %}
@@ -260,6 +256,7 @@
     </form>
     <a href="/" class="g-mob-a">Главная</a>
     <a href="/top" class="g-mob-a">Топ</a>
+    <a href="/collections/top" class="g-mob-a">Коллекции</a>
     <a href="/shop" class="g-mob-a">Магазин</a>
     {% if session.user_id %}
     <div class="g-mob-sep"></div>

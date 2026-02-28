@@ -294,16 +294,20 @@
         .coll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
         .coll-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform .2s, border-color .2s; }
         .coll-card:hover { transform: translateY(-4px); border-color: var(--primary); }
-        .coll-cover { height: 90px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+        .coll-cover { height: 90px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary2) 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; overflow: hidden; position: relative; }
+        .coll-cover img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
         .coll-body { padding: 12px 14px; }
         .coll-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
         .coll-desc { font-size: 12px; color: var(--text2); margin-bottom: 8px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .coll-meta { display: flex; justify-content: space-between; align-items: center; }
+        .coll-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; }
         .coll-count { font-size: 11px; color: var(--primary); font-weight: 600; }
-        .coll-actions { display: flex; gap: 6px; }
+        .coll-likes { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 3px; }
+        .coll-actions { display: flex; gap: 6px; align-items: center; }
         .coll-btn { width: 26px; height: 26px; border-radius: 50%; background: var(--glass2); border: 1px solid var(--border); color: var(--text2); font-size: 12px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; }
         .coll-btn:hover { border-color: var(--primary); color: var(--primary); }
         .coll-btn.del:hover { border-color: #ef4444; color: #ef4444; }
+        .coll-btn-link { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 10px; background: rgba(102,126,234,.1); border: 1px solid rgba(102,126,234,.2); color: #818cf8; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s; }
+        .coll-btn-link:hover { background: rgba(102,126,234,.2); }
         .coll-detail-back { display: flex; align-items: center; gap: 8px; color: var(--text2); cursor: pointer; font-size: 14px; margin-bottom: 20px; width: fit-content; transition: color .2s; }
         .coll-detail-back:hover { color: var(--primary); }
 
@@ -626,9 +630,21 @@
 <!-- Коллекция -->
 <div class="modal-overlay" id="collModal">
     <div class="modal">
-        <div class="modal-title"><span id="collModalTitle"> Новая коллекция</span> <button class="modal-close" onclick="closeModal('collModal')">✕</button></div>
+        <div class="modal-title"><span id="collModalTitle"> Новая коллекция</span> <button class="modal-close" onclick="closeModal('collModal');resetCollModal()">✕</button></div>
         <div class="field"><label>Название *</label><input type="text" id="collName" maxlength="100" placeholder="Например: Любимые isekai"></div>
         <div class="field"><label>Описание</label><textarea id="collDesc" maxlength="500" placeholder="Необязательно..."></textarea></div>
+        <div id="collCoverSection" style="display:none" class="field">
+            <label>Обложка коллекции</label>
+            <input type="hidden" id="collCoverCollId">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <img id="collCoverPreview" src="" alt="" style="display:none;width:60px;height:85px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+                <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--glass);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text2);margin:0">
+                    📷 Выбрать фото
+                    <input type="file" id="collCoverFile" accept="image/*" style="display:none" onchange="previewCollCover(this)">
+                </label>
+                <span id="collCoverFileName" style="font-size:11px;color:var(--text2)"></span>
+            </div>
+        </div>
         <div class="field">
             <div class="toggle-row">
                 <label style="margin:0;font-size:13px;color:var(--text2)">Публичная коллекция</label>
@@ -636,7 +652,7 @@
             </div>
         </div>
         <div class="modal-actions">
-            <button class="btn-secondary-m" onclick="closeModal('collModal')">Отмена</button>
+            <button class="btn-secondary-m" onclick="closeModal('collModal');resetCollModal()">Отмена</button>
             <button class="btn-primary-m" id="collSaveBtn" onclick="saveCollection()">Создать</button>
         </div>
     </div>
@@ -821,17 +837,22 @@
     function renderColls(colls) {
         const el = document.getElementById('collsContent');
         if (!colls.length) { el.innerHTML = emptyState('', 'Нет коллекций', IS_OWN ? 'Создай первую коллекцию!' : 'Пока нет публичных коллекций'); return; }
-        const emojis = ['','🎌','⚔️','🌸','🔥','👾','💫','🎭'];
-        el.innerHTML = '<div class="coll-grid">' + colls.map((c, i) => `
+        el.innerHTML = '<div class="coll-grid">' + colls.map((c) => `
             <div class="coll-card" onclick="openColl(${c.id}, ${JSON.stringify(c.name)})">
-                <div class="coll-cover">${emojis[i % emojis.length]}</div>
+                <div class="coll-cover">
+                    ${c.cover_url ? `<img src="${esc(c.cover_url)}" alt="">` : '📁'}
+                </div>
                 <div class="coll-body">
                     <div class="coll-name">${esc(c.name)}</div>
                     <div class="coll-desc">${esc(c.description || '—')}</div>
                     <div class="coll-meta">
-                        <span class="coll-count"> ${c.items_count} манг</span>
-                        ${IS_OWN ? `<div class="coll-actions" onclick="event.stopPropagation()">
-                            <button class="coll-btn" onclick="editColl(${c.id},${JSON.stringify(c.name)},${JSON.stringify(c.description||'')},${c.is_public})" title="Изменить"></button>
+                        <span class="coll-count">📚 ${c.items_count} манг</span>
+                        <span class="coll-likes">🤍 ${c.likes_count || 0}</span>
+                    </div>
+                    <div class="coll-meta" style="margin-top:6px" onclick="event.stopPropagation()">
+                        <a class="coll-btn-link" href="/collection/${c.id}" target="_blank">Открыть</a>
+                        ${IS_OWN ? `<div class="coll-actions">
+                            <button class="coll-btn" onclick="editColl(${c.id},${JSON.stringify(c.name)},${JSON.stringify(c.description||'')},${c.is_public},${JSON.stringify(c.cover_url||'')})" title="Изменить">✏️</button>
                             <button class="coll-btn del" onclick="deleteColl(${c.id})" title="Удалить">🗑</button>
                         </div>` : ''}
                     </div>
@@ -863,13 +884,22 @@
 
     function backToColls() { libLoaded['collections'] = false; fetchColls(); }
 
-    function editColl(id, name, desc, isPublic) {
+    function editColl(id, name, desc, isPublic, coverUrl) {
         editingCollId = id;
         document.getElementById('collModalTitle').textContent = ' Изменить коллекцию';
         document.getElementById('collName').value = name;
         document.getElementById('collDesc').value = desc;
         document.getElementById('collPublic').checked = !!isPublic;
         document.getElementById('collSaveBtn').textContent = 'Сохранить';
+        // Показать текущую обложку
+        const preview = document.getElementById('collCoverPreview');
+        if (preview) {
+            preview.src = coverUrl || '';
+            preview.style.display = coverUrl ? 'block' : 'none';
+        }
+        const coverSection = document.getElementById('collCoverSection');
+        if (coverSection) coverSection.style.display = 'block';
+        document.getElementById('collCoverCollId').value = id;
         openModal('collModal');
     }
 
@@ -895,16 +925,51 @@
         const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
         const d = await r.json();
         if (d.success || d.id) {
+            // Загрузить обложку если выбран файл
+            const fileInput = document.getElementById('collCoverFile');
+            const collId = editingCollId || d.id;
+            if (fileInput && fileInput.files && fileInput.files[0] && collId) {
+                const fd = new FormData();
+                fd.append('file', fileInput.files[0]);
+                fd.append('collection_id', collId);
+                await fetch('/upload/collection-cover', { method: 'POST', body: fd });
+            }
             toast(editingCollId ? 'Обновлено' : 'Коллекция создана', 'success');
             closeModal('collModal');
-            editingCollId = null;
-            document.getElementById('collName').value = '';
-            document.getElementById('collDesc').value = '';
-            document.getElementById('collModalTitle').textContent = ' Новая коллекция';
-            document.getElementById('collSaveBtn').textContent = 'Создать';
+            resetCollModal();
             libLoaded['collections'] = false;
             fetchColls();
         } else toast(d.error || 'Ошибка', 'error');
+    }
+
+    function resetCollModal() {
+        editingCollId = null;
+        document.getElementById('collName').value = '';
+        document.getElementById('collDesc').value = '';
+        document.getElementById('collPublic').checked = true;
+        document.getElementById('collModalTitle').textContent = ' Новая коллекция';
+        document.getElementById('collSaveBtn').textContent = 'Создать';
+        const coverSection = document.getElementById('collCoverSection');
+        if (coverSection) coverSection.style.display = 'none';
+        const preview = document.getElementById('collCoverPreview');
+        if (preview) { preview.src = ''; preview.style.display = 'none'; }
+        const fileInput = document.getElementById('collCoverFile');
+        if (fileInput) fileInput.value = '';
+        const fname = document.getElementById('collCoverFileName');
+        if (fname) fname.textContent = '';
+    }
+
+    function previewCollCover(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const preview = document.getElementById('collCoverPreview');
+        const fname = document.getElementById('collCoverFileName');
+        if (fname) fname.textContent = file.name;
+        if (preview) {
+            const reader = new FileReader();
+            reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+            reader.readAsDataURL(file);
+        }
     }
 
     // Bio / Name
