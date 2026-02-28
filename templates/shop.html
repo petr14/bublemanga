@@ -130,6 +130,30 @@
     .btn-stars:hover { opacity:.88; transform:scale(1.03); }
     .btn-stars:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
+    /* ── Модальное окно оплаты ── */
+    .pay-overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:5000; display:flex; align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(8px); animation:pmFadeIn .15s; }
+    @keyframes pmFadeIn { from{opacity:0} to{opacity:1} }
+    .pay-modal { background:#141414; border:1px solid rgba(255,255,255,.1); border-radius:22px; padding:1.6rem 1.4rem 1.4rem; width:100%; max-width:380px; animation:pmSlide .2s; }
+    @keyframes pmSlide { from{transform:translateY(18px);opacity:0} to{transform:none;opacity:1} }
+    .pay-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.1rem; }
+    .pay-pkg-info { display:flex; align-items:baseline; gap:.35rem; }
+    .pay-pkg-coins { font-size:1.5rem; font-weight:800; color:#fcd34d; }
+    .pay-pkg-sub { font-size:.82rem; color:var(--text-2); font-weight:600; }
+    .pay-close { background:rgba(255,255,255,.07); border:none; color:#888; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:1rem; line-height:1; transition:background .15s; }
+    .pay-close:hover { background:rgba(255,255,255,.14); }
+    .pay-subtitle { font-size:.82rem; color:var(--text-3); margin-bottom:.9rem; font-weight:500; }
+    .pay-methods { display:flex; flex-direction:column; gap:.55rem; }
+    .pay-btn { display:flex; align-items:center; gap:.9rem; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:.85rem 1rem; cursor:pointer; transition:background .15s,border-color .15s,transform .1s; text-align:left; width:100%; font-family:inherit; }
+    .pay-btn:hover:not(:disabled) { background:rgba(255,255,255,.09); border-color:rgba(102,126,234,.4); transform:translateY(-1px); }
+    .pay-btn:disabled { opacity:.45; cursor:wait; }
+    .pay-btn-icon { font-size:1.6rem; width:2.2rem; text-align:center; flex-shrink:0; }
+    .pay-btn-info { flex:1; }
+    .pay-btn-name { font-size:.86rem; font-weight:700; color:#f4f4f5; }
+    .pay-btn-price { font-size:.73rem; color:var(--text-3); margin-top:.1rem; }
+    .pay-btn-arrow { color:var(--text-3); font-size:.95rem; flex-shrink:0; transition:transform .15s; }
+    .pay-btn:hover:not(:disabled) .pay-btn-arrow { transform:translateX(3px); color:#a5b4fc; }
+    .pay-note { font-size:.72rem; color:var(--text-3); text-align:center; margin-top:.85rem; line-height:1.5; }
+
     @media(max-width:600px){
       .shop-hero h1 { font-size:1.65rem; }
       .items-grid        { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; }
@@ -299,58 +323,111 @@ function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
   );
 }
 
-// ── Покупка монет за Stars ────────────────────────────────────────────────────
-function BuyCoins({onBalanceUpdate}){
-  const [pkgs, setPkgs] = useState([]);
-  const [loading, setLoading] = useState(false);
+// ── Покупка монет ─────────────────────────────────────────────────────────────
+const BOT_BUY_URL = 'https://t.me/hookah_p_bot?start=buy';
 
-  useEffect(()=>{
-    fetch('/api/shop/packages').then(r=>r.json()).then(setPkgs).catch(()=>{});
-  },[]);
+const COIN_PACKAGES_STATIC = [
+  {id:'coins_100',  coins:100,  stars:15,  rub:129,   usd:'1.49'},
+  {id:'coins_300',  coins:300,  stars:40,  rub:329,   usd:'3.99'},
+  {id:'coins_700',  coins:700,  stars:85,  rub:699,   usd:'7.99'},
+  {id:'coins_1500', coins:1500, stars:175, rub:1399,  usd:'15.99'},
+];
 
-  const buy = useCallback(async (pkg)=>{
-    if(!USER_ID){ toast('Войдите через Telegram','err'); return; }
-    setLoading(true);
+// ── Модальное окно выбора способа оплаты ─────────────────────────────────────
+function PayModal({pkg, onClose}){
+  const [busy, setBusy] = useState(null); // 'yookassa' | 'crypto'
+
+  const pay = useCallback(async (method)=>{
+    if(method === 'stars'){
+      window.open(BOT_BUY_URL, '_blank');
+      onClose();
+      return;
+    }
+    setBusy(method);
     try {
-      const r = await fetch('/api/shop/create-invoice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({package_id:pkg.id})});
+      const r = await fetch('/api/shop/create-payment',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({package_id: pkg.id, method})
+      });
       const j = await r.json();
-      if(!r.ok){ toast(j.error||'Ошибка создания счёта','err'); return; }
-      const url = j.url;
-      const tg = window.Telegram?.WebApp;
-      if(tg && tg.openInvoice){
-        tg.openInvoice(url, (status)=>{
-          if(status==='paid'){
-            setTimeout(async ()=>{
-              const br = await fetch('/api/user/balance');
-              const bj = await br.json();
-              if(bj.coins !== undefined) onBalanceUpdate(bj.coins);
-              toast(`✅ ${pkg.coins} монет зачислено!`);
-            }, 2000);
-          }
-        });
-      } else {
-        window.open(url,'_blank');
-        toast('Завершите оплату в Telegram');
-      }
+      if(!r.ok){ toast(j.error||'Ошибка','err'); return; }
+      window.open(j.url,'_blank');
+      onClose();
+      toast('Завершите оплату — монеты зачислятся автоматически');
     } catch(e){
       toast('Ошибка сети','err');
     } finally {
-      setLoading(false);
+      setBusy(null);
     }
-  },[onBalanceUpdate]);
+  },[pkg, onClose]);
 
-  if(!USER_ID) return h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram'));
+  const METHODS = [
+    {key:'stars',    icon:'⭐', name:'Telegram Stars',        price: pkg.stars+' Stars'},
+    {key:'yookassa', icon:'💳', name:'Банковская карта',      price: pkg.rub.toLocaleString('ru-RU')+' ₽'},
+    {key:'crypto',   icon:'☁️', name:'Crypto Cloud (USDT)',    price: pkg.usd+' USDT'},
+  ];
+
+  return h('div',{className:'pay-overlay', onClick:e=>{ if(e.target===e.currentTarget) onClose(); }},
+    h('div',{className:'pay-modal'},
+      h('div',{className:'pay-head'},
+        h('div',{className:'pay-pkg-info'},
+          h('span',{className:'pay-pkg-coins'},'💰 '+pkg.coins.toLocaleString()),
+          h('span',{className:'pay-pkg-sub'},' монет')
+        ),
+        h('button',{className:'pay-close',onClick:onClose},'✕')
+      ),
+      h('div',{className:'pay-subtitle'},'Выберите способ оплаты'),
+      h('div',{className:'pay-methods'},
+        METHODS.map(m=>
+          h('button',{
+            key:m.key,
+            className:'pay-btn',
+            disabled:busy===m.key,
+            onClick:()=>pay(m.key)
+          },
+            h('span',{className:'pay-btn-icon'},m.icon),
+            h('div',{className:'pay-btn-info'},
+              h('div',{className:'pay-btn-name'},m.name),
+              h('div',{className:'pay-btn-price'},m.price)
+            ),
+            h('span',{className:'pay-btn-arrow'},busy===m.key?'…':'›')
+          )
+        )
+      ),
+      h('p',{className:'pay-note'},'🔒 Безопасная оплата · Монеты зачисляются мгновенно')
+    )
+  );
+}
+
+// ── Список пакетов ────────────────────────────────────────────────────────────
+function BuyCoins(){
+  const [modal, setModal] = useState(null); // pkg | null
+
+  const open = useCallback(pkg=>{
+    if(!USER_ID){ toast('Войдите через Telegram','err'); return; }
+    setModal(pkg);
+  },[]);
 
   return h(Fragment,null,
-    h('div',{className:'section-head'},'⭐ Купить монеты за Telegram Stars'),
-    h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'.5rem'}},'Монеты зачисляются мгновенно после оплаты.'),
+    modal && h(PayModal,{pkg:modal, onClose:()=>setModal(null)}),
+    h('div',{className:'section-head'},'💰 Купить монеты'),
+    h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'1rem'}},
+      'Монеты тратятся в магазине на аватары, рамки, фоны и другие украшения профиля.'
+    ),
     h('div',{className:'coins-grid'},
-      pkgs.map(pkg=>h('div',{key:pkg.id,className:'coin-pkg-card'},
-        h('div',{className:'coin-pkg-amount'},'💰 '+pkg.coins.toLocaleString()),
-        h('div',{className:'coin-pkg-label'},'монет'),
-        h('div',{className:'coin-pkg-price'},'⭐ '+pkg.stars+' Stars'),
-        h('button',{className:'btn-stars',disabled:loading,onClick:()=>buy(pkg)},'Купить')
-      ))
+      COIN_PACKAGES_STATIC.map(pkg=>
+        h('div',{key:pkg.id,className:'coin-pkg-card'},
+          h('div',{className:'coin-pkg-amount'},'💰 '+pkg.coins.toLocaleString()),
+          h('div',{className:'coin-pkg-label'},'монет'),
+          h('div',{className:'coin-pkg-price'},'от '+pkg.rub.toLocaleString('ru-RU')+' ₽'),
+          h('button',{
+            className:'btn-stars',
+            style:{marginTop:'.4rem', width:'100%'},
+            onClick:()=>open(pkg)
+          },'Купить')
+        )
+      )
     )
   );
 }
@@ -448,7 +525,7 @@ function ShopPage(){
 
     h('div',{className:'shop-container'},
       activeTab==='buy'
-        ? h(BuyCoins,{onBalanceUpdate:setCoins})
+        ? h(BuyCoins,null)
         : h(Fragment,null,
             !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
             activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)

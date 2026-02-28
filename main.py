@@ -38,11 +38,23 @@ TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 ADMIN_TELEGRAM_IDS: list = [319026942,649144994]
 
 COIN_PACKAGES = [
-    {'id': 'coins_100',  'coins': 100,  'stars': 15,  'label': '100 монет'},
-    {'id': 'coins_300',  'coins': 300,  'stars': 40,  'label': '300 монет'},
-    {'id': 'coins_700',  'coins': 700,  'stars': 85,  'label': '700 монет'},
-    {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'label': '1500 монет'},
+    {'id': 'coins_100',  'coins': 100,  'stars': 15,  'rub': 129,   'usd': '1.49', 'label': '100 монет'},
+    {'id': 'coins_300',  'coins': 300,  'stars': 40,  'rub': 329,   'usd': '3.99', 'label': '300 монет'},
+    {'id': 'coins_700',  'coins': 700,  'stars': 85,  'rub': 699,   'usd': '7.99', 'label': '700 монет'},
+    {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'rub': 1399,  'usd': '15.99', 'label': '1500 монет'},
 ]
+
+# ЮКасса (https://yookassa.ru → Настройки → Ключи API)
+YOOKASSA_SHOP_ID  = os.environ.get('YOOKASSA_SHOP_ID', '')
+YOOKASSA_SECRET   = os.environ.get('YOOKASSA_SECRET', '')
+
+# Crypto Cloud (https://cryptocloud.plus → Проекты → API)
+CRYPTOCLOUD_API_KEY    = os.environ.get('CRYPTOCLOUD_API_KEY', '')
+CRYPTOCLOUD_SECRET_KEY = os.environ.get('CRYPTOCLOUD_SECRET_KEY', '')  # для верификации вебхука
+CRYPTOCLOUD_SHOP_ID    = os.environ.get('CRYPTOCLOUD_SHOP_ID', '')
+
+# Базовый URL сайта (для redirect после оплаты)
+SITE_URL = 'http://91.196.34.216'
 
 app = Flask(__name__)
 
@@ -337,6 +349,7 @@ def init_db():
         ("ALTER TABLE users ADD COLUMN premium_expires_at TEXT DEFAULT NULL",),
         ("ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0",),
         ("ALTER TABLE achievements ADD COLUMN icon_url TEXT",),
+        ("ALTER TABLE coin_purchases ADD COLUMN payment_method TEXT DEFAULT 'stars'",),
     ]
     for (sql,) in _migrations:
         try:
@@ -2129,17 +2142,22 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username
     first_name = update.effective_user.first_name
     last_name = update.effective_user.last_name
-    
+
     # Регистрируем или получаем пользователя
     user = get_or_create_user_by_telegram(telegram_id, username, first_name, last_name)
-    
+
     if not user:
         await update.message.reply_text("❌ Ошибка регистрации. Попробуйте позже.")
         return
-    
+
+    # ?start=buy — сразу показываем покупку монет
+    if context.args and context.args[0] == 'buy':
+        await buy_command(update, context)
+        return
+
     login_url = f"http://91.196.34.216/login/{user['login_token']}"
     webapp_url = f"http://91.196.34.216"
-    
+
     keyboard = [
         [InlineKeyboardButton("🌐 Открыть сайт", url=webapp_url)],
         [InlineKeyboardButton("📝 Войти на сайте", url=login_url)],
@@ -2147,13 +2165,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⭐ Мои подписки", callback_data="my_subscriptions")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     message = f"👋 Привет, {first_name or username}!\n\n"
     message += "🤖 Добро пожаловать в Manga Reader Bot!\n\n"
     message += "✅ Вы успешно зарегистрированы!\n"
     message += f"🆔 Ваш ID: {user['id']}\n\n"
     message += "Нажмите кнопку ниже, чтобы открыть сайт и начать читать мангу."
-    
+
     await update.message.reply_text(message, reply_markup=reply_markup)
 
 async def search_manga_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2364,7 +2382,22 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(f"💰 {p['coins']} монет — {p['stars']} ⭐", callback_data=f"buy_coins:{p['id']}")]
         for p in COIN_PACKAGES
     ]
-    await update.message.reply_text("Выберите пакет монет:", reply_markup=InlineKeyboardMarkup(keyboard))
+    text = (
+        "⭐ *Купить монеты за Telegram Stars*\n\n"
+        "Монеты используются в магазине BubbleManga:\n"
+        "🖼 Аватары, рамки, фоны профиля\n"
+        "🏷 Значки и другие украшения\n\n"
+        "💡 *Как это работает?*\n"
+        "1\\. Выберите пакет ниже\n"
+        "2\\. Нажмите кнопку *Оплатить* в инвойсе\n"
+        "3\\. Монеты зачислятся мгновенно\\!\n\n"
+        "Выберите пакет:"
+    )
+    await update.effective_message.reply_text(
+        text,
+        parse_mode='MarkdownV2',
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 
 async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3539,6 +3572,144 @@ def user_balance():
     conn.close()
     coins = row['coins'] if row else 0
     return jsonify({'coins': coins})
+
+
+def _credit_coins(user_id, package_id, payment_id, payment_method='stars'):
+    """Общая функция начисления монет после любой оплаты."""
+    pkg = next((p for p in COIN_PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        return False
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute(
+            '''INSERT OR IGNORE INTO coin_purchases
+               (user_id, package_id, stars_paid, coins_received, payment_id, payment_method)
+               VALUES (?, ?, 0, ?, ?, ?)''',
+            (user_id, package_id, pkg['coins'], payment_id, payment_method)
+        )
+        credited = c.rowcount > 0
+        if credited:
+            c.execute('UPDATE user_stats SET coins = coins + ? WHERE user_id = ?',
+                      (pkg['coins'], user_id))
+        conn.commit()
+        return credited
+    finally:
+        conn.close()
+
+
+@app.route('/api/shop/create-payment', methods=['POST'])
+def shop_create_payment():
+    """Создаёт платёж через ЮКасса или CryptoBot."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    data = request.get_json(silent=True) or {}
+    package_id = data.get('package_id')
+    method = data.get('method')
+
+    pkg = next((p for p in COIN_PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        return jsonify({'error': 'Пакет не найден'}), 404
+
+    if method == 'yookassa':
+        if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
+            return jsonify({'error': 'ЮКасса не настроена на сервере'}), 503
+        try:
+            from yookassa import Configuration, Payment as YKPayment
+            import uuid as _uuid
+            Configuration.account_id = YOOKASSA_SHOP_ID
+            Configuration.secret_key = YOOKASSA_SECRET
+            payment = YKPayment.create({
+                'amount': {'value': str(pkg['rub']) + '.00', 'currency': 'RUB'},
+                'confirmation': {'type': 'redirect',
+                                 'return_url': f'{SITE_URL}/shop?tab=buy&paid=1'},
+                'capture': True,
+                'description': f"{pkg['label']} — BubbleManga",
+                'metadata': {'package_id': pkg['id'], 'user_id': str(user_id)},
+            }, str(_uuid.uuid4()))
+            return jsonify({'url': payment.confirmation.confirmation_url})
+        except ImportError:
+            return jsonify({'error': 'Библиотека yookassa не установлена'}), 503
+        except Exception as e:
+            return jsonify({'error': f'Ошибка ЮКасса: {e}'}), 500
+
+    elif method == 'crypto':
+        if not CRYPTOCLOUD_API_KEY or not CRYPTOCLOUD_SHOP_ID:
+            return jsonify({'error': 'Crypto Cloud не настроен на сервере'}), 503
+        try:
+            import requests as _req
+            resp = _req.post(
+                'https://api.cryptocloud.plus/v2/invoice/create',
+                headers={
+                    'Authorization': f'Token {CRYPTOCLOUD_API_KEY}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'shop_id': CRYPTOCLOUD_SHOP_ID,
+                    'amount': float(pkg['usd']),
+                    'currency': 'USD',
+                    'order_id': f"{pkg['id']}:{user_id}",
+                },
+                timeout=10
+            )
+            result = resp.json()
+            if resp.status_code != 200 or result.get('status') == 'error':
+                return jsonify({'error': 'Ошибка Crypto Cloud: ' + str(result)}), 500
+            return jsonify({'url': result['result']['link']})
+        except ImportError:
+            return jsonify({'error': 'Библиотека requests не установлена'}), 503
+        except Exception as e:
+            return jsonify({'error': f'Ошибка Crypto Cloud: {e}'}), 500
+
+    return jsonify({'error': 'Неизвестный способ оплаты'}), 400
+
+
+@app.route('/webhook/yookassa', methods=['POST'])
+def webhook_yookassa():
+    """Вебхук от ЮКасса — зачисляет монеты после успешной оплаты."""
+    data = request.get_json(silent=True) or {}
+    if data.get('event') != 'payment.succeeded':
+        return '', 200
+    obj = data.get('object', {})
+    meta = obj.get('metadata', {})
+    package_id = meta.get('package_id')
+    user_id_str = meta.get('user_id')
+    payment_id = obj.get('id')
+    if package_id and user_id_str and payment_id:
+        _credit_coins(int(user_id_str), package_id, f'yk_{payment_id}', 'yookassa')
+    return '', 200
+
+
+@app.route('/webhook/cryptocloud', methods=['POST'])
+def webhook_cryptocloud():
+    """Вебхук от Crypto Cloud — зачисляет монеты после оплаты."""
+    data = request.form.to_dict() if request.content_type and 'form' in request.content_type \
+        else (request.get_json(silent=True) or {})
+
+    if data.get('status') != 'success':
+        return '', 200
+
+    # Верификация JWT-токена (HS256, подписан SECRET KEY проекта)
+    token = data.get('token', '')
+    if CRYPTOCLOUD_SECRET_KEY and token:
+        try:
+            import jwt as _jwt
+            _jwt.decode(token, CRYPTOCLOUD_SECRET_KEY, algorithms=['HS256'])
+        except Exception:
+            return '', 403
+
+    order_id = data.get('order_id', '')
+    invoice_id = str(data.get('invoice_id', ''))
+
+    try:
+        package_id, user_id_str = order_id.rsplit(':', 1)
+        _credit_coins(int(user_id_str), package_id, f'cc_{invoice_id}', 'crypto')
+    except (ValueError, AttributeError):
+        pass
+
+    return '', 200
 
 
 # ==================== КОММЕНТАРИИ ====================
