@@ -680,7 +680,7 @@
             ? `<span class="quest-card-badge-done">✓ Готово</span>`
             : `<span class="quest-card-badge-new">Ур. ${q.required_level}+</span>`;
         const rewards = [];
-        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon"></div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
+        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon"><img src="/static/xp.png"  alt=""></div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
         if (q.coins_reward) rewards.push(`<div class="quest-reward-badge coins"><div class="quest-reward-icon"><img src="/static/bubbles.svg"  alt=""></div><span class="quest-reward-val">${q.coins_reward}</span></div>`);
         return `
         <div class="quest-card${done ? ' done' : ''}">
