@@ -328,6 +328,7 @@ def init_db():
         ("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0",),
         ("ALTER TABLE users ADD COLUMN premium_expires_at TEXT DEFAULT NULL",),
         ("ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0",),
+        ("ALTER TABLE achievements ADD COLUMN icon_url TEXT",),
     ]
     for (sql,) in _migrations:
         try:
@@ -335,6 +336,56 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+
+    # Задания (квесты)
+    c.execute('''CREATE TABLE IF NOT EXISTS quests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        icon TEXT DEFAULT '📋',
+        icon_url TEXT,
+        required_level INTEGER NOT NULL DEFAULT 1,
+        condition_type TEXT NOT NULL,
+        condition_value INTEGER NOT NULL DEFAULT 1,
+        xp_reward INTEGER DEFAULT 0,
+        coins_reward INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Прогресс заданий пользователей
+    c.execute('''CREATE TABLE IF NOT EXISTS user_quests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        quest_id INTEGER NOT NULL,
+        progress INTEGER DEFAULT 0,
+        completed_at TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (quest_id) REFERENCES quests(id),
+        UNIQUE(user_id, quest_id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_user_quests ON user_quests(user_id)')
+
+    # Seed: базовые задания по уровням
+    QUESTS_SEED = [
+        # (title, description, icon, required_level, condition_type, condition_value, xp_reward, coins_reward)
+        ('Первый комментарий',   'Напиши свой первый комментарий к манге',    '💬', 1,  'comments_posted', 1,   50,  20),
+        ('Начало пути',          'Прочитай 5 глав любой манги',               '📖', 1,  'chapters_read',   5,   75,  30),
+        ('Подписчик',            'Подпишись на 1 мангу',                      '❤️', 2,  'subscriptions',   1,   100, 50),
+        ('Активный читатель',    'Прочитай 20 глав',                          '📚', 2,  'chapters_read',   20,  150, 60),
+        ('Болтун',               'Напиши 5 комментариев',                     '🗣️', 3,  'comments_posted', 5,   200, 80),
+        ('Библиотека',           'Подпишись на 3 манги',                      '🗂️', 3,  'subscriptions',   3,   200, 80),
+        ('Профи',                'Прочитай 100 глав',                         '🔥', 5,  'chapters_read',   100, 500, 200),
+        ('Завсегдатай',          'Подпишись на 10 манг',                      '💎', 5,  'subscriptions',   10,  400, 150),
+        ('Ветеран',              'Прочитай 500 глав',                         '🏆', 10, 'chapters_read',   500, 1000, 500),
+        ('Великий комментатор',  'Напиши 50 комментариев',                    '👑', 10, 'comments_posted', 50,  800, 300),
+    ]
+    c.executemany(
+        '''INSERT OR IGNORE INTO quests
+           (title, description, icon, required_level, condition_type, condition_value, xp_reward, coins_reward)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        QUESTS_SEED
+    )
 
     # ── Индексы ────────────────────────────────────────────────────────────
     c.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
@@ -448,6 +499,41 @@ def get_db():
     conn.execute('PRAGMA synchronous=NORMAL')
     return conn
 
+# ── Контекст-процессор: данные пользователя для хедера ──────────────────────
+@app.context_processor
+def inject_g_user():
+    user_id = session.get('user_id')
+    if not user_id:
+        return {'g_user': None}
+    conn = None
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''
+            SELECT u.id, u.telegram_username, u.telegram_first_name,
+                   up.custom_name, up.avatar_url, up.custom_avatar_url
+            FROM users u
+            LEFT JOIN user_profile up ON up.user_id = u.id
+            WHERE u.id = ?
+        ''', (user_id,))
+        row = c.fetchone()
+        if not row:
+            return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None}}
+        display_name = (
+            (row['custom_name'] or '').strip() or
+            (row['telegram_first_name'] or '').strip() or
+            (row['telegram_username'] or '').strip() or
+            f'#{user_id}'
+        )
+        avatar = row['custom_avatar_url'] or row['avatar_url'] or None
+        return {'g_user': {'id': row['id'], 'display_name': display_name, 'avatar_url': avatar}}
+    except Exception as e:
+        logger.warning(f'inject_g_user error: {e}')
+        return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None}}
+    finally:
+        if conn:
+            conn.close()
+
 # ==================== ГЕЙМИФИКАЦИЯ: XP / УРОВНИ / АЧИВКИ ====================
 
 import math
@@ -545,8 +631,9 @@ def award_xp(user_id, amount, reason, ref_id=None):
 
     conn.commit()
 
-    # Проверяем ачивки
+    # Проверяем ачивки и квесты
     new_achievements = check_achievements(user_id, conn)
+    check_quests(user_id, conn)
 
     conn.close()
 
@@ -622,6 +709,88 @@ def check_achievements(user_id, conn=None):
     if close:
         conn.close()
     return unlocked
+
+
+def check_quests(user_id, conn=None):
+    """
+    Проверить и обновить прогресс заданий пользователя.
+    Возвращает список только что завершённых заданий.
+    """
+    close = conn is None
+    if conn is None:
+        conn = get_db()
+    c = conn.cursor()
+
+    c.execute('SELECT * FROM user_stats WHERE user_id = ?', (user_id,))
+    stats = c.fetchone()
+    if not stats:
+        if close:
+            conn.close()
+        return []
+
+    c.execute('SELECT COUNT(*) as cnt FROM comments WHERE user_id = ?', (user_id,))
+    comments_cnt = c.fetchone()['cnt']
+    c.execute('SELECT COUNT(*) as cnt FROM subscriptions WHERE user_id = ?', (user_id,))
+    subs_cnt = c.fetchone()['cnt']
+
+    stat_values = {
+        'chapters_read':   stats['total_chapters_read'],
+        'subscriptions':   subs_cnt,
+        'level':           stats['level'],
+        'comments_posted': comments_cnt,
+    }
+    current_level = stats['level']
+
+    # Активные квесты доступные пользователю (required_level <= current_level)
+    c.execute(
+        'SELECT * FROM quests WHERE is_active = 1 AND required_level <= ?',
+        (current_level,)
+    )
+    all_quests = c.fetchall()
+
+    just_completed = []
+    for q in all_quests:
+        current_progress = stat_values.get(q['condition_type'], 0)
+        c.execute(
+            'SELECT progress, completed_at FROM user_quests WHERE user_id = ? AND quest_id = ?',
+            (user_id, q['id'])
+        )
+        uq = c.fetchone()
+        already_done = uq and uq['completed_at'] is not None
+
+        if already_done:
+            continue
+
+        # Upsert progress
+        c.execute(
+            '''INSERT INTO user_quests (user_id, quest_id, progress)
+               VALUES (?, ?, ?)
+               ON CONFLICT(user_id, quest_id) DO UPDATE SET progress = excluded.progress''',
+            (user_id, q['id'], min(current_progress, q['condition_value']))
+        )
+
+        if current_progress >= q['condition_value']:
+            c.execute(
+                '''UPDATE user_quests SET completed_at = datetime("now"), progress = ?
+                   WHERE user_id = ? AND quest_id = ?''',
+                (q['condition_value'], user_id, q['id'])
+            )
+            # Выдаём награды
+            if q['xp_reward'] > 0 or q['coins_reward'] > 0:
+                c.execute(
+                    'UPDATE user_stats SET xp = xp + ?, coins = coins + ? WHERE user_id = ?',
+                    (q['xp_reward'], q['coins_reward'], user_id)
+                )
+                c.execute(
+                    'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+                    (user_id, f'quest:{q["id"]}', str(q['id']), q['xp_reward'])
+                )
+            just_completed.append(dict(q))
+
+    conn.commit()
+    if close:
+        conn.close()
+    return just_completed
 
 
 def get_user_full_profile(user_id):
@@ -3307,6 +3476,7 @@ def post_comment(manga_slug):
               (manga_slug, user_id, text, parent_id))
     comment_id = c.lastrowid
     conn.commit()
+    check_quests(user_id, conn)
     c.execute(_COMMENT_QUERY + 'WHERE cm.id = ?', (comment_id,))
     comment = dict(c.fetchone())
     conn.close()
@@ -3806,6 +3976,34 @@ def admin_required(f):
     return decorated
 
 
+@app.route('/api/user/quests')
+def api_user_quests():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute('SELECT level FROM user_stats WHERE user_id = ?', (user_id,))
+    row = c.fetchone()
+    current_level = row['level'] if row else 1
+
+    c.execute(
+        '''SELECT q.*,
+                  COALESCE(uq.progress, 0) as progress,
+                  uq.completed_at
+           FROM quests q
+           LEFT JOIN user_quests uq ON uq.quest_id = q.id AND uq.user_id = ?
+           WHERE q.is_active = 1 AND q.required_level <= ?
+           ORDER BY q.required_level ASC, q.id ASC''',
+        (user_id, current_level)
+    )
+    quests = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'quests': quests, 'current_level': current_level})
+
+
 @app.route('/admin')
 @admin_required
 def admin_panel():
@@ -4289,6 +4487,189 @@ def api_admin_xp_log():
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
     return jsonify({'logs': rows, 'total': total})
+
+
+# ── Достижения (admin CRUD) ──────────────────────────────────────────────────
+
+ACHIEVEMENT_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'achievements')
+
+@app.route('/api/admin/achievements/upload', methods=['POST'])
+@admin_required
+def api_admin_achievements_upload():
+    if 'file' not in request.files:
+        return jsonify({'error': 'Файл не выбран'}), 400
+    f = request.files['file']
+    if not f.filename or not _allowed_file(f.filename):
+        return jsonify({'error': 'Недопустимый формат файла'}), 400
+    os.makedirs(ACHIEVEMENT_UPLOAD_FOLDER, exist_ok=True)
+    ext = f.filename.rsplit('.', 1)[1].lower()
+    filename = f'{secrets.token_hex(12)}.{ext}'
+    f.save(os.path.join(ACHIEVEMENT_UPLOAD_FOLDER, filename))
+    return jsonify({'success': True, 'url': f'/static/uploads/achievements/{filename}'})
+
+
+@app.route('/api/admin/achievements', methods=['GET'])
+@admin_required
+def api_admin_achievements_list():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM achievements ORDER BY id')
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'achievements': rows})
+
+
+@app.route('/api/admin/achievements', methods=['POST'])
+@admin_required
+def api_admin_achievements_create():
+    data = request.get_json(silent=True) or {}
+    key = data.get('key', '').strip()
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    icon = data.get('icon', '🏆').strip()
+    icon_url = data.get('icon_url', '').strip() or None
+    xp_reward = int(data.get('xp_reward', 0))
+    condition_type = data.get('condition_type', '').strip()
+    condition_value = int(data.get('condition_value', 1))
+    if not key or not name or not condition_type:
+        return jsonify({'error': 'Обязательные поля: key, name, condition_type'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute(
+            'INSERT INTO achievements (key,name,description,icon,icon_url,xp_reward,condition_type,condition_value) VALUES (?,?,?,?,?,?,?,?)',
+            (key, name, description, icon, icon_url, xp_reward, condition_type, condition_value)
+        )
+        conn.commit()
+        ach_id = c.lastrowid
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Ключ уже существует'}), 409
+    conn.close()
+    return jsonify({'success': True, 'id': ach_id})
+
+
+@app.route('/api/admin/achievements/<int:ach_id>', methods=['PUT'])
+@admin_required
+def api_admin_achievements_update(ach_id):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    c = conn.cursor()
+    fields, vals = [], []
+    for col in ('key', 'name', 'description', 'icon', 'icon_url', 'xp_reward', 'condition_type', 'condition_value'):
+        if col in data:
+            fields.append(f'{col}=?')
+            vals.append(data[col])
+    if not fields:
+        conn.close()
+        return jsonify({'error': 'Нет данных'}), 400
+    vals.append(ach_id)
+    c.execute(f'UPDATE achievements SET {", ".join(fields)} WHERE id=?', vals)
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/achievements/<int:ach_id>', methods=['DELETE'])
+@admin_required
+def api_admin_achievements_delete(ach_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM achievements WHERE id=?', (ach_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ── Задания (admin CRUD) ─────────────────────────────────────────────────────
+
+QUEST_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'quests')
+
+@app.route('/api/admin/quests/upload', methods=['POST'])
+@admin_required
+def api_admin_quests_upload():
+    if 'file' not in request.files:
+        return jsonify({'error': 'Файл не выбран'}), 400
+    f = request.files['file']
+    if not f.filename or not _allowed_file(f.filename):
+        return jsonify({'error': 'Недопустимый формат файла'}), 400
+    os.makedirs(QUEST_UPLOAD_FOLDER, exist_ok=True)
+    ext = f.filename.rsplit('.', 1)[1].lower()
+    filename = f'{secrets.token_hex(12)}.{ext}'
+    f.save(os.path.join(QUEST_UPLOAD_FOLDER, filename))
+    return jsonify({'success': True, 'url': f'/static/uploads/quests/{filename}'})
+
+
+@app.route('/api/admin/quests', methods=['GET'])
+@admin_required
+def api_admin_quests_list():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM quests ORDER BY required_level, id')
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'quests': rows})
+
+
+@app.route('/api/admin/quests', methods=['POST'])
+@admin_required
+def api_admin_quests_create():
+    data = request.get_json(silent=True) or {}
+    title = data.get('title', '').strip()
+    description = data.get('description', '').strip()
+    icon = data.get('icon', '📋').strip()
+    icon_url = data.get('icon_url', '').strip() or None
+    required_level = int(data.get('required_level', 1))
+    condition_type = data.get('condition_type', '').strip()
+    condition_value = int(data.get('condition_value', 1))
+    xp_reward = int(data.get('xp_reward', 0))
+    coins_reward = int(data.get('coins_reward', 0))
+    is_active = int(data.get('is_active', 1))
+    if not title or not condition_type:
+        return jsonify({'error': 'Обязательные поля: title, condition_type'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        'INSERT INTO quests (title,description,icon,icon_url,required_level,condition_type,condition_value,xp_reward,coins_reward,is_active) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        (title, description, icon, icon_url, required_level, condition_type, condition_value, xp_reward, coins_reward, is_active)
+    )
+    conn.commit()
+    qid = c.lastrowid
+    conn.close()
+    return jsonify({'success': True, 'id': qid})
+
+
+@app.route('/api/admin/quests/<int:qid>', methods=['PUT'])
+@admin_required
+def api_admin_quests_update(qid):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    c = conn.cursor()
+    fields, vals = [], []
+    for col in ('title', 'description', 'icon', 'icon_url', 'required_level', 'condition_type', 'condition_value', 'xp_reward', 'coins_reward', 'is_active'):
+        if col in data:
+            fields.append(f'{col}=?')
+            vals.append(data[col])
+    if not fields:
+        conn.close()
+        return jsonify({'error': 'Нет данных'}), 400
+    vals.append(qid)
+    c.execute(f'UPDATE quests SET {", ".join(fields)} WHERE id=?', vals)
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/quests/<int:qid>', methods=['DELETE'])
+@admin_required
+def api_admin_quests_delete(qid):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM user_quests WHERE quest_id=?', (qid,))
+    c.execute('DELETE FROM quests WHERE id=?', (qid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 
 # ==================== ЗАПУСК ====================

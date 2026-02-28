@@ -1059,50 +1059,7 @@
     <div class="animated-bg"></div>
 
     <!-- Шапка -->
-    <header class="header" id="header">
-        <div class="header-container">
-            <a href="/" class="logo">
-                <span class="logo-icon">B</span>
-                <span>BubbleManga</span>
-            </a>
-            
-            <div class="nav-buttons">
-                <a href="/" class="btn">Главная</a>
-                <a href="/top" class="btn">Топ</a>
-                <a href="/shop" class="btn">Магазин</a>
-
-                {% if user_id %}
-                <a href="/profile/me" class="btn">Профиль</a>
-                <button id="subscribeBtn" class="btn btn-subscribe {% if subscribed %}subscribed{% endif %}"
-                        onclick="toggleSubscribe('{{ manga.manga_id }}')">
-                    {% if subscribed %}
-                    <span>Подписан</span>
-                    {% else %}
-                    <span>Подписаться</span>
-                    {% endif %}
-                </button>
-                <button class="btn" onclick="openCollectionPicker('{{ manga.manga_id }}')" style="background:rgba(102,126,234,0.15);border-color:rgba(102,126,234,0.3);color:#818cf8" title="Добавить в коллекцию">
-                    📁 В коллекцию
-                </button>
-
-                {% if reading_history %}
-                <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
-                    Продолжить
-                </a>
-                {% endif %}
-
-                <a href="/logout" class="btn">
-                    <span>Выйти</span>
-                </a>
-                {% else %}
-                <a href="https://t.me/hookah_p_bot" target="_blank" class="btn btn-primary">
-                    <span></span>
-                    <span>Войти</span>
-                </a>
-                {% endif %}
-            </div>
-        </div>
-    </header>
+{% set g_active = '' %}{% include 'header.html' %}
 
     <!-- Основной контент -->
     <div class="container">
@@ -1205,8 +1162,16 @@
                     
                     <!-- Кнопки действий -->
                     <div class="manga-actions">
+                        {% if user_id %}
+                        {% if reading_history %}
+                        <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
+                            <span>▶</span>
+                            <span>Продолжить</span>
+                        </a>
+                        {% endif %}
+                        {% endif %}
+
                         {% if chapters %}
-                            <!-- Чтение с начала (самая старая глава) -->
                             {% set first_chapter = chapters[-1] if chapters else None %}
                             {% if first_chapter %}
                             <a href="/read/{{ manga.manga_slug }}/{{ first_chapter.chapter_slug }}"
@@ -1215,8 +1180,7 @@
                                 <span>Читать с начала</span>
                             </a>
                             {% endif %}
-                            
-                            <!-- Чтение последней главы -->
+
                             {% set last_chapter = chapters[0] if chapters else None %}
                             {% if last_chapter %}
                             <a href="/read/{{ manga.manga_slug }}/{{ last_chapter.chapter_slug }}"
@@ -1225,6 +1189,16 @@
                                 <span>Последняя глава</span>
                             </a>
                             {% endif %}
+                        {% endif %}
+
+                        {% if user_id %}
+                        <button id="subscribeBtn" class="btn btn-subscribe {% if subscribed %}subscribed{% endif %}"
+                                onclick="toggleSubscribe('{{ manga.manga_id }}')">
+                            {% if subscribed %}<span>✓ Подписан</span>{% else %}<span>🔔 Подписаться</span>{% endif %}
+                        </button>
+                        <button class="btn" onclick="openCollectionPicker('{{ manga.manga_id }}')" style="background:rgba(102,126,234,0.12);border-color:rgba(102,126,234,0.3);color:#818cf8">
+                            📁 В коллекцию
+                        </button>
                         {% endif %}
 
                         <a href="#comments" class="btn" onclick="document.getElementById('comments').scrollIntoView({behavior:'smooth'});return false;">
@@ -1236,7 +1210,7 @@
                             <span></span>
                             <span>Похожие</span>
                         </a>
-                        
+
                         <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn">
                             <span></span>
                             <span>Обновить</span>

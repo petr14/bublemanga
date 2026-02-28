@@ -243,6 +243,12 @@ tr:hover td{background:var(--glass)}
     <button class="nav-item" onclick="showSection('xplog')" data-section="xplog">
       <span class="icon">📜</span><span class="label">XP Лог</span>
     </button>
+    <button class="nav-item" onclick="showSection('achievements')" data-section="achievements">
+      <span class="icon">🏆</span><span class="label">Достижения</span>
+    </button>
+    <button class="nav-item" onclick="showSection('quests')" data-section="quests">
+      <span class="icon">📋</span><span class="label">Задания</span>
+    </button>
   </div>
   <div class="sidebar-footer">
     <a href="/">← На сайт</a>
@@ -466,6 +472,44 @@ tr:hover td{background:var(--glass)}
   <div class="pagination" id="xplog-pagination"></div>
 </div>
 
+<!-- ── ACHIEVEMENTS ── -->
+<div id="section-achievements" class="section">
+  <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div class="page-title">Достижения</div>
+      <div class="page-subtitle">Управление каталогом достижений</div>
+    </div>
+    <button class="btn btn-primary" onclick="openAchModal()">+ Добавить</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Иконка</th><th>Ключ</th><th>Название</th><th>Условие</th><th>Цель</th><th>XP награда</th><th>Действия</th></tr>
+      </thead>
+      <tbody id="ach-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── QUESTS ── -->
+<div id="section-quests" class="section">
+  <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div>
+      <div class="page-title">Задания</div>
+      <div class="page-subtitle">Управление квестами по уровням</div>
+    </div>
+    <button class="btn btn-primary" onclick="openQuestModal()">+ Добавить</button>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Иконка</th><th>Название</th><th>Уровень</th><th>Условие</th><th>Цель</th><th>XP</th><th>🫧</th><th>Статус</th><th>Действия</th></tr>
+      </thead>
+      <tbody id="quests-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
 </main>
 </div>
 
@@ -630,6 +674,160 @@ tr:hover td{background:var(--glass)}
   </div>
 </div>
 
+<!-- ═══ ACHIEVEMENT MODAL ═══ -->
+<div class="modal-overlay" id="ach-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <div class="modal-title" id="ach-modal-title">Новое достижение</div>
+      <button class="btn-icon" onclick="$('ach-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ach-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Ключ (уникальный)</label>
+          <input class="input" id="ach-key" placeholder="my_achievement">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Иконка (эмодзи)</label>
+          <input class="input" id="ach-icon" placeholder="🏆" style="font-size:20px">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Название</label>
+          <input class="input" id="ach-name" placeholder="Читатель">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Описание</label>
+          <input class="input" id="ach-description" placeholder="Прочитать 10 глав">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Тип условия</label>
+          <select class="input select" id="ach-condition-type">
+            <option value="chapters_read">Прочитано глав</option>
+            <option value="subscriptions">Подписки</option>
+            <option value="level">Уровень</option>
+            <option value="comments_posted">Комментарии</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Значение условия</label>
+          <input class="input" id="ach-condition-value" type="number" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">XP награда</label>
+          <input class="input" id="ach-xp-reward" type="number" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Картинка (URL или загрузить)</label>
+          <input class="input" id="ach-icon-url" placeholder="https://... или загрузите" oninput="achPreviewUrl()">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:4px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="drop-zone" id="ach-drop-zone" style="padding:14px 20px">
+            <input type="file" id="ach-file-input" accept="image/png,image/jpeg,image/webp,image/gif" onchange="uploadIconFile('ach',this)">
+            <div class="dz-icon" style="font-size:20px">🖼</div>
+            <div class="dz-text" style="font-size:12px">Нажмите или перетащите изображение</div>
+          </div>
+          <div id="ach-preview-wrap" style="display:none;flex-shrink:0">
+            <div style="width:72px;height:72px;border-radius:10px;overflow:hidden;border:2px solid var(--border2);position:relative">
+              <img id="ach-preview-img" src="" style="width:100%;height:100%;object-fit:cover">
+              <button onclick="clearIconPreview('ach')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);border:none;color:#fff;cursor:pointer;border-radius:4px;font-size:11px;padding:1px 4px">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="upload-progress" id="ach-progress"><div class="upload-progress-bar" id="ach-progress-bar"></div></div>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-primary" onclick="saveAchievement()" style="flex:1" id="ach-save-btn">Сохранить</button>
+        <button class="btn btn-ghost" onclick="$('ach-modal').classList.remove('open')">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ QUEST MODAL ═══ -->
+<div class="modal-overlay" id="quest-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-head">
+      <div class="modal-title" id="quest-modal-title">Новое задание</div>
+      <button class="btn-icon" onclick="$('quest-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="quest-id">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Название</label>
+          <input class="input" id="quest-title" placeholder="Первый комментарий">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Описание</label>
+          <input class="input" id="quest-description" placeholder="Напиши свой первый комментарий">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Иконка (эмодзи)</label>
+          <input class="input" id="quest-icon" placeholder="📋" style="font-size:20px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Мин. уровень</label>
+          <input class="input" id="quest-required-level" type="number" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Тип условия</label>
+          <select class="input select" id="quest-condition-type">
+            <option value="chapters_read">Прочитано глав</option>
+            <option value="subscriptions">Подписки</option>
+            <option value="level">Уровень</option>
+            <option value="comments_posted">Комментарии</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Значение условия</label>
+          <input class="input" id="quest-condition-value" type="number" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">XP награда</label>
+          <input class="input" id="quest-xp-reward" type="number" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Монеты 🫧 награда</label>
+          <input class="input" id="quest-coins-reward" type="number" min="0" value="0">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Картинка (URL или загрузить)</label>
+          <input class="input" id="quest-icon-url" placeholder="https://... или загрузите" oninput="questPreviewUrl()">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:4px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="drop-zone" id="quest-drop-zone" style="padding:14px 20px">
+            <input type="file" id="quest-file-input" accept="image/png,image/jpeg,image/webp,image/gif" onchange="uploadIconFile('quest',this)">
+            <div class="dz-icon" style="font-size:20px">🖼</div>
+            <div class="dz-text" style="font-size:12px">Нажмите или перетащите изображение</div>
+          </div>
+          <div id="quest-preview-wrap" style="display:none;flex-shrink:0">
+            <div style="width:72px;height:72px;border-radius:10px;overflow:hidden;border:2px solid var(--border2);position:relative">
+              <img id="quest-preview-img" src="" style="width:100%;height:100%;object-fit:cover">
+              <button onclick="clearIconPreview('quest')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);border:none;color:#fff;cursor:pointer;border-radius:4px;font-size:11px;padding:1px 4px">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="upload-progress" id="quest-progress"><div class="upload-progress-bar" id="quest-progress-bar"></div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="quest-is-active" checked style="width:16px;height:16px">
+          Активно
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-primary" onclick="saveQuest()" style="flex:1" id="quest-save-btn">Сохранить</button>
+        <button class="btn btn-ghost" onclick="$('quest-modal').classList.remove('open')">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ TOAST CONTAINER ═══ -->
 <div id="toast-container"></div>
 
@@ -680,6 +878,8 @@ function showSection(name){
     if(name==='manga') loadManga();
     if(name==='shop') loadShop();
     if(name==='xplog') loadXpLog();
+    if(name==='achievements') loadAchievements();
+    if(name==='quests') loadQuests();
   }
 }
 
@@ -1193,6 +1393,237 @@ function renderPagination(elId, page, totalPages, onPage){
   html += `<button class="btn btn-ghost btn-sm" ${page>=totalPages?'disabled':''} onclick="(${onPage})(${page+1})">›</button>`;
   html += `<span class="page-info">${page} / ${totalPages}</span>`;
   el.innerHTML = html;
+}
+
+// ─── SHARED ICON UPLOAD ──────────────────────────────────
+const CONDITION_LABELS = {
+  chapters_read:'Прочитано глав', subscriptions:'Подписки',
+  level:'Уровень', comments_posted:'Комментарии'
+};
+
+function _setIconPreview(prefix, url){
+  if(url){
+    $(`${prefix}-preview-img`).src = url;
+    $(`${prefix}-preview-wrap`).style.display='';
+    $(`${prefix}-drop-zone`).style.display='none';
+  } else {
+    $(`${prefix}-preview-wrap`).style.display='none';
+    $(`${prefix}-drop-zone`).style.display='';
+  }
+}
+
+function clearIconPreview(prefix){
+  $(`${prefix}-icon-url`).value='';
+  _setIconPreview(prefix, null);
+}
+
+function achPreviewUrl(){ _setIconPreview('ach', $('ach-icon-url').value.trim()||null); }
+function questPreviewUrl(){ _setIconPreview('quest', $('quest-icon-url').value.trim()||null); }
+
+async function uploadIconFile(prefix, input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 5*1024*1024){ toast('Файл слишком большой','error'); return; }
+  const prog = $(`${prefix}-progress`), bar = $(`${prefix}-progress-bar`);
+  prog.style.display='block'; bar.style.width='20%';
+  const fd = new FormData();
+  fd.append('file', file);
+  const endpoint = prefix==='ach' ? '/api/admin/achievements/upload' : '/api/admin/quests/upload';
+  try {
+    bar.style.width='60%';
+    const r = await fetch(endpoint, {method:'POST', body:fd});
+    bar.style.width='100%';
+    const data = await r.json();
+    if(data.url){
+      $(`${prefix}-icon-url`).value = data.url;
+      _setIconPreview(prefix, data.url);
+      toast('Файл загружен');
+    } else { toast(data.error||'Ошибка','error'); }
+  } catch(e){ toast('Ошибка загрузки','error'); }
+  finally { setTimeout(()=>{ prog.style.display='none'; bar.style.width='0%'; },600); }
+}
+
+// ─── ACHIEVEMENTS ─────────────────────────────────────────
+let _achList = [];
+
+async function loadAchievements(){
+  const d = await api('/api/admin/achievements');
+  _achList = d.achievements || [];
+  $('ach-tbody').innerHTML = _achList.map(a=>`
+    <tr>
+      <td style="color:var(--text3)">${a.id}</td>
+      <td style="font-size:22px;text-align:center">
+        ${a.icon_url ? `<img src="${esc(a.icon_url)}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;vertical-align:middle">` : esc(a.icon||'🏆')}
+      </td>
+      <td><span class="mono" style="font-size:12px;color:var(--text3)">${esc(a.key)}</span></td>
+      <td><b>${esc(a.name)}</b><br><span style="font-size:11px;color:var(--text3)">${esc(a.description||'')}</span></td>
+      <td><span class="badge badge-blue">${esc(CONDITION_LABELS[a.condition_type]||a.condition_type)}</span></td>
+      <td><b>${a.condition_value}</b></td>
+      <td>${a.xp_reward > 0 ? `<span class="badge badge-purple">+${a.xp_reward} XP</span>` : '—'}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-ghost" onclick="openAchModal(${a.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteAchievement(${a.id},this)">🗑</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="empty">Нет достижений</td></tr>';
+}
+
+function openAchModal(id){
+  $('ach-id').value = id||'';
+  clearIconPreview('ach');
+  if(id){
+    const a = _achList.find(x=>x.id===id);
+    if(a){
+      $('ach-modal-title').textContent = 'Редактировать достижение';
+      $('ach-key').value = a.key||'';
+      $('ach-name').value = a.name||'';
+      $('ach-description').value = a.description||'';
+      $('ach-icon').value = a.icon||'🏆';
+      $('ach-icon-url').value = a.icon_url||'';
+      $('ach-condition-type').value = a.condition_type||'chapters_read';
+      $('ach-condition-value').value = a.condition_value||1;
+      $('ach-xp-reward').value = a.xp_reward||0;
+      if(a.icon_url) _setIconPreview('ach', a.icon_url);
+    }
+  } else {
+    $('ach-modal-title').textContent = 'Новое достижение';
+    ['ach-key','ach-name','ach-description','ach-icon-url'].forEach(i=>$(i).value='');
+    $('ach-icon').value='🏆';
+    $('ach-condition-type').value='chapters_read';
+    $('ach-condition-value').value=1;
+    $('ach-xp-reward').value=0;
+  }
+  $('ach-modal').classList.add('open');
+}
+
+async function saveAchievement(){
+  const id = $('ach-id').value;
+  const body = {
+    key: $('ach-key').value.trim(),
+    name: $('ach-name').value.trim(),
+    description: $('ach-description').value.trim(),
+    icon: $('ach-icon').value.trim()||'🏆',
+    icon_url: $('ach-icon-url').value.trim()||null,
+    xp_reward: parseInt($('ach-xp-reward').value)||0,
+    condition_type: $('ach-condition-type').value,
+    condition_value: parseInt($('ach-condition-value').value)||1,
+  };
+  if(!body.key||!body.name){ toast('Заполните ключ и название','error'); return; }
+  const url = id ? `/api/admin/achievements/${id}` : '/api/admin/achievements';
+  const method = id ? 'PUT' : 'POST';
+  const btn = $('ach-save-btn');
+  btn.disabled=true; btn.textContent='Сохранение...';
+  try {
+    const r = await api(url, {method, body:JSON.stringify(body)});
+    if(r.success||r.id){ toast(id?'Обновлено':'Добавлено'); $('ach-modal').classList.remove('open'); loadAchievements(); }
+    else toast(r.error||'Ошибка','error');
+  } finally { btn.disabled=false; btn.textContent='Сохранить'; }
+}
+
+async function deleteAchievement(id, btn){
+  if(!confirm('Удалить достижение?')) return;
+  btn.disabled=true;
+  const r = await api(`/api/admin/achievements/${id}`, {method:'DELETE'});
+  if(r.success){ toast('Удалено'); loadAchievements(); }
+  else { btn.disabled=false; toast('Ошибка','error'); }
+}
+
+// ─── QUESTS ───────────────────────────────────────────────
+let _questList = [];
+
+async function loadQuests(){
+  const d = await api('/api/admin/quests');
+  _questList = d.quests || [];
+  $('quests-tbody').innerHTML = _questList.map(q=>`
+    <tr>
+      <td style="color:var(--text3)">${q.id}</td>
+      <td style="font-size:22px;text-align:center">
+        ${q.icon_url ? `<img src="${esc(q.icon_url)}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;vertical-align:middle">` : esc(q.icon||'📋')}
+      </td>
+      <td><b>${esc(q.title)}</b><br><span style="font-size:11px;color:var(--text3)">${esc(q.description||'')}</span></td>
+      <td><span class="badge badge-purple">Ур. ${q.required_level}+</span></td>
+      <td><span class="badge badge-blue">${esc(CONDITION_LABELS[q.condition_type]||q.condition_type)}</span></td>
+      <td><b>${q.condition_value}</b></td>
+      <td>${q.xp_reward > 0 ? `<span style="color:var(--green)">+${q.xp_reward}</span>` : '—'}</td>
+      <td>${q.coins_reward > 0 ? `<span style="color:var(--yellow)">+${q.coins_reward}</span>` : '—'}</td>
+      <td>${q.is_active ? '<span class="badge badge-green">Активно</span>' : '<span class="badge badge-red">Скрыто</span>'}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-ghost" onclick="openQuestModal(${q.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteQuest(${q.id},this)">🗑</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="10" class="empty">Нет заданий</td></tr>';
+}
+
+function openQuestModal(id){
+  $('quest-id').value = id||'';
+  clearIconPreview('quest');
+  if(id){
+    const q = _questList.find(x=>x.id===id);
+    if(q){
+      $('quest-modal-title').textContent = 'Редактировать задание';
+      $('quest-title').value = q.title||'';
+      $('quest-description').value = q.description||'';
+      $('quest-icon').value = q.icon||'📋';
+      $('quest-icon-url').value = q.icon_url||'';
+      $('quest-required-level').value = q.required_level||1;
+      $('quest-condition-type').value = q.condition_type||'chapters_read';
+      $('quest-condition-value').value = q.condition_value||1;
+      $('quest-xp-reward').value = q.xp_reward||0;
+      $('quest-coins-reward').value = q.coins_reward||0;
+      $('quest-is-active').checked = !!q.is_active;
+      if(q.icon_url) _setIconPreview('quest', q.icon_url);
+    }
+  } else {
+    $('quest-modal-title').textContent = 'Новое задание';
+    ['quest-title','quest-description','quest-icon-url'].forEach(i=>$(i).value='');
+    $('quest-icon').value='📋';
+    $('quest-required-level').value=1;
+    $('quest-condition-type').value='chapters_read';
+    $('quest-condition-value').value=1;
+    $('quest-xp-reward').value=0;
+    $('quest-coins-reward').value=0;
+    $('quest-is-active').checked=true;
+  }
+  $('quest-modal').classList.add('open');
+}
+
+async function saveQuest(){
+  const id = $('quest-id').value;
+  const body = {
+    title: $('quest-title').value.trim(),
+    description: $('quest-description').value.trim(),
+    icon: $('quest-icon').value.trim()||'📋',
+    icon_url: $('quest-icon-url').value.trim()||null,
+    required_level: parseInt($('quest-required-level').value)||1,
+    condition_type: $('quest-condition-type').value,
+    condition_value: parseInt($('quest-condition-value').value)||1,
+    xp_reward: parseInt($('quest-xp-reward').value)||0,
+    coins_reward: parseInt($('quest-coins-reward').value)||0,
+    is_active: $('quest-is-active').checked ? 1 : 0,
+  };
+  if(!body.title){ toast('Введите название','error'); return; }
+  const url = id ? `/api/admin/quests/${id}` : '/api/admin/quests';
+  const method = id ? 'PUT' : 'POST';
+  const btn = $('quest-save-btn');
+  btn.disabled=true; btn.textContent='Сохранение...';
+  try {
+    const r = await api(url, {method, body:JSON.stringify(body)});
+    if(r.success||r.id){ toast(id?'Обновлено':'Добавлено'); $('quest-modal').classList.remove('open'); loadQuests(); }
+    else toast(r.error||'Ошибка','error');
+  } finally { btn.disabled=false; btn.textContent='Сохранить'; }
+}
+
+async function deleteQuest(id, btn){
+  if(!confirm('Удалить задание? Прогресс всех пользователей будет удалён.')) return;
+  btn.disabled=true;
+  const r = await api(`/api/admin/quests/${id}`, {method:'DELETE'});
+  if(r.success){ toast('Удалено'); loadQuests(); }
+  else { btn.disabled=false; toast('Ошибка','error'); }
 }
 
 // ─── INIT ─────────────────────────────────────────────────

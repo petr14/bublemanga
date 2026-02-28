@@ -219,6 +219,51 @@
         .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; margin-bottom: 24px; }
         .ach-item { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; transition: border-color .2s, transform .2s; cursor: default; }
         .ach-item:hover { border-color: var(--gold); transform: scale(1.04); }
+
+        /* Quests */
+        .quests-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+        .quest-tab-btn { padding: 7px 20px; border-radius: 20px; background: var(--glass); border: 1px solid var(--border); color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+        .quest-tab-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary2)); border-color: transparent; color: #fff; }
+        .quest-tab-btn:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+        .quest-tab-pane { display: none; }
+        .quest-tab-pane.active { display: block; }
+
+        .quest-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .quest-card {
+          background: var(--bg3); border: 1px solid var(--border); border-radius: 16px;
+          padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 12px;
+          position: relative; transition: border-color .2s, transform .2s; overflow: hidden;
+        }
+        .quest-card:hover { border-color: rgba(102,126,234,.4); transform: translateY(-2px); }
+        .quest-card.done { border-color: rgba(34,197,94,.25); }
+        .quest-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
+        .quest-card.done::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+
+        .quest-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .quest-card-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+        .quest-card-icon img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; }
+        .quest-card-badge-new { background: var(--bg4); border: 1px solid var(--border2); border-radius: 20px; font-size: 10px; font-weight: 700; padding: 2px 8px; color: var(--text2); letter-spacing: .4px; flex-shrink: 0; }
+        .quest-card-badge-done { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3); border-radius: 20px; font-size: 10px; font-weight: 700; padding: 2px 8px; color: #22c55e; letter-spacing: .4px; flex-shrink: 0; }
+
+        .quest-card-title { font-size: 14px; font-weight: 700; line-height: 1.3; }
+        .quest-card-desc { font-size: 12px; color: var(--text2); line-height: 1.4; margin-top: 2px; }
+
+        .quest-rewards { display: flex; gap: 8px; flex-wrap: wrap; }
+        .quest-reward-badge { display: flex; align-items: center; gap: 6px; border-radius: 10px; padding: 6px 10px; min-width: 60px; }
+        .quest-reward-badge.xp { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.2); }
+        .quest-reward-badge.coins { background: rgba(251,191,36,.1); border: 1px solid rgba(251,191,36,.2); }
+        .quest-reward-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .quest-reward-badge.xp .quest-reward-icon { background: rgba(34,197,94,.2); }
+        .quest-reward-badge.coins .quest-reward-icon { background: rgba(251,191,36,.18); }
+        .quest-reward-val { font-size: 16px; font-weight: 800; }
+        .quest-reward-badge.xp .quest-reward-val { color: #22c55e; }
+        .quest-reward-badge.coins .quest-reward-val { color: #fbbf24; }
+
+        .quest-progress-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+        .quest-progress-meta span:last-child { color: var(--text2); font-weight: 600; }
+        .quest-bar-bg { height: 5px; background: rgba(255,255,255,.08); border-radius: 99px; overflow: hidden; }
+        .quest-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 99px; transition: width .7s cubic-bezier(.4,0,.2,1); }
+        .quest-card.done .quest-bar-fill { background: linear-gradient(90deg, #22c55e, #16a34a); }
         .ach-icon { font-size: 28px; }
         .ach-name { font-size: 10px; color: var(--text2); line-height: 1.3; }
         .ach-empty { color: var(--text2); font-size: 14px; padding: 20px 0; }
@@ -361,18 +406,7 @@
 <body>
 
 <!-- HEADER -->
-<header>
-    <a href="/" class="header-logo">BubbleManga</a>
-    <a href="/">Главная</a>
-    <a href="/top">Топ</a>
-    <a href="/shop">Магазин</a>
-    {% if user_id %}
-    <a href="/profile/me" style="color:var(--primary)">Профиль</a>
-    <a href="/logout" style="margin-left:auto;color:var(--text2)">Выйти</a>
-    {% else %}
-    <a href="https://t.me/hookah_p_bot" target="_blank" style="margin-left:auto;color:var(--primary)">Войти</a>
-    {% endif %}
-</header>
+{% set g_active = 'profile' %}{% include 'header.html' %}
 
 <!-- HERO -->
 <div class="profile-hero">
@@ -459,13 +493,26 @@
     <div class="ach-grid">
         {% for a in profile.achievements %}
         <div class="ach-item" title="{{ a.description }}">
-            <span class="ach-icon">{{ a.icon }}</span>
+            {% if a.icon_url %}<img src="{{ a.icon_url }}" style="width:36px;height:36px;border-radius:8px;object-fit:cover;margin-bottom:4px" alt="">
+            {% else %}<span class="ach-icon">{{ a.icon }}</span>{% endif %}
             <span class="ach-name">{{ a.name }}</span>
         </div>
         {% endfor %}
     </div>
     {% else %}
     <p class="ach-empty">Пока нет достижений. Читай мангу — получай награды!</p>
+    {% endif %}
+
+    {% if is_own %}
+    <div class="section-head" style="margin-bottom:12px">📋 Задания</div>
+    <div id="quests-container">
+      <div class="quests-tabs">
+        <button class="quest-tab-btn active" onclick="switchQuestTab('active',this)">Активные</button>
+        <button class="quest-tab-btn" onclick="switchQuestTab('done',this)">Выполненные</button>
+      </div>
+      <div id="qtab-active" class="quest-tab-pane active"><div class="loading-spin"><div class="spin"></div></div></div>
+      <div id="qtab-done" class="quest-tab-pane"></div>
+    </div>
     {% endif %}
 </div>
 
@@ -631,6 +678,78 @@
 
     // XP fill
     setTimeout(() => { document.getElementById('xpFill').style.width = XP_PCT + '%'; }, 300);
+
+    // Quests
+    let _allQuests = [];
+
+    function renderQuestCard(q) {
+        const done = !!q.completed_at;
+        const pct = Math.min(100, q.condition_value > 0 ? Math.round((q.progress / q.condition_value) * 100) : 0);
+        const iconHtml = q.icon_url
+            ? `<img src="${esc(q.icon_url)}" alt="">`
+            : `<span>${esc(q.icon || '📋')}</span>`;
+        const badge = done
+            ? `<span class="quest-card-badge-done">✓ Готово</span>`
+            : `<span class="quest-card-badge-new">Ур. ${q.required_level}+</span>`;
+        const rewards = [];
+        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon">⚡</div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
+        if (q.coins_reward) rewards.push(`<div class="quest-reward-badge coins"><div class="quest-reward-icon"><img src="/static/bubbles.svg"  alt=""></div><span class="quest-reward-val">${q.coins_reward}</span></div>`);
+        return `
+        <div class="quest-card${done ? ' done' : ''}">
+          <div class="quest-card-top">
+            <div class="quest-card-icon">${iconHtml}</div>
+            ${badge}
+          </div>
+          <div>
+            <div class="quest-card-title">${esc(q.title)}</div>
+            ${q.description ? `<div class="quest-card-desc">${esc(q.description)}</div>` : ''}
+          </div>
+          ${rewards.length ? `<div class="quest-rewards">${rewards.join('')}</div>` : ''}
+          <div>
+            <div class="quest-progress-meta">
+              <span>${done ? 'Завершено' : 'Прогресс'}</span>
+              <span>${q.progress} из ${q.condition_value}</span>
+            </div>
+            <div class="quest-bar-bg"><div class="quest-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+        </div>`;
+    }
+
+    function renderQuestTab(tab) {
+        const active = _allQuests.filter(q => !q.completed_at);
+        const done   = _allQuests.filter(q => !!q.completed_at);
+        const list = tab === 'active' ? active : done;
+        const el = document.getElementById(`qtab-${tab}`);
+        if (!list.length) {
+            el.innerHTML = `<p class="ach-empty">${tab === 'active' ? 'Все задания выполнены! 🎉' : 'Выполненных заданий пока нет.'}</p>`;
+            return;
+        }
+        el.innerHTML = `<div class="quest-cards">${list.map(renderQuestCard).join('')}</div>`;
+    }
+
+    function switchQuestTab(tab, btn) {
+        document.querySelectorAll('.quest-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.quest-tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`qtab-${tab}`).classList.add('active');
+        renderQuestTab(tab);
+    }
+
+    (function loadQuests() {
+        fetch('/api/user/quests')
+            .then(r => r.json())
+            .then(data => {
+                _allQuests = data.quests || [];
+                if (!_allQuests.length) {
+                    document.getElementById('qtab-active').innerHTML = '<p class="ach-empty">Нет доступных заданий.</p>';
+                    return;
+                }
+                renderQuestTab('active');
+            })
+            .catch(() => {
+                document.getElementById('qtab-active').innerHTML = '<p class="ach-empty">Ошибка загрузки заданий.</p>';
+            });
+    })();
 
     // Main tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {

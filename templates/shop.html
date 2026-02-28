@@ -128,22 +128,7 @@
 </head>
 <body>
 
-<header class="site-header">
-  <div class="site-header-inner">
-    <a href="/" class="site-logo"><span>B</span><span>BubbleManga</span></a>
-    <nav class="site-nav">
-      <a href="/" class="nav-btn">Главная</a>
-      <a href="/top" class="nav-btn">Топ</a>
-      <a href="/shop" class="nav-btn active">Магазин</a>
-      {% if user_id %}
-      <a href="/profile/me" class="nav-btn">Профиль</a>
-      <a href="/logout" class="nav-btn">Выйти</a>
-      {% else %}
-      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">Войти</a>
-      {% endif %}
-    </nav>
-  </div>
-</header>
+{% set g_active = 'shop' %}{% include 'header.html' %}
 
 <div class="page-wrap">
   <div id="shop-root"></div>

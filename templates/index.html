@@ -2379,53 +2379,7 @@
     <div class="animated-bg"></div>
 
     <!-- Шапка -->
-    <header class="header" id="header">
-        <div class="header-container">
-            <a href="/" class="logo">
-                <span class="logo-icon">B</span>
-                <span>BubbleManga</span>
-            </a>
-
-            <nav class="nav">
-                <a href="#trending" class="nav-link">Популярное</a>
-                <a href="#updates" class="nav-link">Обновления</a>
-                <a href="#popular" class="nav-link">Новинки</a>
-                <a href="#genres" class="nav-link">Жанры</a>
-                <a href="/top" class="nav-link">Топ</a>
-                <a href="/shop" class="nav-link">Магазин</a>
-                {% if user_id %}<a href="/profile/me" class="nav-link">Профиль</a>{% endif %}
-            </nav>
-
-            <div class="search-box">
-                <form method="GET" action="/search">
-                    <input type="text" name="q" class="search-input" placeholder="Поиск манги..." autocomplete="off">
-                    <button type="submit" class="search-button">Найти</button>
-                </form>
-            </div>
-
-            {% if user_id %}
-            <a href="/logout" class="btn-primary">
-                <span>{{ session.username }}</span>
-            </a>
-            {% else %}
-            <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                <span>Войти</span>
-            </a>
-            {% endif %}
-
-            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Меню">☰</button>
-        </div>
-        
-        <div class="mobile-nav" id="mobileNav">
-            <a href="#trending" class="mobile-nav-link">Популярное</a>
-            <a href="#updates" class="mobile-nav-link">Обновления</a>
-            <a href="#popular" class="mobile-nav-link">Новинки</a>
-            <a href="#genres" class="mobile-nav-link">Жанры</a>
-            <a href="/top" class="mobile-nav-link">Топ</a>
-            <a href="/shop" class="mobile-nav-link">Магазин</a>
-            {% if user_id %}<a href="/profile/me" class="mobile-nav-link">Профиль</a>{% endif %}
-        </div>
-    </header>
+{% set g_active = 'home' %}{% include 'header.html' %}
 
     <!-- Главная секция -->
     <section class="hero">

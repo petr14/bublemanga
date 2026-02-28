@@ -352,37 +352,7 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <a href="/" class="logo">BubbleManga</a>
-            
-            <div class="search-container">
-                <form method="GET" action="/search" class="search-box" onsubmit="return validateSearch()">
-                    <input type="text" 
-                           name="q" 
-                           value="{{ query }}"
-                           class="search-input" 
-                           placeholder="Поиск манги..."
-                           autocomplete="off"
-                           id="searchInput">
-                    <button type="submit" class="search-button">Поиск</button>
-                </form>
-                <div class="suggestions-box" id="suggestionsBox"></div>
-            </div>
-            
-            <div class="user-section">
-                <a href="/" class="btn">Главная</a>
-                <a href="/top" class="btn">Топ</a>
-                <a href="/shop" class="btn">Магазин</a>
-                {% if user_id %}
-                <a href="/profile/me" class="btn">Профиль</a>
-                <a href="/logout" class="btn">Выйти</a>
-                {% else %}
-                <a href="https://t.me/hookah_p_bot" target="_blank" class="btn">Войти</a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+{% set g_active = 'search' %}{% include 'header.html' %}
 
     <div class="container">
         <div class="search-results">
