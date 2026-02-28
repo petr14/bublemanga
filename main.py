@@ -44,6 +44,12 @@ COIN_PACKAGES = [
     {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'rub': 1399,  'usd': '15.99', 'label': '1500 монет'},
 ]
 
+PREMIUM_PACKAGES = [
+    {'id': 'premium_1m',  'days': 30,  'label': 'Premium на 1 месяц',  'rub': 199,  'usd': '2.49'},
+    {'id': 'premium_3m',  'days': 90,  'label': 'Premium на 3 месяца', 'rub': 499,  'usd': '5.99'},
+    {'id': 'premium_12m', 'days': 365, 'label': 'Premium на 1 год',    'rub': 1499, 'usd': '17.99'},
+]
+
 # ЮКасса (https://yookassa.ru → Настройки → Ключи API)
 YOOKASSA_SHOP_ID  = os.environ.get('YOOKASSA_SHOP_ID', '')
 YOOKASSA_SECRET   = os.environ.get('YOOKASSA_SECRET', '')
@@ -366,6 +372,17 @@ def init_db():
         stars_paid INTEGER NOT NULL,
         coins_received INTEGER NOT NULL,
         payment_id TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Покупки Premium подписки
+    c.execute('''CREATE TABLE IF NOT EXISTS premium_purchases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        package_id TEXT NOT NULL,
+        payment_id TEXT UNIQUE NOT NULL,
+        payment_method TEXT DEFAULT 'yookassa',
+        expires_at TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
@@ -3598,6 +3615,44 @@ def _credit_coins(user_id, package_id, payment_id, payment_method='stars'):
         conn.close()
 
 
+def _grant_premium(user_id, package_id, payment_id, payment_method='yookassa'):
+    """Активирует/продлевает Premium после успешной оплаты."""
+    pkg = next((p for p in PREMIUM_PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        return False
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute('SELECT id FROM premium_purchases WHERE payment_id = ?', (payment_id,))
+        if c.fetchone():
+            return False  # уже обработано
+        now = datetime.utcnow()
+        c.execute('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', (user_id,))
+        row = c.fetchone()
+        # Продлить если подписка ещё активна, иначе начать с сейчас
+        if row and row['is_premium'] and row['premium_expires_at']:
+            try:
+                current_exp = datetime.fromisoformat(row['premium_expires_at'])
+                base = current_exp if current_exp > now else now
+            except Exception:
+                base = now
+        else:
+            base = now
+        new_exp = base + timedelta(days=pkg['days'])
+        c.execute(
+            'UPDATE users SET is_premium=1, premium_expires_at=? WHERE id=?',
+            (new_exp.isoformat(), user_id)
+        )
+        c.execute(
+            'INSERT OR IGNORE INTO premium_purchases (user_id, package_id, payment_id, payment_method, expires_at) VALUES (?, ?, ?, ?, ?)',
+            (user_id, package_id, payment_id, payment_method, new_exp.isoformat())
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 @app.route('/api/shop/create-payment', methods=['POST'])
 def shop_create_payment():
     """Создаёт платёж через ЮКасса или CryptoBot."""
@@ -3666,19 +3721,91 @@ def shop_create_payment():
     return jsonify({'error': 'Неизвестный способ оплаты'}), 400
 
 
+@app.route('/api/shop/create-premium-payment', methods=['POST'])
+def shop_create_premium_payment():
+    """Создаёт платёж за Premium подписку через ЮКасса или Crypto Cloud."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    data = request.get_json(silent=True) or {}
+    package_id = data.get('package_id')
+    method = data.get('method')
+
+    pkg = next((p for p in PREMIUM_PACKAGES if p['id'] == package_id), None)
+    if not pkg:
+        return jsonify({'error': 'Пакет не найден'}), 404
+
+    if method == 'yookassa':
+        if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
+            return jsonify({'error': 'ЮКасса не настроена на сервере'}), 503
+        try:
+            from yookassa import Configuration, Payment as YKPayment
+            import uuid as _uuid
+            Configuration.account_id = YOOKASSA_SHOP_ID
+            Configuration.secret_key = YOOKASSA_SECRET
+            payment = YKPayment.create({
+                'amount': {'value': str(pkg['rub']) + '.00', 'currency': 'RUB'},
+                'confirmation': {'type': 'redirect',
+                                 'return_url': f'{SITE_URL}/shop?tab=premium&paid=1'},
+                'capture': True,
+                'description': f"{pkg['label']} — BubbleManga",
+                'metadata': {'premium_package_id': pkg['id'], 'user_id': str(user_id)},
+            }, str(_uuid.uuid4()))
+            return jsonify({'url': payment.confirmation.confirmation_url})
+        except ImportError:
+            return jsonify({'error': 'Библиотека yookassa не установлена'}), 503
+        except Exception as e:
+            return jsonify({'error': f'Ошибка ЮКасса: {e}'}), 500
+
+    elif method == 'crypto':
+        if not CRYPTOCLOUD_API_KEY or not CRYPTOCLOUD_SHOP_ID:
+            return jsonify({'error': 'Crypto Cloud не настроен на сервере'}), 503
+        try:
+            import requests as _req
+            resp = _req.post(
+                'https://api.cryptocloud.plus/v2/invoice/create',
+                headers={
+                    'Authorization': f'Token {CRYPTOCLOUD_API_KEY}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'shop_id': CRYPTOCLOUD_SHOP_ID,
+                    'amount': float(pkg['usd']),
+                    'currency': 'USD',
+                    'order_id': f"premium:{pkg['id']}:{user_id}",
+                },
+                timeout=10
+            )
+            result = resp.json()
+            if resp.status_code != 200 or result.get('status') == 'error':
+                return jsonify({'error': 'Ошибка Crypto Cloud: ' + str(result)}), 500
+            return jsonify({'url': result['result']['link']})
+        except ImportError:
+            return jsonify({'error': 'Библиотека requests не установлена'}), 503
+        except Exception as e:
+            return jsonify({'error': f'Ошибка Crypto Cloud: {e}'}), 500
+
+    return jsonify({'error': 'Неизвестный способ оплаты'}), 400
+
+
 @app.route('/webhook/yookassa', methods=['POST'])
 def webhook_yookassa():
-    """Вебхук от ЮКасса — зачисляет монеты после успешной оплаты."""
+    """Вебхук от ЮКасса — зачисляет монеты или активирует Premium после успешной оплаты."""
     data = request.get_json(silent=True) or {}
     if data.get('event') != 'payment.succeeded':
         return '', 200
     obj = data.get('object', {})
     meta = obj.get('metadata', {})
     package_id = meta.get('package_id')
+    premium_package_id = meta.get('premium_package_id')
     user_id_str = meta.get('user_id')
     payment_id = obj.get('id')
-    if package_id and user_id_str and payment_id:
-        _credit_coins(int(user_id_str), package_id, f'yk_{payment_id}', 'yookassa')
+    if user_id_str and payment_id:
+        if premium_package_id:
+            _grant_premium(int(user_id_str), premium_package_id, f'yk_{payment_id}', 'yookassa')
+        elif package_id:
+            _credit_coins(int(user_id_str), package_id, f'yk_{payment_id}', 'yookassa')
     return '', 200
 
 
@@ -3704,8 +3831,12 @@ def webhook_cryptocloud():
     invoice_id = str(data.get('invoice_id', ''))
 
     try:
-        package_id, user_id_str = order_id.rsplit(':', 1)
-        _credit_coins(int(user_id_str), package_id, f'cc_{invoice_id}', 'crypto')
+        if order_id.startswith('premium:'):
+            _, package_id, user_id_str = order_id.split(':', 2)
+            _grant_premium(int(user_id_str), package_id, f'cc_{invoice_id}', 'crypto')
+        else:
+            package_id, user_id_str = order_id.rsplit(':', 1)
+            _credit_coins(int(user_id_str), package_id, f'cc_{invoice_id}', 'crypto')
     except (ValueError, AttributeError):
         pass
 

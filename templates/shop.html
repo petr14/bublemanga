@@ -130,6 +130,28 @@
     .btn-stars:hover { opacity:.88; transform:scale(1.03); }
     .btn-stars:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
+    /* ── Premium карточки ── */
+    .premium-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
+    .prem-pkg-card { background:var(--card2); border:1px solid var(--border); border-radius:18px; padding:1.5rem 1.3rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .2s,transform .15s; position:relative; overflow:hidden; }
+    .prem-pkg-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(245,158,11,.06),rgba(217,119,6,.03)); pointer-events:none; }
+    .prem-pkg-card:hover { border-color:rgba(245,158,11,.4); transform:translateY(-2px); }
+    .prem-pkg-card.popular { border-color:rgba(245,158,11,.5); box-shadow:0 0 0 1px rgba(245,158,11,.25),0 0 24px rgba(245,158,11,.1); }
+    .prem-popular-badge { position:absolute; top:.6rem; right:.6rem; background:linear-gradient(135deg,#f59e0b,#d97706); border-radius:20px; padding:.15rem .55rem; font-size:.6rem; font-weight:800; color:#000; letter-spacing:.3px; }
+    .prem-pkg-name { font-size:1.05rem; font-weight:800; color:#fcd34d; }
+    .prem-pkg-desc { font-size:.75rem; color:var(--text-3); }
+    .prem-features { display:flex; flex-direction:column; gap:.32rem; }
+    .prem-feature { font-size:.74rem; color:var(--text-2); display:flex; align-items:center; gap:.4rem; }
+    .prem-feature::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:#f59e0b; flex-shrink:0; }
+    .prem-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#fcd34d; align-self:flex-start; }
+    .btn-premium { background:linear-gradient(135deg,#f59e0b,#d97706); color:#000; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
+    .btn-premium:hover { opacity:.88; transform:scale(1.03); }
+    .btn-premium:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+    .prem-active-banner { background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.35); border-radius:14px; padding:.85rem 1rem; margin-bottom:.5rem; font-size:.82rem; color:#fcd34d; font-weight:600; text-align:center; }
+
+    @media(max-width:600px){
+      .premium-grid { grid-template-columns:1fr; }
+    }
+
     /* ── Модальное окно оплаты ── */
     .pay-overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:5000; display:flex; align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(8px); animation:pmFadeIn .15s; }
     @keyframes pmFadeIn { from{opacity:0} to{opacity:1} }
@@ -190,12 +212,13 @@ const LOANED_IDS      = new Set({{ loaned_ids | tojson }});
 
 const TABS = [
   {id:'all',        label:' Все'},
+  {id:'premium',    label:'Премиум'},
+  {id:'buy',        label:'Шарики'},
   {id:'avatar',     label:' Аватары'},
   {id:'frame',      label:'Рамки'},
   {id:'background', label:'Фоны'},
   {id:'badge',      label:'Значки'},
   {id:'other',      label:'Слоты'},
-  {id:'buy',        label:'⭐ Монеты'},
 ];
 const OTHER_TYPES = new Set(['avatar_slot','bg_slot']);
 
@@ -323,7 +346,7 @@ function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
   );
 }
 
-// ── Покупка монет ─────────────────────────────────────────────────────────────
+// ── Покупка монет/Premium ──────────────────────────────────────────────────────
 const BOT_BUY_URL = 'https://t.me/hookah_p_bot?start=buy';
 
 const COIN_PACKAGES_STATIC = [
@@ -333,9 +356,25 @@ const COIN_PACKAGES_STATIC = [
   {id:'coins_1500', coins:1500, stars:175, rub:1399,  usd:'15.99'},
 ];
 
-// ── Модальное окно выбора способа оплаты ─────────────────────────────────────
-function PayModal({pkg, onClose}){
-  const [busy, setBusy] = useState(null); // 'yookassa' | 'crypto'
+const PREMIUM_PACKAGES_STATIC = [
+  {id:'premium_1m',  days:30,  name:'1 месяц',  rub:199,  usd:'2.49'},
+  {id:'premium_3m',  days:90,  name:'3 месяца', rub:499,  usd:'5.99', popular:true},
+  {id:'premium_12m', days:365, name:'1 год',    rub:1499, usd:'17.99'},
+];
+
+const PREMIUM_FEATURES = [
+  'Активация предметов магазина бесплатно',
+  'Значок Premium на профиле',
+  'Приоритет в поддержке',
+  'Доступ к эксклюзивным предметам',
+];
+
+// ── Универсальное модальное окно оплаты ───────────────────────────────────────
+// apiEndpoint: '/api/shop/create-payment' | '/api/shop/create-premium-payment'
+// title/sub: заголовок и подзаголовок
+// showStars: показывать ли Telegram Stars
+function PayModal({pkg, onClose, apiEndpoint, title, sub, note, showStars}){
+  const [busy, setBusy] = useState(null);
 
   const pay = useCallback(async (method)=>{
     if(method === 'stars'){
@@ -345,7 +384,7 @@ function PayModal({pkg, onClose}){
     }
     setBusy(method);
     try {
-      const r = await fetch('/api/shop/create-payment',{
+      const r = await fetch(apiEndpoint,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({package_id: pkg.id, method})
@@ -354,26 +393,26 @@ function PayModal({pkg, onClose}){
       if(!r.ok){ toast(j.error||'Ошибка','err'); return; }
       window.open(j.url,'_blank');
       onClose();
-      toast('Завершите оплату — монеты зачислятся автоматически');
+      toast(note||'Завершите оплату — зачислится автоматически');
     } catch(e){
       toast('Ошибка сети','err');
     } finally {
       setBusy(null);
     }
-  },[pkg, onClose]);
+  },[pkg, onClose, apiEndpoint, note]);
 
   const METHODS = [
-    {key:'stars',    icon:'⭐', name:'Telegram Stars',        price: pkg.stars+' Stars'},
-    {key:'yookassa', icon:'💳', name:'Банковская карта',      price: pkg.rub.toLocaleString('ru-RU')+' ₽'},
-    {key:'crypto',   icon:'☁️', name:'Crypto Cloud (USDT)',    price: pkg.usd+' USDT'},
+    ...(showStars ? [{key:'stars', icon:'⭐', name:'Telegram Stars', price: (pkg.stars||'?')+' Stars'}] : []),
+    {key:'yookassa', icon:'💳', name:'Банковская карта', price: pkg.rub.toLocaleString('ru-RU')+' ₽'},
+    {key:'crypto',   icon:'☁️', name:'Crypto Cloud (USDT)', price: pkg.usd+' USDT'},
   ];
 
   return h('div',{className:'pay-overlay', onClick:e=>{ if(e.target===e.currentTarget) onClose(); }},
     h('div',{className:'pay-modal'},
       h('div',{className:'pay-head'},
         h('div',{className:'pay-pkg-info'},
-          h('span',{className:'pay-pkg-coins'},'💰 '+pkg.coins.toLocaleString()),
-          h('span',{className:'pay-pkg-sub'},' монет')
+          h('span',{className:'pay-pkg-coins'},title),
+          sub && h('span',{className:'pay-pkg-sub'},sub)
         ),
         h('button',{className:'pay-close',onClick:onClose},'✕')
       ),
@@ -395,14 +434,14 @@ function PayModal({pkg, onClose}){
           )
         )
       ),
-      h('p',{className:'pay-note'},'🔒 Безопасная оплата · Монеты зачисляются мгновенно')
+      h('p',{className:'pay-note'},'Безопасная оплата · Зачисляется автоматически')
     )
   );
 }
 
-// ── Список пакетов ────────────────────────────────────────────────────────────
+// ── Список пакетов шариков ────────────────────────────────────────────────────
 function BuyCoins(){
-  const [modal, setModal] = useState(null); // pkg | null
+  const [modal, setModal] = useState(null);
 
   const open = useCallback(pkg=>{
     if(!USER_ID){ toast('Войдите через Telegram','err'); return; }
@@ -410,15 +449,25 @@ function BuyCoins(){
   },[]);
 
   return h(Fragment,null,
-    modal && h(PayModal,{pkg:modal, onClose:()=>setModal(null)}),
-    h('div',{className:'section-head'},'💰 Купить монеты'),
+    modal && h(PayModal,{
+      pkg:modal,
+      onClose:()=>setModal(null),
+      apiEndpoint:'/api/shop/create-payment',
+      title: h(Fragment,null, h('img',{src:'/static/bubbles.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.1em',marginRight:'4px'},alt:''}), modal.coins.toLocaleString()),
+      sub: ' шариков',
+      showStars: true,
+    }),
+    h('div',{className:'section-head'},'Купить шарики'),
     h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'1rem'}},
-      'Монеты тратятся в магазине на аватары, рамки, фоны и другие украшения профиля.'
+      'Шарики тратятся в магазине на аватары, рамки, фоны и другие украшения профиля.'
     ),
     h('div',{className:'coins-grid'},
       COIN_PACKAGES_STATIC.map(pkg=>
         h('div',{key:pkg.id,className:'coin-pkg-card'},
-          h('div',{className:'coin-pkg-amount'},'💰 '+pkg.coins.toLocaleString()),
+          h('div',{className:'coin-pkg-amount'},
+            h('img',{src:'/static/bubbles.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.1em',marginRight:'5px'},alt:''}),
+            pkg.coins.toLocaleString()
+          ),
           h('div',{className:'coin-pkg-label'},'монет'),
           h('div',{className:'coin-pkg-price'},'от '+pkg.rub.toLocaleString('ru-RU')+' ₽'),
           h('button',{
@@ -426,6 +475,60 @@ function BuyCoins(){
             style:{marginTop:'.4rem', width:'100%'},
             onClick:()=>open(pkg)
           },'Купить')
+        )
+      )
+    )
+  );
+}
+
+// ── Premium подписка ──────────────────────────────────────────────────────────
+function BuyPremium(){
+  const [modal, setModal] = useState(null);
+
+  const open = useCallback(pkg=>{
+    if(!USER_ID){ toast('Войдите через Telegram','err'); return; }
+    setModal(pkg);
+  },[]);
+
+  // Форматируем дату окончания Premium
+  let premExpStr = null;
+  if(IS_PREMIUM && PREMIUM_EXPIRES){
+    try{
+      const ds = PREMIUM_EXPIRES.includes('+')||PREMIUM_EXPIRES.endsWith('Z') ? PREMIUM_EXPIRES : PREMIUM_EXPIRES+'Z';
+      premExpStr = new Date(ds).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+    }catch(e){ premExpStr = PREMIUM_EXPIRES.slice(0,10); }
+  }
+
+  return h(Fragment,null,
+    modal && h(PayModal,{
+      pkg: modal,
+      onClose: ()=>setModal(null),
+      apiEndpoint: '/api/shop/create-premium-payment',
+      title: 'Premium '+modal.name,
+      sub: null,
+      showStars: false,
+    }),
+    h('div',{className:'section-head'},'Premium подписка'),
+    h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'1rem'}},
+      'Открывает эксклюзивные возможности и предметы для украшения профиля.'
+    ),
+    IS_PREMIUM && premExpStr && h('div',{className:'prem-active-banner'},
+      'Premium активен до '+premExpStr
+    ),
+    h('div',{className:'premium-grid'},
+      PREMIUM_PACKAGES_STATIC.map(pkg=>
+        h('div',{key:pkg.id, className:'prem-pkg-card'+(pkg.popular?' popular':'')},
+          pkg.popular && h('div',{className:'prem-popular-badge'},'Популярно'),
+          h('div',{className:'prem-pkg-name'},pkg.name),
+          h('div',{className:'prem-features'},
+            PREMIUM_FEATURES.map((f,i)=>h('div',{key:i,className:'prem-feature'},f))
+          ),
+          h('div',{className:'prem-pkg-price'},'от '+pkg.rub.toLocaleString('ru-RU')+' ₽'),
+          h('button',{
+            className:'btn-premium',
+            style:{marginTop:'.2rem'},
+            onClick:()=>open(pkg)
+          }, IS_PREMIUM ? 'Продлить' : 'Купить')
         )
       )
     )
@@ -524,12 +627,12 @@ function ShopPage(){
     ),
 
     h('div',{className:'shop-container'},
-      activeTab==='buy'
-        ? h(BuyCoins,null)
-        : h(Fragment,null,
-            !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
-            activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)
-          )
+      activeTab==='buy'     ? h(BuyCoins,null)   :
+      activeTab==='premium' ? h(BuyPremium,null) :
+      h(Fragment,null,
+        !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
+        activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)
+      )
     )
   );
 }
