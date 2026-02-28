@@ -38,10 +38,10 @@ TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 ADMIN_TELEGRAM_IDS: list = [319026942,649144994]
 
 COIN_PACKAGES = [
-    {'id': 'coins_100',  'coins': 100,  'stars': 15,  'rub': 129,   'usd': '1.49', 'label': '100 монет'},
-    {'id': 'coins_300',  'coins': 300,  'stars': 40,  'rub': 329,   'usd': '3.99', 'label': '300 монет'},
-    {'id': 'coins_700',  'coins': 700,  'stars': 85,  'rub': 699,   'usd': '7.99', 'label': '700 монет'},
-    {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'rub': 1399,  'usd': '15.99', 'label': '1500 монет'},
+    {'id': 'coins_100',  'coins': 100,  'stars': 15,  'rub': 129,   'usd': '1.49', 'label': '100 шариков'},
+    {'id': 'coins_300',  'coins': 300,  'stars': 40,  'rub': 329,   'usd': '3.99', 'label': '300 шариков'},
+    {'id': 'coins_700',  'coins': 700,  'stars': 85,  'rub': 699,   'usd': '7.99', 'label': '700 шариков'},
+    {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'rub': 1399,  'usd': '15.99', 'label': '1500 шариков'},
 ]
 
 PREMIUM_PACKAGES = [
@@ -414,6 +414,24 @@ def init_db():
         UNIQUE(user_id, quest_id)
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_user_quests ON user_quests(user_id)')
+
+    # Дедупликация квестов (на случай если уже накопились дубли от предыдущих запусков)
+    c.execute('''
+        DELETE FROM user_quests
+        WHERE quest_id NOT IN (SELECT MIN(id) FROM quests GROUP BY title)
+    ''')
+    c.execute('''
+        DELETE FROM quests
+        WHERE id NOT IN (SELECT MIN(id) FROM quests GROUP BY title)
+    ''')
+    conn.commit()
+
+    # UNIQUE индекс по title — предотвращает будущие дубли
+    try:
+        c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_quests_title ON quests(title)')
+        conn.commit()
+    except Exception:
+        pass
 
     # Seed: базовые задания по уровням
     QUESTS_SEED = [
