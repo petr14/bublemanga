@@ -208,6 +208,7 @@
         .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; transition: border-color .2s, transform .2s; }
         .stat-card:hover { border-color: var(--primary); transform: translateY(-2px); }
         .stat-icon { font-size: 22px; margin-bottom: 4px; }
+        .bubble-icon { width: 1em; height: 1em; vertical-align: -0.15em; display: inline-block; }
         .stat-num { font-size: 22px; font-weight: 800; }
         .stat-name { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
 
@@ -304,6 +305,37 @@
         .toggle input:checked + .toggle-slider { background: var(--primary); }
         .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
 
+        /* ─── EDIT PROFILE MODAL TABS ──────────────────── */
+        .modal-wide { max-width: 520px !important; }
+        .edit-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+        .edit-tab { flex: 1; padding: 8px; background: var(--glass); border: 1px solid var(--border); border-radius: 10px; color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; font-family: inherit; }
+        .edit-tab.active { background: linear-gradient(135deg, var(--primary), var(--primary2)); border-color: transparent; color: white; }
+        .edit-pane { display: none; }
+        .edit-pane.active { display: block; }
+
+        /* Shop items grid inside modal */
+        .shop-items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 4px; }
+        .sitem { background: var(--bg3); border: 2px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color .2s; }
+        .sitem.equipped { border-color: var(--primary); }
+        .sitem-preview { height: 70px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: #0d0d0d; position: relative; }
+        .sitem-name { font-size: 11px; font-weight: 600; text-align: center; padding: 5px 4px; color: var(--text2); }
+        .sitem-badge { position: absolute; top: 4px; right: 4px; font-size: 9px; background: var(--primary); color: #fff; border-radius: 6px; padding: 1px 5px; font-weight: 700; }
+        /* Avatar grid — квадратные карточки с круглым превью */
+        .shop-items-grid-avatar { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 4px; }
+        .shop-items-grid-avatar .sitem { border-radius: 14px; }
+        .shop-items-grid-avatar .sitem-preview { height: 90px; }
+        .shop-items-grid-avatar .sitem-preview img { width: 66px; height: 66px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(102,126,234,.4); box-shadow: 0 0 12px rgba(102,126,234,.25); }
+        .shop-items-grid-avatar .sitem.equipped { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 16px rgba(102,126,234,.3); }
+        .sitem-empty { color: var(--text2); font-size: 13px; padding: 24px; text-align: center; grid-column: 1/-1; }
+
+        /* XP tooltip */
+        .xp-track { position: relative; }
+        .xp-tooltip { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background: #222; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s; }
+        .xp-track:hover .xp-tooltip { opacity: 1; }
+
+        /* Premium lock notice */
+        .premium-lock-notice { text-align: center; padding: 24px; color: var(--text2); background: var(--glass); border-radius: 12px; margin-bottom: 8px; }
+
         /* Utils */
         .loading-spin { display: flex; justify-content: center; padding: 40px; }
         .spin { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary); animation: spin .8s linear infinite; }
@@ -365,11 +397,7 @@
             <div class="avatar-premium-crown" title="Premium">👑</div>
             {% endif %}
             {% if is_own %}
-            {% if profile.user.is_premium %}
-            <button class="avatar-edit-btn" onclick="openModal('avatarModal')" title="Сменить аватар">📷</button>
-            {% else %}
-            <button class="avatar-edit-btn locked" onclick="openModal('premiumModal')" title="Доступно с Premium">🔒</button>
-            {% endif %}
+            <button class="avatar-edit-btn" onclick="openEditModal('avatar')" title="Сменить аватар">📷</button>
             {% endif %}
         </div>
 
@@ -390,18 +418,13 @@
                     <span class="pstat-lbl">XP</span>
                 </div>
                 <div class="pstat">
-                    <span class="pstat-val">{{ profile.coins }}</span>
-                    <span class="pstat-lbl">Монет</span>
+                    <span class="pstat-val"><img src="/static/bubbles.svg" class="bubble-icon" alt="">{{ profile.coins }}</span>
+                    <span class="pstat-lbl">Шарики</span>
                 </div>
             </div>
             {% if is_own %}
             <div class="hero-actions">
-                <button class="btn-edit" onclick="openModal('editModal')">✏️ Редактировать</button>
-                {% if profile.user.is_premium %}
-                <button class="btn-bg" onclick="openModal('bgModal')">🖼 Фон</button>
-                {% else %}
-                <button class="btn-bg locked" onclick="openModal('premiumModal')">🔒 Фон</button>
-                {% endif %}
+                <button class="btn-edit" onclick="openEditModal('main')">✏️ Редактировать профиль</button>
             </div>
             {% endif %}
         </div>
@@ -421,14 +444,14 @@
             <span class="xp-label">Прогресс до уровня {{ profile.level + 1 }}</span>
             <span class="xp-val">{{ profile.xp_for_next }} XP осталось</span>
         </div>
-        <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+        <div class="xp-track" id="xpTrack" title="{{ profile.xp_progress_pct }}%"><div class="xp-fill" id="xpFill" style="width:0%"></div><div class="xp-tooltip" id="xpTooltip">{{ profile.xp_progress_pct }}%</div></div>
     </div>
 
     <div class="stats-grid">
         <div class="stat-card"><span class="stat-icon">📖</span><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><span class="stat-name">Глав прочитано</span></div>
         <div class="stat-card"><span class="stat-icon">📄</span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
         <div class="stat-card"><span class="stat-icon">⚡</span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
-        <div class="stat-card"><span class="stat-icon">🪙</span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Монеты</span></div>
+        <div class="stat-card"><span class="stat-icon"><img src="/static/bubbles.svg" style="width:24px;height:24px;vertical-align:middle" alt=""></span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Шарики</span></div>
     </div>
 
     <div class="section-head">🏆 Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
@@ -449,15 +472,17 @@
 <!-- БИБЛИОТЕКА -->
 <div id="tab-library" class="tab-pane">
     <div class="lib-tabs">
-        <button class="lib-btn active" data-lib="history">📜 История</button>
-        <button class="lib-btn" data-lib="subscriptions">🔔 Подписки</button>
+        {% if is_own %}<button class="lib-btn active" data-lib="history">📜 История</button>{% endif %}
+        <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">🔔 Подписки</button>
         <button class="lib-btn" data-lib="collections">📁 Коллекции</button>
     </div>
 
+    {% if is_own %}
     <div id="lib-history" class="lib-pane active">
         <div id="historyContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
-    <div id="lib-subscriptions" class="lib-pane">
+    {% endif %}
+    <div id="lib-subscriptions" class="lib-pane{% if not is_own %} active{% endif %}">
         <div id="subsContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
     <div id="lib-collections" class="lib-pane">
@@ -473,75 +498,91 @@
 
 <!-- ════ MODALS ════ -->
 {% if is_own %}
-<!-- Редактировать -->
-<div class="modal-overlay" id="editModal">
-    <div class="modal">
-        <div class="modal-title">✏️ Редактировать профиль <button class="modal-close" onclick="closeModal('editModal')">✕</button></div>
-        <div class="field">
-            <label>Описание профиля</label>
-            <textarea id="bioInput" maxlength="300" placeholder="Расскажи о себе...">{{ profile.profile.bio if profile.profile and profile.profile.bio else '' }}</textarea>
-            <div style="font-size:11px;color:var(--text2);text-align:right;margin-top:4px"><span id="bioCount">0</span>/300</div>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-secondary-m" onclick="closeModal('editModal')">Отмена</button>
-            <button class="btn-primary-m" onclick="saveBio()">Сохранить</button>
-        </div>
-    </div>
-</div>
+<!-- Редактировать профиль (единый modal с табами) -->
+<div class="modal-overlay" id="editProfileModal">
+    <div class="modal modal-wide">
+        <div class="modal-title">✏️ Редактировать профиль <button class="modal-close" onclick="closeModal('editProfileModal')">✕</button></div>
 
-<!-- Аватар -->
-<div class="modal-overlay" id="avatarModal">
-    <div class="modal">
-        <div class="modal-title">📷 Сменить аватар <button class="modal-close" onclick="closeModal('avatarModal')">✕</button></div>
-        <div class="field">
-            <div class="field-file-wrap" onclick="document.getElementById('avatarFile').click()">
-                <input type="file" id="avatarFile" accept="image/*" onchange="previewFile(this,'avatarPreview','circle')">
-                <img id="avatarPreview" class="file-preview" style="display:none">
-                <p class="file-label">Нажми для выбора фото<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP до 5 МБ</span></p>
+        <!-- Табы -->
+        <div class="edit-tabs">
+            <button class="edit-tab active" data-etab="main" onclick="switchEditTab('main')">Основное</button>
+            <button class="edit-tab" data-etab="avatar" onclick="switchEditTab('avatar')">Аватар</button>
+            <button class="edit-tab" data-etab="frame" onclick="switchEditTab('frame')">Рамка</button>
+            <button class="edit-tab" data-etab="bg" onclick="switchEditTab('bg')">Фон</button>
+        </div>
+
+        <!-- Основное -->
+        <div class="edit-pane active" id="epane-main">
+            <div class="field">
+                <label>Имя профиля</label>
+                <input type="text" id="nameInput" maxlength="50"
+                       value="{{ profile.profile.custom_name if profile.profile and profile.profile.custom_name else '' }}"
+                       placeholder="{{ profile.display_name }}">
+                <div style="font-size:11px;color:var(--text2);margin-top:4px">Оставь пустым — будет использоваться имя Telegram</div>
+            </div>
+            <div class="field">
+                <label>Описание профиля</label>
+                <textarea id="bioInput" maxlength="300" placeholder="Расскажи о себе...">{{ profile.profile.bio if profile.profile and profile.profile.bio else '' }}</textarea>
+                <div style="font-size:11px;color:var(--text2);text-align:right;margin-top:4px"><span id="bioCount">0</span>/300</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary-m" onclick="closeModal('editProfileModal')">Отмена</button>
+                <button class="btn-primary-m" onclick="saveProfile()">Сохранить</button>
             </div>
         </div>
-        <div class="modal-actions">
-            <button class="btn-secondary-m" onclick="closeModal('avatarModal')">Отмена</button>
-            <button class="btn-primary-m" onclick="uploadAvatar()">Загрузить</button>
-        </div>
-    </div>
-</div>
 
-<!-- Фон -->
-<div class="modal-overlay" id="bgModal">
-    <div class="modal">
-        <div class="modal-title">🖼 Фон профиля <button class="modal-close" onclick="closeModal('bgModal')">✕</button></div>
-        <div class="field">
-            <div class="field-file-wrap" onclick="document.getElementById('bgFile').click()">
-                <input type="file" id="bgFile" accept="image/*" onchange="previewFile(this,'bgPreview','rect')">
-                <img id="bgPreview" class="file-preview-bg" style="display:none">
-                <p class="file-label">Нажми для выбора изображения<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP до 10 МБ</span></p>
+        <!-- Аватар -->
+        <div class="edit-pane" id="epane-avatar">
+            {% if profile.user.is_premium %}
+            <div class="field">
+                <label>Загрузить свой аватар</label>
+                <div class="field-file-wrap" onclick="document.getElementById('avatarFile').click()">
+                    <input type="file" id="avatarFile" accept="image/*" onchange="previewFile(this,'avatarPreview','circle')">
+                    <img id="avatarPreview" class="file-preview" style="display:none;border-radius:50%">
+                    <p class="file-label">Нажми для выбора фото<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP до 5 МБ</span></p>
+                </div>
             </div>
+            <div class="modal-actions" style="margin-bottom:16px">
+                <button class="btn-primary-m" onclick="uploadAvatar()">Загрузить аватар</button>
+            </div>
+            {% else %}
+            <div class="premium-lock-notice" style="margin-bottom:16px">
+                <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+                <div style="font-weight:700;margin-bottom:6px">Требуется Premium</div>
+                <div style="font-size:13px;color:var(--text2)">Загрузка кастомного аватара доступна только Premium пользователям.</div>
+            </div>
+            {% endif %}
+            <label style="font-size:13px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Аватары из магазина</label>
+            <div id="avatarItemsGrid" class="shop-items-grid-avatar"></div>
         </div>
-        <div class="modal-actions">
-            <button class="btn-secondary-m" onclick="closeModal('bgModal')">Отмена</button>
-            <button class="btn-primary-m" onclick="uploadBg()">Загрузить</button>
-        </div>
-    </div>
-</div>
 
-<!-- Premium Required -->
-<div class="modal-overlay" id="premiumModal">
-    <div class="modal">
-        <div class="modal-title">⭐ Premium подписка <button class="modal-close" onclick="closeModal('premiumModal')">✕</button></div>
-        <div style="text-align:center;padding:12px 0 4px">
-            <div class="premium-modal-icon">👑</div>
-            <p style="font-size:15px;font-weight:700;margin-bottom:6px">Это Premium функция</p>
-            <p style="font-size:13px;color:var(--text2);line-height:1.6">Загрузка собственного аватара и фона профиля доступна только для Premium пользователей.</p>
-            <ul class="premium-features">
-                <li>Кастомный аватар</li>
-                <li>Кастомный фон профиля</li>
-                <li>Значок ⭐ Premium на профиле</li>
-            </ul>
-            <p style="font-size:12px;color:var(--text2)">Обратитесь к администратору в Telegram для получения подписки.</p>
+        <!-- Рамка -->
+        <div class="edit-pane" id="epane-frame">
+            <div id="frameItemsGrid" class="shop-items-grid"></div>
         </div>
-        <div class="modal-actions">
-            <button class="btn-primary-m" onclick="closeModal('premiumModal')">Понятно</button>
+
+        <!-- Фон -->
+        <div class="edit-pane" id="epane-bg">
+            {% if profile.user.is_premium %}
+            <div class="field">
+                <label>Загрузить свой фон</label>
+                <div class="field-file-wrap" onclick="document.getElementById('bgFile').click()">
+                    <input type="file" id="bgFile" accept="image/*" onchange="previewFile(this,'bgPreview','rect')">
+                    <img id="bgPreview" class="file-preview-bg" style="display:none">
+                    <p class="file-label">Нажми для выбора изображения<br><span style="font-size:11px;opacity:.7">JPG, PNG, WEBP до 10 МБ</span></p>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-bottom:16px">
+                <button class="btn-primary-m" onclick="uploadBg()">Загрузить фон</button>
+            </div>
+            {% else %}
+            <div class="premium-lock-notice" style="margin-bottom:16px">
+                <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+                <div style="font-weight:700;margin-bottom:6px">Требуется Premium для своего фона</div>
+            </div>
+            {% endif %}
+            <label style="font-size:13px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Купленные фоны из магазина</label>
+            <div id="bgItemsGrid" class="shop-items-grid"></div>
         </div>
     </div>
 </div>
@@ -571,7 +612,9 @@
 <script>
     const IS_OWN = {{ 'true' if is_own else 'false' }};
     const IS_PREMIUM = {{ 'true' if profile.user.is_premium else 'false' }};
+    const PROFILE_USER_ID = {{ profile.user.id }};
     const XP_PCT = {{ profile.xp_progress_pct }};
+    const OWNED_ITEMS = {{ profile['items'] | tojson }};
 
     // Particles
     (function() {
@@ -612,7 +655,7 @@
         });
     });
 
-    function initLibrary() { loadLibPane('history'); }
+    function initLibrary() { loadLibPane(IS_OWN ? 'history' : 'subscriptions'); }
     function loadLibPane(name) {
         if (libLoaded[name]) return;
         libLoaded[name] = true;
@@ -621,7 +664,7 @@
         else if (name === 'collections') fetchColls();
     }
 
-    // History
+    // History (только своя)
     function fetchHistory() {
         fetch('/api/user/history?limit=50')
             .then(r => r.json())
@@ -642,7 +685,7 @@
 
     // Subscriptions
     function fetchSubs() {
-        fetch('/api/user/subscriptions')
+        fetch('/api/user/subscriptions?uid=' + PROFILE_USER_ID)
             .then(r => r.json())
             .then(rows => {
                 const el = document.getElementById('subsContent');
@@ -661,7 +704,7 @@
     // Collections
     let editingCollId = null;
     function fetchColls() {
-        fetch('/api/user/collections')
+        fetch('/api/user/collections?uid=' + PROFILE_USER_ID)
             .then(r => r.json())
             .then(renderColls)
             .catch(() => { document.getElementById('collsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
@@ -756,7 +799,7 @@
         } else toast(d.error || 'Ошибка', 'error');
     }
 
-    // Bio
+    // Bio / Name
     const bioInput = document.getElementById('bioInput');
     const bioCount = document.getElementById('bioCount');
     if (bioInput) {
@@ -764,12 +807,98 @@
         bioInput.addEventListener('input', () => { bioCount.textContent = bioInput.value.length; });
     }
 
-    async function saveBio() {
-        const bio = bioInput.value.trim();
-        const r = await fetch('/api/profile/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({bio}) });
+    async function saveProfile() {
+        const bio = bioInput ? bioInput.value.trim() : '';
+        const nameEl = document.getElementById('nameInput');
+        const custom_name = nameEl ? nameEl.value.trim() : '';
+        const r = await fetch('/api/profile/update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({bio, custom_name}) });
         const d = await r.json();
-        if (d.success) { document.getElementById('heroBio').textContent = bio || 'Нет описания'; toast('Профиль обновлён', 'success'); closeModal('editModal'); }
-        else toast(d.error || 'Ошибка', 'error');
+        if (d.success) {
+            document.getElementById('heroBio').textContent = bio || 'Нет описания';
+            const nameDisplay = document.querySelector('.profile-name');
+            if (nameDisplay && custom_name) nameDisplay.textContent = custom_name;
+            toast('Профиль обновлён', 'success');
+            closeModal('editProfileModal');
+        } else toast(d.error || 'Ошибка', 'error');
+    }
+
+    // Edit profile modal tabs
+    function switchEditTab(tab) {
+        document.querySelectorAll('.edit-tab').forEach(b => b.classList.toggle('active', b.dataset.etab === tab));
+        document.querySelectorAll('.edit-pane').forEach(p => p.classList.toggle('active', p.id === 'epane-' + tab));
+        if (tab === 'avatar') renderShopGrid('avatarItemsGrid', 'avatar');
+        if (tab === 'frame') renderShopGrid('frameItemsGrid', 'frame');
+        if (tab === 'bg') renderShopGrid('bgItemsGrid', 'background');
+    }
+
+    function openEditModal(tab) {
+        openModal('editProfileModal');
+        switchEditTab(tab || 'main');
+    }
+
+    function renderShopGrid(gridId, type) {
+        const el = document.getElementById(gridId);
+        if (!el) return;
+        const items = OWNED_ITEMS.filter(i => i.type === type);
+        if (!items.length) { el.innerHTML = '<div class="sitem-empty">Нет купленных предметов этого типа.<br>Загляни в <a href="/shop" style="color:#667eea">Магазин</a>!</div>'; return; }
+        el.innerHTML = items.map(item => {
+            let preview = '';
+            if (type === 'avatar') {
+                const src = item.preview_url || '';
+                preview = src
+                    ? `<img src="${esc(src)}" alt="${esc(item.name)}">`
+                    : `<div style="width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:1.6rem">👤</div>`;
+            } else if (item.preview_url) {
+                preview = `<img src="${esc(item.preview_url)}" style="width:100%;height:100%;object-fit:cover">`;
+            } else if (type === 'frame' && item.css_value) {
+                preview = `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);border:3px solid ${esc(item.css_value)};box-shadow:0 0 10px ${esc(item.css_value)}55"></div>`;
+            } else if (type === 'background' && item.css_value) {
+                preview = `<div style="width:100%;height:100%;${esc(item.css_value)}"></div>`;
+            } else {
+                preview = '🎨';
+            }
+            const eq = item.is_equipped ? 1 : 0;
+            return `<div class="sitem${eq?' equipped':''}" onclick="equipItem(${item.id},'${type}',this)">
+                <div class="sitem-preview">${preview}${eq?'<div class="sitem-badge">✓</div>':''}</div>
+                <div class="sitem-name">${esc(item.name)}</div>
+            </div>`;
+        }).join('');
+    }
+
+    async function equipItem(itemId, type, cardEl) {
+        const r = await fetch(`/api/profile/equip/${itemId}`, {method:'POST'});
+        const d = await r.json();
+        if (!r.ok) { toast(d.error || 'Ошибка', 'error'); return; }
+        // Update UI
+        const gridId = type === 'avatar' ? 'avatarItemsGrid' : type === 'frame' ? 'frameItemsGrid' : 'bgItemsGrid';
+        document.querySelectorAll(`#${gridId} .sitem`).forEach(c => {
+            c.classList.remove('equipped');
+            const b = c.querySelector('.sitem-badge');
+            if (b) b.remove();
+        });
+        if (d.equipped) {
+            cardEl.classList.add('equipped');
+            const prev = cardEl.querySelector('.sitem-preview');
+            if (prev && !prev.querySelector('.sitem-badge')) {
+                const badge = document.createElement('div');
+                badge.className = 'sitem-badge'; badge.textContent = '✓';
+                prev.appendChild(badge);
+            }
+            // Update OWNED_ITEMS
+            OWNED_ITEMS.forEach(i => { if (i.type === type) i.is_equipped = (i.id === itemId ? 1 : 0); });
+            // Обновляем аватар на странице профиля сразу
+            if (type === 'avatar') {
+                const item = OWNED_ITEMS.find(i => i.id === itemId);
+                const avatarEl = document.getElementById('avatarEl');
+                if (avatarEl && item && item.preview_url) {
+                    avatarEl.innerHTML = `<img src="${esc(item.preview_url)}" alt="Avatar">`;
+                }
+            }
+        } else {
+            cardEl.classList.remove('equipped');
+            OWNED_ITEMS.forEach(i => { if (i.id === itemId) i.is_equipped = 0; });
+        }
+        toast(d.equipped ? 'Надето!' : 'Снято', 'success');
     }
 
     // File preview
@@ -791,9 +920,7 @@
         const d = await r.json();
         if (d.avatar_url) {
             document.getElementById('avatarEl').innerHTML = `<img src="${d.avatar_url}" alt="Avatar">`;
-            toast('Аватар обновлён!', 'success'); closeModal('avatarModal');
-        } else if (d.premium_required) {
-            closeModal('avatarModal'); openModal('premiumModal');
+            toast('Аватар обновлён!', 'success');
         } else toast(d.error || 'Ошибка', 'error');
     }
 
@@ -806,9 +933,7 @@
         if (d.background_url) {
             const el = document.getElementById('heroBgImg');
             el.style.backgroundImage = `url('${d.background_url}')`;
-            toast('Фон обновлён!', 'success'); closeModal('bgModal');
-        } else if (d.premium_required) {
-            closeModal('bgModal'); openModal('premiumModal');
+            toast('Фон обновлён!', 'success');
         } else toast(d.error || 'Ошибка', 'error');
     }
 

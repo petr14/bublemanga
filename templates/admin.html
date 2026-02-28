@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Админ-панель — BubbleManga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --primary:#667eea;--primary2:#764ba2;--accent:#ec4899;
+  --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--blue:#3b82f6;
+  --bg:#09090b;--bg2:#111113;--bg3:#18181b;--bg4:#1f1f23;
+  --glass:rgba(255,255,255,.04);--glass2:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);
+  --text:#f4f4f5;--text2:#a1a1aa;--text3:#71717a;
+  --radius:14px;--shadow:0 8px 32px rgba(0,0,0,.5);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ─── SIDEBAR ─────────────────────────────────── */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  width:240px;flex-shrink:0;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;left:0;top:0;bottom:0;z-index:50;
+  overflow-y:auto;
+}
+.sidebar-logo{
+  padding:24px 20px 20px;
+  font-weight:800;font-size:19px;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-logo span{display:block;font-size:11px;font-weight:500;color:var(--text3);-webkit-text-fill-color:var(--text3);margin-top:2px;letter-spacing:.5px}
+.sidebar-nav{flex:1;padding:12px 8px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:10px;
+  cursor:pointer;transition:all .2s;
+  font-size:14px;font-weight:500;color:var(--text2);
+  border:none;background:none;width:100%;text-align:left;
+  margin-bottom:2px;
+}
+.nav-item:hover{background:var(--glass2);color:var(--text)}
+.nav-item.active{background:linear-gradient(135deg,rgba(102,126,234,.2),rgba(118,75,162,.15));color:var(--primary);border:1px solid rgba(102,126,234,.25)}
+.nav-item .icon{font-size:17px;width:20px;text-align:center;flex-shrink:0}
+.nav-item .badge{margin-left:auto;background:var(--primary);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border)}
+.sidebar-footer a{font-size:12px;color:var(--text3);text-decoration:none;transition:color .2s}
+.sidebar-footer a:hover{color:var(--text2)}
+
+/* ─── MAIN CONTENT ────────────────────────────── */
+.main{margin-left:240px;flex:1;padding:28px 32px;max-width:1400px}
+.page-header{margin-bottom:28px}
+.page-title{font-size:24px;font-weight:700}
+.page-subtitle{color:var(--text2);font-size:13px;margin-top:4px}
+
+/* ─── CARDS & GRID ────────────────────────────── */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+.stat-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;position:relative;overflow:hidden;transition:border-color .2s;
+}
+.stat-card:hover{border-color:var(--border2)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--c,var(--primary))}
+.stat-card .label{font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:28px;font-weight:700;margin:6px 0 2px}
+.stat-card .sub{font-size:12px;color:var(--text3)}
+.stat-card .icon-bg{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:36px;opacity:.12}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px}
+
+/* ─── PANELS ──────────────────────────────────── */
+.panel{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--bg4)}
+.panel-title{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+
+/* ─── TABLE ───────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--bg4);color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;text-align:left;white-space:nowrap}
+td{padding:11px 14px;border-top:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+tr:hover td{background:var(--glass)}
+.user-cell{display:flex;align-items:center;gap:10px}
+.user-ava{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--bg4);flex-shrink:0;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text2)}
+.user-ava img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.user-name{font-weight:500;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.user-username{font-size:11px;color:var(--text3)}
+
+/* ─── BADGES ──────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-yellow{background:rgba(245,158,11,.15);color:var(--yellow)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-purple{background:rgba(102,126,234,.15);color:var(--primary)}
+
+/* ─── BUTTONS ─────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:inherit}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary2)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.btn-danger:hover{background:rgba(239,68,68,.25)}
+.btn-success{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.btn-success:hover{background:rgba(34,197,94,.25)}
+.btn-ghost{background:var(--glass2);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+.btn-icon{padding:6px;border-radius:6px;background:none;border:none;cursor:pointer;color:var(--text2);font-size:15px;transition:all .2s}
+.btn-icon:hover{background:var(--glass2);color:var(--text)}
+
+/* ─── INPUTS ──────────────────────────────────── */
+.input{
+  background:var(--bg4);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-size:13px;font-family:inherit;padding:8px 12px;
+  transition:border-color .2s;outline:none;width:100%;
+}
+.input:focus{border-color:rgba(102,126,234,.6)}
+.input-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a1a1aa' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;cursor:pointer}
+.search-bar{display:flex;gap:10px;margin-bottom:16px}
+.search-bar .input{max-width:320px}
+
+/* ─── TABS ────────────────────────────────────── */
+.section{display:none}
+.section.active{display:block}
+
+/* ─── PAGINATION ──────────────────────────────── */
+.pagination{display:flex;align-items:center;gap:8px;padding-top:12px;justify-content:flex-end}
+.pagination .btn{min-width:36px;justify-content:center}
+.page-info{font-size:12px;color:var(--text2);padding:0 8px}
+
+/* ─── MODAL ───────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(4px)}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg3);border:1px solid var(--border2);border-radius:18px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0}
+.modal-title{font-size:17px;font-weight:700}
+.modal-body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px}
+
+/* ─── CHART BARS ──────────────────────────────── */
+.bar-chart{display:flex;gap:4px;align-items:flex-end;height:60px}
+.bar-chart .bar{flex:1;background:var(--primary);border-radius:3px 3px 0 0;opacity:.7;min-height:4px;transition:opacity .2s;position:relative}
+.bar-chart .bar:hover{opacity:1}
+.bar-chart .bar::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:3px 7px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s}
+.bar-chart .bar:hover::after{opacity:1}
+
+/* ─── FILE DROP ZONE ─────────────────────────── */
+.drop-zone{
+  border:2px dashed var(--border2);border-radius:12px;
+  padding:24px 16px;text-align:center;cursor:pointer;
+  transition:all .2s;background:var(--bg4);position:relative;
+}
+.drop-zone:hover,.drop-zone.over{border-color:var(--primary);background:rgba(102,126,234,.06)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-zone .dz-icon{font-size:28px;margin-bottom:6px}
+.drop-zone .dz-text{font-size:12px;color:var(--text2)}
+.drop-zone .dz-hint{font-size:11px;color:var(--text3);margin-top:3px}
+.preview-box{
+  border:1px solid var(--border2);border-radius:10px;overflow:hidden;
+  background:var(--bg);position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.preview-box img{width:100%;height:100%;object-fit:cover;display:block}
+.preview-box .rm-btn{
+  position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);
+  border:none;color:#fff;font-size:14px;border-radius:50%;
+  width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  line-height:1;
+}
+.preview-avatar{width:88px;height:88px;border-radius:50%;border:3px solid rgba(102,126,234,.5)}
+.preview-avatar img{border-radius:50%}
+.preview-bg{width:100%;height:80px}
+.upload-progress{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px;display:none}
+.upload-progress-bar{height:100%;background:var(--primary);width:0%;transition:width .3s}
+
+/* ─── MISC ────────────────────────────────────── */
+.text-green{color:var(--green)}.text-red{color:var(--red)}.text-yellow{color:var(--yellow)}.text-blue{color:var(--blue)}.text-muted{color:var(--text2)}
+.gap-8{gap:8px}.flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}.justify-between{justify-content:space-between}.wrap{flex-wrap:wrap}
+.mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-4{margin-bottom:4px}.mb-8{margin-bottom:8px}.mb-16{margin-bottom:16px}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-state{display:flex;justify-content:center;padding:40px}
+.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+.comment-text{max-width:360px;white-space:normal;line-height:1.4;font-size:12px;color:var(--text2)}
+.mono{font-family:monospace;font-size:12px}
+
+/* ─── TOAST ───────────────────────────────────── */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:10px 16px;font-size:13px;font-weight:500;min-width:200px;box-shadow:var(--shadow);animation:slideUp .3s ease;pointer-events:all}
+.toast.success{border-color:rgba(34,197,94,.4);color:var(--green)}
+.toast.error{border-color:rgba(239,68,68,.4);color:var(--red)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+@media(max-width:900px){
+  .sidebar{width:60px}
+  .sidebar-logo span,.nav-item span.label,.sidebar-footer{display:none}
+  .nav-item{justify-content:center;padding:12px 0}
+  .nav-item .icon{margin:0}
+  .main{margin-left:60px;padding:20px 16px}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .cards-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    ⚡ BubbleManga
+    <span>Панель администратора</span>
+  </div>
+  <div class="sidebar-nav">
+    <button class="nav-item active" onclick="showSection('stats')" data-section="stats">
+      <span class="icon">📊</span><span class="label">Статистика</span>
+    </button>
+    <button class="nav-item" onclick="showSection('users')" data-section="users">
+      <span class="icon">👥</span><span class="label">Пользователи</span>
+    </button>
+    <button class="nav-item" onclick="showSection('comments')" data-section="comments">
+      <span class="icon">💬</span><span class="label">Комментарии</span>
+    </button>
+    <button class="nav-item" onclick="showSection('manga')" data-section="manga">
+      <span class="icon">📚</span><span class="label">Манга в БД</span>
+    </button>
+    <button class="nav-item" onclick="showSection('shop')" data-section="shop">
+      <span class="icon">🛒</span><span class="label">Магазин</span>
+    </button>
+    <button class="nav-item" onclick="showSection('xplog')" data-section="xplog">
+      <span class="icon">📜</span><span class="label">XP Лог</span>
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <a href="/">← На сайт</a>
+  </div>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+<!-- ── STATS ── -->
+<div id="section-stats" class="section active">
+  <div class="page-header">
+    <div class="page-title">Статистика</div>
+    <div class="page-subtitle">Общий обзор платформы</div>
+  </div>
+
+  <div class="cards-grid" id="stat-cards">
+    <div class="stat-card" style="--c:var(--primary)">
+      <div class="label">Пользователи</div>
+      <div class="value" id="s-users">—</div>
+      <div class="sub" id="s-users-sub">...</div>
+      <div class="icon-bg">👥</div>
+    </div>
+    <div class="stat-card" style="--c:var(--green)">
+      <div class="label">Премиум</div>
+      <div class="value" id="s-premium">—</div>
+      <div class="sub">активных</div>
+      <div class="icon-bg">⭐</div>
+    </div>
+    <div class="stat-card" style="--c:var(--red)">
+      <div class="label">Заблокированы</div>
+      <div class="value" id="s-banned">—</div>
+      <div class="sub">пользователей</div>
+      <div class="icon-bg">🔨</div>
+    </div>
+    <div class="stat-card" style="--c:var(--yellow)">
+      <div class="label">Новые (7д)</div>
+      <div class="value" id="s-new-week">—</div>
+      <div class="sub">регистраций</div>
+      <div class="icon-bg">🆕</div>
+    </div>
+    <div class="stat-card" style="--c:var(--blue)">
+      <div class="label">Манга в БД</div>
+      <div class="value" id="s-manga">—</div>
+      <div class="sub">тайтлов</div>
+      <div class="icon-bg">📚</div>
+    </div>
+    <div class="stat-card" style="--c:var(--accent)">
+      <div class="label">Комментарии</div>
+      <div class="value" id="s-comments">—</div>
+      <div class="sub">всего</div>
+      <div class="icon-bg">💬</div>
+    </div>
+    <div class="stat-card" style="--c:#8b5cf6">
+      <div class="label">Подписки</div>
+      <div class="value" id="s-subs">—</div>
+      <div class="sub">всего</div>
+      <div class="icon-bg">🔔</div>
+    </div>
+    <div class="stat-card" style="--c:#06b6d4">
+      <div class="label">Глав прочитано</div>
+      <div class="value" id="s-read">—</div>
+      <div class="sub">суммарно</div>
+      <div class="icon-bg">📖</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🏆 Топ по XP</div>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <table id="top-users-table">
+          <thead><tr><th>#</th><th>Пользователь</th><th>Уровень</th><th>XP</th><th>Монет</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🔥 Топ манги по просмотрам</div>
+      </div>
+      <div class="panel-body" style="padding:0">
+        <table id="top-manga-table">
+          <thead><tr><th>#</th><th>Манга</th><th>Просмотры</th><th>Подписки</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">📈 Регистрации (14 дней)</div>
+    </div>
+    <div class="panel-body">
+      <div id="reg-chart" class="bar-chart"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── USERS ── -->
+<div id="section-users" class="section">
+  <div class="page-header">
+    <div class="page-title">Пользователи</div>
+    <div class="page-subtitle" id="users-subtitle">Загрузка...</div>
+  </div>
+
+  <div class="search-bar">
+    <input class="input" id="users-search" placeholder="🔍 Поиск по имени, юзернейму, ID..." oninput="debounce(loadUsers, 400)()">
+    <button class="btn btn-primary" onclick="loadUsers()">Найти</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Пользователь</th><th>TG ID</th>
+          <th>Статус</th><th>Уровень</th><th>XP</th>
+          <th>Монет 🫧</th><th>Подписки</th><th>Комм.</th>
+          <th>Регистрация</th><th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="users-pagination"></div>
+</div>
+
+<!-- ── COMMENTS ── -->
+<div id="section-comments" class="section">
+  <div class="page-header">
+    <div class="page-title">Комментарии</div>
+    <div class="page-subtitle" id="comments-subtitle">Загрузка...</div>
+  </div>
+
+  <div class="search-bar">
+    <input class="input" id="comments-search" placeholder="🔍 Поиск по тексту, автору, слагу манги..." oninput="debounce(loadComments, 400)()">
+    <button class="btn btn-primary" onclick="loadComments()">Найти</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Автор</th><th>Манга</th><th>Комментарий</th><th>Дата</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="comments-tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="comments-pagination"></div>
+</div>
+
+<!-- ── MANGA ── -->
+<div id="section-manga" class="section">
+  <div class="page-header">
+    <div class="page-title">Манга в БД</div>
+    <div class="page-subtitle" id="manga-subtitle">Загрузка...</div>
+  </div>
+
+  <div class="search-bar">
+    <input class="input" id="manga-search" placeholder="🔍 Поиск по названию или слагу..." oninput="debounce(loadManga, 400)()">
+    <button class="btn btn-primary" onclick="loadManga()">Найти</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Обложка</th><th>Название</th><th>Тип</th><th>Статус</th>
+          <th>Глав</th><th>Просмотры</th><th>Подписки</th><th>Комм.</th>
+        </tr>
+      </thead>
+      <tbody id="manga-tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="manga-pagination"></div>
+</div>
+
+<!-- ── SHOP ── -->
+<div id="section-shop" class="section">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div class="page-title">Магазин</div>
+      <div class="page-subtitle">Управление товарами</div>
+    </div>
+    <button class="btn btn-primary" onclick="openShopModal()">+ Добавить товар</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Название</th><th>Тип</th><th>Цена 🫧</th>
+          <th>CSS значение</th><th>Куплено</th><th>Флаги</th><th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="shop-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── XP LOG ── -->
+<div id="section-xplog" class="section">
+  <div class="page-header">
+    <div class="page-title">XP Лог</div>
+    <div class="page-subtitle" id="xplog-subtitle">Загрузка...</div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Пользователь</th><th>Причина</th><th>Ref ID</th><th>XP</th><th>Дата</th></tr>
+      </thead>
+      <tbody id="xplog-tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="xplog-pagination"></div>
+</div>
+
+</main>
+</div>
+
+<!-- ═══ USER MODAL ═══ -->
+<div class="modal-overlay" id="user-modal" onclick="closeUserModal(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="um-title">Пользователь</div>
+      <button class="btn-icon" onclick="document.getElementById('user-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="um-info" class="panel" style="background:var(--bg4);border-color:var(--border)">
+        <div class="panel-body" style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px" id="um-details"></div>
+      </div>
+
+      <div class="panel" style="background:var(--bg4);border-color:var(--border)">
+        <div class="panel-head" style="padding:12px 16px"><div class="panel-title" style="font-size:13px">💰 Монеты & XP</div></div>
+        <div class="panel-body" style="padding:12px 16px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
+            <input class="input input-sm" id="um-coins-val" type="number" placeholder="Сумма монет">
+            <select class="input input-sm select" id="um-coins-mode" style="width:auto">
+              <option value="set">Установить</option>
+              <option value="add">Начислить</option>
+            </select>
+            <button class="btn btn-sm btn-success" onclick="setCoins()">✓</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
+            <input class="input input-sm" id="um-xp-val" type="number" placeholder="Сумма XP">
+            <select class="input input-sm select" id="um-xp-mode" style="width:auto">
+              <option value="set">Установить</option>
+              <option value="add">Начислить</option>
+            </select>
+            <button class="btn btn-sm btn-success" onclick="setXP()">✓</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="background:var(--bg4);border-color:var(--border)">
+        <div class="panel-head" style="padding:12px 16px"><div class="panel-title" style="font-size:13px">⭐ Премиум</div></div>
+        <div class="panel-body" style="padding:12px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input class="input input-sm" id="um-premium-days" type="number" value="30" min="1" max="3650" style="width:90px" placeholder="Дней">
+          <button class="btn btn-sm btn-success" onclick="setPremium(true)">Выдать</button>
+          <button class="btn btn-sm btn-danger" onclick="setPremium(false)">Снять</button>
+        </div>
+      </div>
+
+      <div class="panel" style="background:var(--bg4);border-color:var(--border)">
+        <div class="panel-head" style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+          <div class="panel-title" style="font-size:13px">🔔 Подписки (<span id="um-subs-count">0</span>)</div>
+          <div style="display:flex;gap:6px">
+            <input class="input input-sm" id="um-sub-manga-id" placeholder="manga_id" style="width:160px">
+            <button class="btn btn-sm btn-ghost" onclick="addSub()">+ Добавить</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0;max-height:180px;overflow-y:auto">
+          <table style="font-size:12px">
+            <tbody id="um-subs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-danger" id="um-ban-btn" onclick="toggleBan()" style="flex:1">🔨 Заблокировать</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('user-modal').classList.remove('open')" style="flex:1">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SHOP ITEM MODAL ═══ -->
+<div class="modal-overlay" id="shop-modal" onclick="closeShopModal(event)">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-head">
+      <div class="modal-title" id="sm-title">Новый товар</div>
+      <button class="btn-icon" onclick="document.getElementById('shop-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sm-id">
+
+      <!-- Базовые поля -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Название</label>
+          <input class="input" id="sm-name" placeholder="Название товара">
+        </div>
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">Описание</label>
+          <input class="input" id="sm-description" placeholder="Краткое описание">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Тип</label>
+          <select class="input select" id="sm-type" onchange="onShopTypeChange()">
+            <option value="avatar">🖼 Аватар (avatar)</option>
+            <option value="frame">🔲 Рамка (frame)</option>
+            <option value="background">🌅 Фон (background)</option>
+            <option value="badge">🏅 Значок (badge)</option>
+            <option value="avatar_slot">📤 Слот аватара</option>
+            <option value="bg_slot">📤 Слот фона</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Цена 🫧</label>
+          <input class="input" id="sm-price" type="number" min="0" value="0">
+        </div>
+      </div>
+
+      <!-- Загрузка изображения — показывается для типов avatar / background / badge / frame -->
+      <div id="sm-file-section" class="form-group">
+        <label class="form-label" id="sm-file-label">Изображение товара</label>
+
+        <!-- Превью загруженного -->
+        <div id="sm-preview-wrap" style="display:none;margin-bottom:10px">
+          <div id="sm-preview-box" class="preview-box" style="height:120px;width:120px">
+            <img id="sm-preview-img" src="" alt="">
+            <button class="rm-btn" onclick="clearShopImage()" title="Удалить">✕</button>
+          </div>
+        </div>
+
+        <!-- Drag & Drop зона -->
+        <div class="drop-zone" id="sm-drop-zone">
+          <input type="file" id="sm-file-input" accept="image/png,image/jpeg,image/webp,image/gif" onchange="onShopFileSelect(this)">
+          <div class="dz-icon">🖼</div>
+          <div class="dz-text">Перетащите файл или нажмите для выбора</div>
+          <div class="dz-hint">PNG, JPG, WEBP, GIF — до 5 МБ</div>
+        </div>
+        <div class="upload-progress" id="sm-progress">
+          <div class="upload-progress-bar" id="sm-progress-bar"></div>
+        </div>
+
+        <!-- Или вручную URL -->
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+          <span style="font-size:11px;color:var(--text3)">или укажите URL</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>
+        <input class="input" id="sm-preview-url" placeholder="https://example.com/image.jpg" style="margin-top:8px" oninput="onPreviewUrlInput()">
+      </div>
+
+      <!-- CSS — для рамок/фонов/значков -->
+      <div class="form-group" id="sm-css-section">
+        <label class="form-label" id="sm-css-label">CSS значение</label>
+        <input class="input" id="sm-css" placeholder="border: 3px solid gold; box-shadow: ...">
+        <div style="font-size:11px;color:var(--text3);margin-top:4px" id="sm-css-hint"></div>
+      </div>
+
+      <div style="display:flex;gap:20px;align-items:center">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="sm-upload" style="width:16px;height:16px">
+          Загружаемый слот
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="sm-animated" style="width:16px;height:16px">
+          Анимированный
+        </label>
+      </div>
+
+      <div style="display:flex;gap:8px;padding-top:4px">
+        <button class="btn btn-primary" onclick="saveShopItem()" style="flex:1" id="sm-save-btn">Сохранить</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('shop-modal').classList.remove('open')">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST CONTAINER ═══ -->
+<div id="toast-container"></div>
+
+<script>
+// ─── UTILS ───────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function toast(msg, type='success'){
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(), 3000);
+}
+
+function fmtNum(n){ if(n==null)return'—'; n=Number(n); if(n>=1e6)return(n/1e6).toFixed(1)+'M'; if(n>=1e3)return(n/1e3).toFixed(1)+'K'; return n.toLocaleString('ru') }
+function fmtDate(s){ if(!s)return'—'; const d=new Date(s); return d.toLocaleDateString('ru',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}) }
+function fmtDateShort(s){ if(!s)return''; const d=new Date(s); return d.toLocaleDateString('ru',{day:'2-digit',month:'2-digit',year:'2-digit'}) }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function userName(u){ return esc(u.custom_name || u.telegram_first_name || u.telegram_username || `#${u.id||u.user_id}`) }
+
+const debounceTimers = {};
+function debounce(fn, delay){
+  return function(...args){
+    clearTimeout(debounceTimers[fn]);
+    debounceTimers[fn] = setTimeout(()=>fn(...args), delay);
+  }
+}
+
+async function api(url, opts={}){
+  const r = await fetch(url, {headers:{'Content-Type':'application/json'}, ...opts});
+  return r.json();
+}
+
+// ─── SECTION NAV ─────────────────────────────────────────
+const sectionLoaded = {};
+function showSection(name){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>{
+    b.classList.toggle('active', b.dataset.section===name);
+  });
+  $(`section-${name}`).classList.add('active');
+  if(!sectionLoaded[name]){
+    sectionLoaded[name]=true;
+    if(name==='stats') loadStats();
+    if(name==='users') loadUsers();
+    if(name==='comments') loadComments();
+    if(name==='manga') loadManga();
+    if(name==='shop') loadShop();
+    if(name==='xplog') loadXpLog();
+  }
+}
+
+// ─── STATS ───────────────────────────────────────────────
+async function loadStats(){
+  const d = await api('/api/admin/stats');
+  $('s-users').textContent = fmtNum(d.users.total);
+  $('s-users-sub').textContent = `новых за нед: ${d.users.new_week}`;
+  $('s-premium').textContent = fmtNum(d.users.premium);
+  $('s-banned').textContent = fmtNum(d.users.banned);
+  $('s-new-week').textContent = fmtNum(d.users.new_week);
+  $('s-manga').textContent = fmtNum(d.manga.total);
+  $('s-comments').textContent = fmtNum(d.comments.total);
+  $('s-subs').textContent = fmtNum(d.subscriptions.total);
+  $('s-read').textContent = fmtNum(d.history.chapters_read);
+
+  // Top users table
+  const tb = $('top-users-table').querySelector('tbody');
+  tb.innerHTML = d.top_users.map((u,i)=>`
+    <tr>
+      <td style="color:var(--text3)">#${i+1}</td>
+      <td><span class="user-name" style="cursor:pointer;color:var(--primary)" onclick="openUserModal(${u.id})">${userName(u)}</span><br>
+          <span style="font-size:11px;color:var(--text3)">@${esc(u.telegram_username||'—')}</span></td>
+      <td><span class="badge badge-purple">Ур. ${u.level}</span></td>
+      <td><b>${fmtNum(u.xp)}</b></td>
+      <td>${fmtNum(u.coins)} 🫧</td>
+    </tr>
+  `).join('');
+
+  // Top manga table
+  const tm = $('top-manga-table').querySelector('tbody');
+  tm.innerHTML = d.top_manga.map((m,i)=>`
+    <tr>
+      <td style="color:var(--text3)">#${i+1}</td>
+      <td><a href="/manga/${esc(m.manga_slug)}" target="_blank" style="color:var(--primary);text-decoration:none" class="truncate">${esc(m.manga_title)}</a></td>
+      <td>${fmtNum(m.views)}</td>
+      <td>—</td>
+    </tr>
+  `).join('');
+
+  // Bar chart
+  if(d.reg_activity && d.reg_activity.length){
+    const max = Math.max(...d.reg_activity.map(r=>r.cnt));
+    $('reg-chart').innerHTML = d.reg_activity.map(r=>`
+      <div class="bar" style="height:${Math.round((r.cnt/max)*56)+4}px" data-tip="${r.day}: ${r.cnt}"></div>
+    `).join('');
+  }
+}
+
+// ─── USERS ───────────────────────────────────────────────
+let usersPage = 1;
+async function loadUsers(page){
+  if(page) usersPage = page;
+  const q = $('users-search').value.trim();
+  const d = await api(`/api/admin/users?page=${usersPage}&per_page=30&q=${encodeURIComponent(q)}`);
+  $('users-subtitle').textContent = `Всего: ${d.total}`;
+
+  $('users-tbody').innerHTML = d.users.map(u=>`
+    <tr>
+      <td style="color:var(--text3)">${u.id}</td>
+      <td>
+        <div class="user-cell">
+          <div class="user-ava">${u.avatar_url ? `<img src="${esc(u.avatar_url)}" onerror="this.style.display='none'">` : '👤'}</div>
+          <div>
+            <div class="user-name" style="cursor:pointer;color:var(--primary)" onclick="openUserModal(${u.id})">${userName(u)}</div>
+            <div class="user-username">@${esc(u.telegram_username||'—')}</div>
+          </div>
+        </div>
+      </td>
+      <td class="mono">${u.telegram_id}</td>
+      <td>
+        ${u.is_active ? '<span class="badge badge-green">Активен</span>' : '<span class="badge badge-red">Забанен</span>'}
+        ${u.is_premium ? '<span class="badge badge-yellow" title="до '+esc(u.premium_expires_at||'')+'">⭐</span>' : ''}
+      </td>
+      <td><span class="badge badge-purple">Ур. ${u.level}</span></td>
+      <td>${fmtNum(u.xp)}</td>
+      <td>${fmtNum(u.coins)} 🫧</td>
+      <td>${u.sub_count}</td>
+      <td>${u.comment_count}</td>
+      <td style="color:var(--text3);font-size:12px">${fmtDateShort(u.created_at)}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="openUserModal(${u.id})">Открыть</button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="11" class="empty">Пользователи не найдены</td></tr>';
+
+  renderPagination('users-pagination', usersPage, Math.ceil(d.total/30), p=>loadUsers(p));
+}
+
+// ─── USER MODAL ───────────────────────────────────────────
+let currentUserId = null;
+async function openUserModal(uid){
+  currentUserId = uid;
+  $('user-modal').classList.add('open');
+  $('um-subs-tbody').innerHTML = '<tr><td colspan="3" class="empty"><div class="spinner"></div></td></tr>';
+  $('um-details').innerHTML = '<div style="grid-column:span 2;color:var(--text3)">Загрузка...</div>';
+
+  const d = await api(`/api/admin/users?page=1&per_page=1&q=${uid}`);
+  const u = d.users.find(x=>x.id===uid) || d.users[0];
+  if(!u){ toast('Пользователь не найден','error'); return; }
+
+  $('um-title').textContent = userName(u);
+  $('um-details').innerHTML = `
+    <div><span style="color:var(--text3);font-size:11px">ID</span><br><b>${u.id}</b></div>
+    <div><span style="color:var(--text3);font-size:11px">Telegram ID</span><br><b class="mono">${u.telegram_id}</b></div>
+    <div><span style="color:var(--text3);font-size:11px">Username</span><br><b>@${esc(u.telegram_username||'—')}</b></div>
+    <div><span style="color:var(--text3);font-size:11px">Монеты</span><br><b>${fmtNum(u.coins)} 🫧</b></div>
+    <div><span style="color:var(--text3);font-size:11px">XP / Уровень</span><br><b>${fmtNum(u.xp)} / Ур.${u.level}</b></div>
+    <div><span style="color:var(--text3);font-size:11px">Регистрация</span><br><b style="font-size:11px">${fmtDate(u.created_at)}</b></div>
+    <div><span style="color:var(--text3);font-size:11px">Последний вход</span><br><b style="font-size:11px">${fmtDate(u.last_login)}</b></div>
+    <div><span style="color:var(--text3);font-size:11px">Премиум</span><br><b>${u.is_premium ? '✅ до '+fmtDateShort(u.premium_expires_at) : '—'}</b></div>
+  `;
+
+  const banBtn = $('um-ban-btn');
+  if(u.is_active){
+    banBtn.textContent = '🔨 Заблокировать';
+    banBtn.className = 'btn btn-danger';
+  } else {
+    banBtn.textContent = '✅ Разблокировать';
+    banBtn.className = 'btn btn-success';
+  }
+
+  loadUserSubs(uid);
+}
+
+async function loadUserSubs(uid){
+  const subs = await api(`/api/admin/users/${uid}/subscriptions`);
+  $('um-subs-count').textContent = subs.length;
+  $('um-subs-tbody').innerHTML = subs.length ? subs.map(s=>`
+    <tr>
+      <td style="padding:6px 14px">
+        <a href="/manga/${esc(s.manga_slug)}" target="_blank" style="color:var(--primary);text-decoration:none">${esc(s.manga_title||s.manga_id)}</a>
+      </td>
+      <td style="padding:6px 14px;color:var(--text3);font-size:11px">${fmtDateShort(s.subscribed_at)}</td>
+      <td style="padding:6px 14px">
+        <button class="btn-icon" style="color:var(--red)" onclick="removeSub('${esc(s.manga_id)}')">🗑</button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="3" class="empty">Нет подписок</td></tr>';
+}
+
+async function toggleBan(){
+  const r = await api(`/api/admin/users/${currentUserId}/ban`, {method:'POST'});
+  if(r.success){
+    const banned = r.is_active===0;
+    toast(banned ? 'Пользователь заблокирован' : 'Пользователь разблокирован', banned?'error':'success');
+    openUserModal(currentUserId);
+    if(sectionLoaded['users']) loadUsers();
+  }
+}
+
+async function setPremium(enabled){
+  const days = parseInt($('um-premium-days').value)||30;
+  const r = await api(`/api/admin/users/${currentUserId}/premium`, {method:'POST',body:JSON.stringify({enabled,days})});
+  if(r.success){ toast(enabled ? `Премиум выдан на ${days} дней` : 'Премиум снят'); openUserModal(currentUserId); }
+}
+
+async function setCoins(){
+  const amount = parseInt($('um-coins-val').value);
+  const mode = $('um-coins-mode').value;
+  if(isNaN(amount)){ toast('Введите число','error'); return; }
+  const r = await api(`/api/admin/users/${currentUserId}/coins`, {method:'POST',body:JSON.stringify({amount,mode})});
+  if(r.success){ toast('Монеты обновлены'); openUserModal(currentUserId); if(sectionLoaded['users'])loadUsers(); }
+}
+
+async function setXP(){
+  const amount = parseInt($('um-xp-val').value);
+  const mode = $('um-xp-mode').value;
+  if(isNaN(amount)){ toast('Введите число','error'); return; }
+  const r = await api(`/api/admin/users/${currentUserId}/xp`, {method:'POST',body:JSON.stringify({amount,mode})});
+  if(r.success){ toast('XP обновлён'); openUserModal(currentUserId); if(sectionLoaded['users'])loadUsers(); }
+}
+
+async function addSub(){
+  const manga_id = $('um-sub-manga-id').value.trim();
+  if(!manga_id){ toast('Введите manga_id','error'); return; }
+  const r = await api(`/api/admin/users/${currentUserId}/subscriptions`, {method:'POST',body:JSON.stringify({manga_id})});
+  if(r.success){ toast('Подписка добавлена'); $('um-sub-manga-id').value=''; loadUserSubs(currentUserId); }
+}
+
+async function removeSub(manga_id){
+  const r = await api(`/api/admin/users/${currentUserId}/subscriptions/${encodeURIComponent(manga_id)}`, {method:'DELETE'});
+  if(r.success){ toast('Подписка удалена'); loadUserSubs(currentUserId); }
+}
+
+function closeUserModal(e){ if(e.target===e.currentTarget) e.currentTarget.classList.remove('open'); }
+
+// ─── COMMENTS ────────────────────────────────────────────
+let commentsPage = 1;
+async function loadComments(page){
+  if(page) commentsPage = page;
+  const q = $('comments-search').value.trim();
+  const d = await api(`/api/admin/comments?page=${commentsPage}&per_page=50&q=${encodeURIComponent(q)}`);
+  $('comments-subtitle').textContent = `Всего: ${d.total}`;
+
+  $('comments-tbody').innerHTML = d.comments.map(c=>`
+    <tr>
+      <td style="color:var(--text3)">${c.id}</td>
+      <td>
+        <div class="user-cell">
+          <div class="user-ava">${c.avatar_url ? `<img src="${esc(c.avatar_url)}" onerror="this.style.display='none'">` : '👤'}</div>
+          <div>
+            <div style="cursor:pointer;color:var(--primary);font-size:13px" onclick="openUserModal(${c.user_id})">${esc(c.custom_name||c.telegram_first_name||c.telegram_username)}</div>
+            <div class="user-username">@${esc(c.telegram_username||'—')}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <a href="/manga/${esc(c.manga_slug)}" target="_blank" style="color:var(--primary);text-decoration:none;font-size:12px">
+          ${esc(c.manga_title||c.manga_slug)}
+        </a>
+      </td>
+      <td><div class="comment-text">${esc(c.text)}</div></td>
+      <td style="color:var(--text3);font-size:12px;white-space:nowrap">${fmtDate(c.created_at)}</td>
+      <td>
+        <button class="btn btn-sm btn-danger" onclick="deleteComment(${c.id}, this)">🗑 Удалить</button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">Комментарии не найдены</td></tr>';
+
+  renderPagination('comments-pagination', commentsPage, Math.ceil(d.total/50), p=>loadComments(p));
+}
+
+async function deleteComment(id, btn){
+  if(!confirm('Удалить комментарий?')) return;
+  btn.disabled = true;
+  const r = await api(`/api/admin/comments/${id}`, {method:'DELETE'});
+  if(r.success){ toast('Комментарий удалён'); btn.closest('tr').remove(); }
+  else { btn.disabled=false; toast('Ошибка','error'); }
+}
+
+// ─── MANGA ───────────────────────────────────────────────
+let mangaPage = 1;
+async function loadManga(page){
+  if(page) mangaPage = page;
+  const q = $('manga-search').value.trim();
+  const d = await api(`/api/admin/manga?page=${mangaPage}&per_page=30&q=${encodeURIComponent(q)}`);
+  $('manga-subtitle').textContent = `Всего: ${d.total}`;
+
+  $('manga-tbody').innerHTML = d.manga.map(m=>`
+    <tr>
+      <td>
+        ${m.cover_url ? `<img src="${esc(m.cover_url)}" style="width:36px;height:50px;object-fit:cover;border-radius:4px" loading="lazy">` : '<div style="width:36px;height:50px;background:var(--bg4);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--text3)">📚</div>'}
+      </td>
+      <td>
+        <a href="/manga/${esc(m.manga_slug)}" target="_blank" style="color:var(--primary);text-decoration:none;font-weight:500" class="truncate">${esc(m.manga_title)}</a>
+        <div style="font-size:11px;color:var(--text3)">${esc(m.manga_slug)}</div>
+      </td>
+      <td><span class="badge badge-blue">${esc(m.manga_type||'—')}</span></td>
+      <td><span class="badge badge-${m.manga_status==='ONGOING'?'green':m.manga_status==='FINISHED'?'blue':'yellow'}">${esc(m.manga_status||'—')}</span></td>
+      <td>${m.chapters_count||0}</td>
+      <td>${fmtNum(m.views)}</td>
+      <td>${m.sub_count}</td>
+      <td>${m.comment_count}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="empty">Манга не найдена</td></tr>';
+
+  renderPagination('manga-pagination', mangaPage, Math.ceil(d.total/30), p=>loadManga(p));
+}
+
+// ─── SHOP ────────────────────────────────────────────────
+const TYPE_LABELS = {
+  avatar:'🖼 Аватар', frame:'🔲 Рамка', background:'🌅 Фон',
+  badge:'🏅 Значок', avatar_slot:'📤 Слот аватара', bg_slot:'📤 Слот фона'
+};
+
+async function loadShop(){
+  const items = await api('/api/admin/shop');
+  $('shop-tbody').innerHTML = items.map(it=>`
+    <tr>
+      <td style="color:var(--text3)">${it.id}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${it.preview_url
+            ? `<img src="${esc(it.preview_url)}" style="width:36px;height:36px;border-radius:${it.type==='avatar'?'50%':'6px'};object-fit:cover;border:1px solid var(--border2)" loading="lazy">`
+            : `<div style="width:36px;height:36px;border-radius:6px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:16px">${TYPE_LABELS[it.type]?.charAt(0)||'?'}</div>`}
+          <div>
+            <div style="font-weight:600">${esc(it.name)}</div>
+            <div style="font-size:11px;color:var(--text3)">${esc(it.description||'')}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge badge-blue">${TYPE_LABELS[it.type]||esc(it.type)}</span></td>
+      <td><b>${fmtNum(it.price)}</b> 🫧</td>
+      <td><div class="truncate mono" style="max-width:160px;font-size:11px;color:var(--text3)">${esc(it.css_value||'—')}</div></td>
+      <td>${it.purchases}</td>
+      <td>
+        ${it.is_upload ? '<span class="badge badge-yellow">upload</span>' : ''}
+        ${it.is_animated ? '<span class="badge badge-purple">anim</span>' : ''}
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-ghost" onclick="openShopModal(${it.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteShopItem(${it.id}, this)">🗑</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="empty">Нет товаров</td></tr>';
+}
+
+let _shopItems = [];
+async function _ensureShopItems(){ if(!_shopItems.length) _shopItems = await api('/api/admin/shop'); }
+
+// Тип → конфиг секций
+const TYPE_CONFIG = {
+  avatar:     { file:true,  css:false, fileLabel:'Изображение аватара', hint:'' },
+  frame:      { file:true,  css:true,  fileLabel:'Картинка рамки (опц.)', hint:'Пример: border: 3px solid #FFD700; box-shadow: 0 0 12px #FFD700;' },
+  background: { file:true,  css:true,  fileLabel:'Изображение фона (опц.)', hint:'Пример: background: linear-gradient(135deg, #0f0c29, #302b63);' },
+  badge:      { file:true,  css:true,  fileLabel:'Изображение значка (опц.)', hint:'Пример: 👑 VIP — или оставьте CSS-текст' },
+  avatar_slot:{ file:false, css:false, fileLabel:'', hint:'' },
+  bg_slot:    { file:false, css:false, fileLabel:'', hint:'' },
+};
+
+function onShopTypeChange(){
+  const type = $('sm-type').value;
+  const cfg = TYPE_CONFIG[type] || { file:false, css:true, hint:'' };
+  $('sm-file-section').style.display = cfg.file ? '' : 'none';
+  $('sm-css-section').style.display  = cfg.css  ? '' : 'none';
+  if(cfg.fileLabel) $('sm-file-label').textContent = cfg.fileLabel;
+  if(cfg.hint !== undefined) $('sm-css-hint').textContent = cfg.hint;
+
+  // Аватар — круглое превью
+  const box = $('sm-preview-box');
+  if(type === 'avatar'){
+    box.style.width='96px'; box.style.height='96px'; box.style.borderRadius='50%';
+    $('sm-preview-img').style.borderRadius='50%';
+  } else {
+    box.style.width=''; box.style.height='120px'; box.style.borderRadius='10px';
+    $('sm-preview-img').style.borderRadius='';
+  }
+}
+
+function _setPreviewImg(url){
+  if(url){
+    $('sm-preview-img').src = url;
+    $('sm-preview-wrap').style.display = '';
+    $('sm-drop-zone').style.display = 'none';
+  } else {
+    $('sm-preview-wrap').style.display = 'none';
+    $('sm-drop-zone').style.display = '';
+  }
+}
+
+function clearShopImage(){
+  $('sm-preview-url').value = '';
+  $('sm-file-input').value = '';
+  _setPreviewImg(null);
+}
+
+function onPreviewUrlInput(){
+  const url = $('sm-preview-url').value.trim();
+  _setPreviewImg(url || null);
+}
+
+async function onShopFileSelect(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 5*1024*1024){ toast('Файл слишком большой (макс. 5 МБ)','error'); return; }
+
+  // Показываем прогресс
+  const prog = $('sm-progress');
+  const bar  = $('sm-progress-bar');
+  prog.style.display='block'; bar.style.width='20%';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    bar.style.width = '60%';
+    const r = await fetch('/api/admin/shop/upload', {method:'POST', body:fd});
+    bar.style.width = '100%';
+    const data = await r.json();
+    if(data.url){
+      $('sm-preview-url').value = data.url;
+      _setPreviewImg(data.url);
+      toast('Файл загружен');
+    } else {
+      toast(data.error||'Ошибка загрузки','error');
+    }
+  } catch(e){
+    toast('Ошибка загрузки','error');
+  } finally {
+    setTimeout(()=>{ prog.style.display='none'; bar.style.width='0%'; }, 600);
+  }
+}
+
+// Drag & Drop на зону
+document.addEventListener('DOMContentLoaded', ()=>{
+  const dz = $('sm-drop-zone');
+  if(!dz) return;
+  dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+  dz.addEventListener('drop', e=>{
+    e.preventDefault(); dz.classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if(file){
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      $('sm-file-input').files = dt.files;
+      onShopFileSelect($('sm-file-input'));
+    }
+  });
+});
+
+async function openShopModal(id){
+  $('sm-id').value = id||'';
+  clearShopImage();
+  if(id){
+    await _ensureShopItems();
+    const it = _shopItems.find(x=>x.id===id);
+    if(it){
+      $('sm-title').textContent = 'Редактировать товар';
+      $('sm-name').value = it.name||'';
+      $('sm-description').value = it.description||'';
+      $('sm-type').value = it.type||'frame';
+      $('sm-price').value = it.price||0;
+      $('sm-css').value = it.css_value||'';
+      $('sm-upload').checked = !!it.is_upload;
+      $('sm-animated').checked = !!it.is_animated;
+      if(it.preview_url){
+        $('sm-preview-url').value = it.preview_url;
+        _setPreviewImg(it.preview_url);
+      }
+    }
+  } else {
+    $('sm-title').textContent = 'Новый товар';
+    ['sm-name','sm-description','sm-css','sm-preview-url'].forEach(id=>$(id).value='');
+    $('sm-type').value='avatar'; $('sm-price').value=0;
+    $('sm-upload').checked=false; $('sm-animated').checked=false;
+  }
+  onShopTypeChange();
+  $('shop-modal').classList.add('open');
+}
+
+async function saveShopItem(){
+  const id = $('sm-id').value;
+  const body = {
+    name: $('sm-name').value.trim(),
+    description: $('sm-description').value.trim(),
+    type: $('sm-type').value,
+    price: parseInt($('sm-price').value)||0,
+    css_value: $('sm-css').value.trim(),
+    preview_url: $('sm-preview-url').value.trim(),
+    is_upload: $('sm-upload').checked,
+    is_animated: $('sm-animated').checked,
+  };
+  if(!body.name){ toast('Введите название','error'); return; }
+  const url = id ? `/api/admin/shop/${id}` : '/api/admin/shop';
+  const method = id ? 'PUT' : 'POST';
+  const btn = $('sm-save-btn');
+  btn.disabled = true; btn.textContent = 'Сохранение...';
+  try {
+    const r = await api(url, {method, body:JSON.stringify(body)});
+    if(r.success||r.id){
+      toast(id ? 'Товар обновлён' : 'Товар добавлен');
+      $('shop-modal').classList.remove('open');
+      _shopItems = [];
+      loadShop();
+    } else { toast(r.error||'Ошибка','error'); }
+  } finally {
+    btn.disabled=false; btn.textContent='Сохранить';
+  }
+}
+
+async function deleteShopItem(id, btn){
+  if(!confirm('Удалить товар? Это также удалит его у всех пользователей!')) return;
+  btn.disabled=true;
+  const r = await api(`/api/admin/shop/${id}`, {method:'DELETE'});
+  if(r.success){ toast('Товар удалён'); _shopItems=[]; loadShop(); }
+  else { btn.disabled=false; toast('Ошибка','error'); }
+}
+
+function closeShopModal(e){ if(e.target===e.currentTarget) e.currentTarget.classList.remove('open'); }
+
+// ─── XP LOG ──────────────────────────────────────────────
+let xplogPage = 1;
+async function loadXpLog(page){
+  if(page) xplogPage = page;
+  const d = await api(`/api/admin/xp_log?page=${xplogPage}&per_page=50`);
+  $('xplog-subtitle').textContent = `Всего записей: ${d.total}`;
+
+  $('xplog-tbody').innerHTML = d.logs.map(l=>`
+    <tr>
+      <td style="color:var(--text3)">${l.id}</td>
+      <td>
+        <span style="cursor:pointer;color:var(--primary)" onclick="openUserModal(${l.user_id})">
+          ${esc(l.custom_name||l.telegram_first_name||l.telegram_username||`#${l.user_id}`)}
+        </span>
+        <div class="user-username">@${esc(l.telegram_username||'—')}</div>
+      </td>
+      <td><span class="badge badge-blue">${esc(l.reason)}</span></td>
+      <td class="mono" style="color:var(--text3);font-size:11px">${esc(l.ref_id||'—')}</td>
+      <td class="${l.amount>=0?'text-green':'text-red'}"><b>${l.amount>=0?'+':''}${l.amount}</b></td>
+      <td style="color:var(--text3);font-size:12px">${fmtDate(l.created_at)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" class="empty">Нет записей</td></tr>';
+
+  renderPagination('xplog-pagination', xplogPage, Math.ceil(d.total/50), p=>loadXpLog(p));
+}
+
+// ─── PAGINATION ───────────────────────────────────────────
+function renderPagination(elId, page, totalPages, onPage){
+  const el = $(elId);
+  if(totalPages<=1){ el.innerHTML=''; return; }
+  let html = '';
+  html += `<button class="btn btn-ghost btn-sm" ${page<=1?'disabled':''} onclick="(${onPage})(${page-1})">‹</button>`;
+  const start = Math.max(1, page-2), end = Math.min(totalPages, page+2);
+  if(start>1) html += `<button class="btn btn-ghost btn-sm" onclick="(${onPage})(1)">1</button>${start>2?'<span class="page-info">…</span>':''}`;
+  for(let p=start;p<=end;p++)
+    html += `<button class="btn btn-sm ${p===page?'btn-primary':'btn-ghost'}" onclick="(${onPage})(${p})">${p}</button>`;
+  if(end<totalPages) html += `${end<totalPages-1?'<span class="page-info">…</span>':''}<button class="btn btn-ghost btn-sm" onclick="(${onPage})(${totalPages})">${totalPages}</button>`;
+  html += `<button class="btn btn-ghost btn-sm" ${page>=totalPages?'disabled':''} onclick="(${onPage})(${page+1})">›</button>`;
+  html += `<span class="page-info">${page} / ${totalPages}</span>`;
+  el.innerHTML = html;
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+loadStats();
+</script>
+</body>
+</html>

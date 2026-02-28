@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 
 # Список Telegram ID администраторов (заполни своим ID, узнать можно у @userinfobot)
-ADMIN_TELEGRAM_IDS: list = []
+ADMIN_TELEGRAM_IDS: list = [319026942,649144994]
 
 app = Flask(__name__)
 
@@ -319,6 +319,22 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id),
         UNIQUE(user_id, chapter_id)
     )''')
+
+    # Миграции: новые колонки
+    _migrations = [
+        ("ALTER TABLE user_profile ADD COLUMN custom_name TEXT DEFAULT ''",),
+        ("ALTER TABLE user_profile ADD COLUMN custom_avatar_url TEXT",),
+        ("ALTER TABLE shop_items ADD COLUMN is_animated INTEGER DEFAULT 0",),
+        ("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0",),
+        ("ALTER TABLE users ADD COLUMN premium_expires_at TEXT DEFAULT NULL",),
+        ("ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0",),
+    ]
+    for (sql,) in _migrations:
+        try:
+            c.execute(sql)
+            conn.commit()
+        except Exception:
+            pass
 
     # ── Индексы ────────────────────────────────────────────────────────────
     c.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
@@ -693,6 +709,7 @@ def get_user_full_profile(user_id):
         'xp_progress_pct': progress_pct,
         'xp_for_next': xp_needed - xp_progress,
         'display_name': (
+            (dict(profile).get('custom_name') or '').strip() or
             dict(user).get('telegram_first_name') or
             dict(user).get('telegram_username') or
             f"Пользователь #{user_id}"
@@ -3341,16 +3358,29 @@ def profile_equip(item_id):
     item_type = ui['type']
     now_equipped = ui['is_equipped']
 
+    c.execute('INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)', (user_id,))
+
     if now_equipped:
-        # Снять
+        # ── Снять ──────────────────────────────────────────────────────────
         c.execute('UPDATE user_items SET is_equipped = 0 WHERE user_id = ? AND item_id = ?',
                   (user_id, item_id))
-        # Обновить user_profile
         col_map = {'frame': 'frame_item_id', 'badge': 'badge_item_id', 'title': 'title_item_id'}
         if item_type in col_map:
             c.execute(f'UPDATE user_profile SET {col_map[item_type]} = NULL WHERE user_id = ?',
                       (user_id,))
+        elif item_type == 'avatar':
+            # Восстановить кастомный аватар если был
+            c.execute('SELECT custom_avatar_url FROM user_profile WHERE user_id = ?', (user_id,))
+            row = c.fetchone()
+            custom = row['custom_avatar_url'] if row else None
+            c.execute('UPDATE user_profile SET avatar_url = ? WHERE user_id = ?', (custom, user_id))
+        elif item_type == 'background':
+            # Восстановить кастомный фон если был
+            c.execute('SELECT custom_avatar_url FROM user_profile WHERE user_id = ?', (user_id,))
+            # background_url просто обнуляем (кастомный фон тоже пропадёт — приемлемо)
+            c.execute('UPDATE user_profile SET background_url = NULL WHERE user_id = ?', (user_id,))
     else:
+        # ── Надеть ─────────────────────────────────────────────────────────
         # Снимаем другие того же типа
         c.execute(
             '''UPDATE user_items SET is_equipped = 0
@@ -3363,12 +3393,24 @@ def profile_equip(item_id):
         )
         c.execute('UPDATE user_items SET is_equipped = 1 WHERE user_id = ? AND item_id = ?',
                   (user_id, item_id))
-        # Обновить user_profile
-        c.execute('INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)', (user_id,))
         col_map = {'frame': 'frame_item_id', 'badge': 'badge_item_id', 'title': 'title_item_id'}
         if item_type in col_map:
             c.execute(f'UPDATE user_profile SET {col_map[item_type]} = ? WHERE user_id = ?',
                       (item_id, user_id))
+        elif item_type == 'avatar':
+            # Получаем preview_url товара и ставим как аватар
+            c.execute('SELECT preview_url FROM shop_items WHERE id = ?', (item_id,))
+            si = c.fetchone()
+            avatar_url = si['preview_url'] if si else None
+            c.execute('UPDATE user_profile SET avatar_url = ? WHERE user_id = ?',
+                      (avatar_url, user_id))
+        elif item_type == 'background':
+            # Получаем preview_url товара и ставим как фон
+            c.execute('SELECT preview_url, css_value FROM shop_items WHERE id = ?', (item_id,))
+            si = c.fetchone()
+            bg_url = (si['preview_url'] if si else None)
+            c.execute('UPDATE user_profile SET background_url = ? WHERE user_id = ?',
+                      (bg_url, user_id))
 
     conn.commit()
     conn.close()
@@ -3377,19 +3419,23 @@ def profile_equip(item_id):
 
 @app.route('/api/profile/update', methods=['POST'])
 def profile_update():
-    """Обновить bio профиля"""
+    """Обновить bio и/или имя профиля"""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Не авторизован'}), 401
 
-    bio = request.json.get('bio', '')[:300]
+    data = request.json or {}
+    bio = data.get('bio', '')[:300]
+    custom_name = data.get('custom_name', '').strip()[:50]
     conn = get_db()
     c = conn.cursor()
     c.execute('INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)', (user_id,))
-    c.execute('UPDATE user_profile SET bio = ? WHERE user_id = ?', (bio, user_id))
+    c.execute('UPDATE user_profile SET bio = ?, custom_name = ? WHERE user_id = ?',
+              (bio, custom_name, user_id))
     conn.commit()
     conn.close()
-    return jsonify({'success': True})
+    display_name = custom_name or None
+    return jsonify({'success': True, 'display_name': display_name})
 
 
 @app.route('/upload/avatar', methods=['POST'])
@@ -3425,7 +3471,19 @@ def upload_avatar():
 
     avatar_url = f'/static/uploads/{user_id}/{filename}'
     c.execute('INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)', (user_id,))
-    c.execute('UPDATE user_profile SET avatar_url = ? WHERE user_id = ?', (avatar_url, user_id))
+    # Сохраняем как кастомный аватар и как текущий (снимаем shop-аватар)
+    c.execute(
+        'UPDATE user_profile SET avatar_url = ?, custom_avatar_url = ? WHERE user_id = ?',
+        (avatar_url, avatar_url, user_id)
+    )
+    # Снять все shop-аватары
+    c.execute(
+        '''UPDATE user_items SET is_equipped = 0
+           WHERE user_id = ? AND item_id IN (
+               SELECT id FROM shop_items WHERE type = 'avatar'
+           )''',
+        (user_id,)
+    )
     conn.commit()
     conn.close()
 
@@ -3537,9 +3595,10 @@ def api_user_history():
 
 @app.route('/api/user/subscriptions')
 def api_user_subscriptions():
-    """Подписки пользователя"""
-    user_id = session.get('user_id')
-    if not user_id:
+    """Подписки пользователя (uid= для просмотра чужих)"""
+    uid = request.args.get('uid', type=int)
+    target_id = uid if uid else session.get('user_id')
+    if not target_id:
         return jsonify([])
     conn = get_db()
     c = conn.cursor()
@@ -3550,7 +3609,7 @@ def api_user_subscriptions():
            JOIN manga m ON s.manga_id = m.manga_id
            WHERE s.user_id = ?
            ORDER BY s.subscribed_at DESC''',
-        (user_id,)
+        (target_id,)
     )
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
@@ -3559,22 +3618,40 @@ def api_user_subscriptions():
 
 @app.route('/api/user/collections')
 def api_user_collections():
-    """Коллекции пользователя"""
-    user_id = session.get('user_id')
-    if not user_id:
+    """Коллекции пользователя (uid= для просмотра чужих публичных)"""
+    uid = request.args.get('uid', type=int)
+    if uid:
+        target_id = uid
+        only_public = True
+    else:
+        target_id = session.get('user_id')
+        only_public = False
+    if not target_id:
         return jsonify([])
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at,
-                  COUNT(ci.manga_id) as items_count
-           FROM collections c
-           LEFT JOIN collection_items ci ON c.id = ci.collection_id
-           WHERE c.user_id = ?
-           GROUP BY c.id
-           ORDER BY c.created_at DESC''',
-        (user_id,)
-    )
+    if only_public:
+        c.execute(
+            '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at,
+                      COUNT(ci.manga_id) as items_count
+               FROM collections c
+               LEFT JOIN collection_items ci ON c.id = ci.collection_id
+               WHERE c.user_id = ? AND c.is_public = 1
+               GROUP BY c.id
+               ORDER BY c.created_at DESC''',
+            (target_id,)
+        )
+    else:
+        c.execute(
+            '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at,
+                      COUNT(ci.manga_id) as items_count
+               FROM collections c
+               LEFT JOIN collection_items ci ON c.id = ci.collection_id
+               WHERE c.user_id = ?
+               GROUP BY c.id
+               ORDER BY c.created_at DESC''',
+            (target_id,)
+        )
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
     return jsonify(rows)
@@ -3707,6 +3784,511 @@ def api_remove_from_collection(coll_id, manga_id):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
+
+# ==================== АДМИНКА ====================
+
+def admin_required(f):
+    """Декоратор: проверяем, что текущий пользователь — администратор"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = session.get('user_id')
+        if not user_id:
+            return redirect(url_for('index'))
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT telegram_id FROM users WHERE id = ?', (user_id,))
+        row = c.fetchone()
+        conn.close()
+        if not row or row['telegram_id'] not in ADMIN_TELEGRAM_IDS:
+            return "403 Forbidden", 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/admin')
+@admin_required
+def admin_panel():
+    return render_template('admin.html')
+
+
+# ── Статистика ──────────────────────────────────────────────────────────────
+
+@app.route('/api/admin/stats')
+@admin_required
+def api_admin_stats():
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute('SELECT COUNT(*) FROM users')
+    total_users = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM users WHERE is_active = 0')
+    banned_users = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM users WHERE is_premium = 1')
+    premium_users = c.fetchone()[0]
+
+    # Новые пользователи за последние 7 дней
+    c.execute("SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-7 days')")
+    new_users_week = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM manga')
+    total_manga = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM chapters')
+    total_chapters = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM comments')
+    total_comments = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM subscriptions')
+    total_subscriptions = c.fetchone()[0]
+
+    c.execute('SELECT COUNT(*) FROM reading_history')
+    total_history = c.fetchone()[0]
+
+    c.execute('SELECT SUM(total_chapters_read) FROM user_stats')
+    row = c.fetchone()
+    total_chapters_read = row[0] or 0
+
+    # Топ-10 по XP
+    c.execute('''SELECT u.id, u.telegram_username, u.telegram_first_name,
+                        COALESCE(up.custom_name,'') as custom_name,
+                        s.xp, s.level, s.coins
+                 FROM user_stats s
+                 JOIN users u ON s.user_id = u.id
+                 LEFT JOIN user_profile up ON up.user_id = u.id
+                 ORDER BY s.xp DESC LIMIT 10''')
+    top_users = [dict(r) for r in c.fetchall()]
+
+    # Топ манги по просмотрам
+    c.execute('SELECT manga_id, manga_title, manga_slug, views FROM manga ORDER BY views DESC LIMIT 10')
+    top_manga = [dict(r) for r in c.fetchall()]
+
+    # Активность — регистрации по дням (последние 14 дней)
+    c.execute("""SELECT date(created_at) as day, COUNT(*) as cnt
+                 FROM users
+                 WHERE created_at >= datetime('now', '-14 days')
+                 GROUP BY day ORDER BY day""")
+    reg_activity = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+    return jsonify({
+        'users': {
+            'total': total_users,
+            'banned': banned_users,
+            'premium': premium_users,
+            'new_week': new_users_week,
+        },
+        'manga': {'total': total_manga},
+        'chapters': {'total': total_chapters},
+        'comments': {'total': total_comments},
+        'subscriptions': {'total': total_subscriptions},
+        'history': {'total': total_history, 'chapters_read': total_chapters_read},
+        'top_users': top_users,
+        'top_manga': top_manga,
+        'reg_activity': reg_activity,
+    })
+
+
+# ── Пользователи ────────────────────────────────────────────────────────────
+
+@app.route('/api/admin/users')
+@admin_required
+def api_admin_users():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 30))
+    search = request.args.get('q', '').strip()
+    offset = (page - 1) * per_page
+
+    conn = get_db()
+    c = conn.cursor()
+
+    where = ''
+    params = []
+    if search:
+        where = "WHERE u.telegram_username LIKE ? OR u.telegram_first_name LIKE ? OR CAST(u.telegram_id AS TEXT) LIKE ? OR COALESCE(up.custom_name,'') LIKE ?"
+        like = f'%{search}%'
+        params = [like, like, like, like]
+
+    c.execute(f'''SELECT COUNT(*) FROM users u LEFT JOIN user_profile up ON up.user_id = u.id {where}''', params)
+    total = c.fetchone()[0]
+
+    c.execute(f'''
+        SELECT u.id, u.telegram_id, u.telegram_username, u.telegram_first_name,
+               u.is_active, u.is_premium, u.premium_expires_at,
+               u.created_at, u.last_login,
+               COALESCE(up.custom_name,'') as custom_name,
+               COALESCE(up.avatar_url,'') as avatar_url,
+               COALESCE(s.xp,0) as xp, COALESCE(s.level,1) as level, COALESCE(s.coins,0) as coins,
+               COALESCE(s.total_chapters_read,0) as chapters_read,
+               (SELECT COUNT(*) FROM subscriptions WHERE user_id=u.id) as sub_count,
+               (SELECT COUNT(*) FROM comments WHERE user_id=u.id) as comment_count
+        FROM users u
+        LEFT JOIN user_profile up ON up.user_id = u.id
+        LEFT JOIN user_stats s ON s.user_id = u.id
+        {where}
+        ORDER BY u.id DESC
+        LIMIT ? OFFSET ?
+    ''', params + [per_page, offset])
+    users = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'users': users, 'total': total, 'page': page, 'per_page': per_page})
+
+
+@app.route('/api/admin/users/<int:uid>/ban', methods=['POST'])
+@admin_required
+def api_admin_ban_user(uid):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT is_active FROM users WHERE id = ?', (uid,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Пользователь не найден'}), 404
+    new_state = 0 if row['is_active'] else 1
+    c.execute('UPDATE users SET is_active = ? WHERE id = ?', (new_state, uid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'is_active': new_state})
+
+
+@app.route('/api/admin/users/<int:uid>/premium', methods=['POST'])
+@admin_required
+def api_admin_set_premium(uid):
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get('enabled', True))
+    days = int(data.get('days', 30))
+    conn = get_db()
+    c = conn.cursor()
+    if enabled:
+        expires = (datetime.utcnow() + timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+        c.execute('UPDATE users SET is_premium=1, premium_expires_at=? WHERE id=?', (expires, uid))
+    else:
+        c.execute('UPDATE users SET is_premium=0, premium_expires_at=NULL WHERE id=?', (uid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/users/<int:uid>/coins', methods=['POST'])
+@admin_required
+def api_admin_set_coins(uid):
+    data = request.get_json(silent=True) or {}
+    amount = int(data.get('amount', 0))
+    mode = data.get('mode', 'set')  # 'set' | 'add'
+    conn = get_db()
+    c = conn.cursor()
+    get_or_create_user_stats(uid, conn)
+    if mode == 'add':
+        c.execute('UPDATE user_stats SET coins = coins + ? WHERE user_id = ?', (amount, uid))
+    else:
+        c.execute('UPDATE user_stats SET coins = ? WHERE user_id = ?', (amount, uid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/users/<int:uid>/xp', methods=['POST'])
+@admin_required
+def api_admin_set_xp(uid):
+    data = request.get_json(silent=True) or {}
+    amount = int(data.get('amount', 0))
+    mode = data.get('mode', 'set')
+    conn = get_db()
+    c = conn.cursor()
+    get_or_create_user_stats(uid, conn)
+    if mode == 'add':
+        c.execute('UPDATE user_stats SET xp = xp + ? WHERE user_id = ?', (amount, uid))
+    else:
+        c.execute('UPDATE user_stats SET xp = ? WHERE user_id = ?', (amount, uid))
+    # Пересчитываем уровень
+    c.execute('SELECT xp FROM user_stats WHERE user_id = ?', (uid,))
+    row = c.fetchone()
+    if row:
+        new_level = get_level_from_xp(row['xp'])
+        c.execute('UPDATE user_stats SET level = ? WHERE user_id = ?', (new_level, uid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/users/<int:uid>/subscriptions', methods=['GET'])
+@admin_required
+def api_admin_user_subs(uid):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT s.id, s.manga_id, s.subscribed_at,
+                        COALESCE(m.manga_title,'') as manga_title, COALESCE(m.manga_slug,'') as manga_slug
+                 FROM subscriptions s
+                 LEFT JOIN manga m ON m.manga_id = s.manga_id
+                 WHERE s.user_id = ?
+                 ORDER BY s.subscribed_at DESC''', (uid,))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+
+@app.route('/api/admin/users/<int:uid>/subscriptions/<manga_id>', methods=['DELETE'])
+@admin_required
+def api_admin_remove_sub(uid, manga_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM subscriptions WHERE user_id=? AND manga_id=?', (uid, manga_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/users/<int:uid>/subscriptions', methods=['POST'])
+@admin_required
+def api_admin_add_sub(uid):
+    data = request.get_json(silent=True) or {}
+    manga_id = (data.get('manga_id') or '').strip()
+    if not manga_id:
+        return jsonify({'error': 'manga_id обязателен'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute('INSERT OR IGNORE INTO subscriptions (user_id, manga_id) VALUES (?,?)', (uid, manga_id))
+        conn.commit()
+    except Exception:
+        pass
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ── Комментарии ─────────────────────────────────────────────────────────────
+
+@app.route('/api/admin/comments')
+@admin_required
+def api_admin_comments():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
+    search = request.args.get('q', '').strip()
+    offset = (page - 1) * per_page
+
+    conn = get_db()
+    c = conn.cursor()
+
+    where = ''
+    params: list = []
+    if search:
+        where = "WHERE c.text LIKE ? OR u.telegram_username LIKE ? OR c.manga_slug LIKE ?"
+        like = f'%{search}%'
+        params = [like, like, like]
+
+    c.execute(f'SELECT COUNT(*) FROM comments c JOIN users u ON c.user_id=u.id {where}', params)
+    total = c.fetchone()[0]
+
+    c.execute(f'''
+        SELECT c.id, c.manga_slug, c.text, c.created_at,
+               u.id as user_id, u.telegram_username, u.telegram_first_name,
+               COALESCE(up.custom_name,'') as custom_name,
+               COALESCE(up.avatar_url,'') as avatar_url,
+               COALESCE(m.manga_title,'') as manga_title
+        FROM comments c
+        JOIN users u ON c.user_id = u.id
+        LEFT JOIN user_profile up ON up.user_id = u.id
+        LEFT JOIN manga m ON m.manga_slug = c.manga_slug
+        {where}
+        ORDER BY c.created_at DESC
+        LIMIT ? OFFSET ?
+    ''', params + [per_page, offset])
+    comments = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'comments': comments, 'total': total, 'page': page, 'per_page': per_page})
+
+
+@app.route('/api/admin/comments/<int:cid>', methods=['DELETE'])
+@admin_required
+def api_admin_delete_comment(cid):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM comments WHERE id = ?', (cid,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ── Магазин ─────────────────────────────────────────────────────────────────
+
+SHOP_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'shop')
+
+@app.route('/api/admin/shop/upload', methods=['POST'])
+@admin_required
+def api_admin_shop_upload():
+    """Загрузить файл для товара магазина (аватар, фон, значок, рамка-картинка)"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'Файл не выбран'}), 400
+    f = request.files['file']
+    if not f.filename or not _allowed_file(f.filename):
+        return jsonify({'error': 'Недопустимый формат файла (png/jpg/jpeg/gif/webp)'}), 400
+
+    os.makedirs(SHOP_UPLOAD_FOLDER, exist_ok=True)
+    ext = f.filename.rsplit('.', 1)[1].lower()
+    filename = f'{secrets.token_hex(12)}.{ext}'
+    f.save(os.path.join(SHOP_UPLOAD_FOLDER, filename))
+    url = f'/static/uploads/shop/{filename}'
+    return jsonify({'success': True, 'url': url})
+
+
+@app.route('/api/admin/shop', methods=['GET'])
+@admin_required
+def api_admin_shop_items():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM shop_items ORDER BY type, id')
+    items = [dict(r) for r in c.fetchall()]
+    # Добавляем кол-во покупок
+    for it in items:
+        c.execute('SELECT COUNT(*) FROM user_items WHERE item_id=?', (it['id'],))
+        it['purchases'] = c.fetchone()[0]
+    conn.close()
+    return jsonify(items)
+
+
+@app.route('/api/admin/shop', methods=['POST'])
+@admin_required
+def api_admin_shop_create():
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'name обязателен'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        'INSERT INTO shop_items (name, description, type, preview_url, css_value, price, is_upload, is_animated) VALUES (?,?,?,?,?,?,?,?)',
+        (
+            name,
+            (data.get('description') or '').strip(),
+            (data.get('type') or 'frame').strip(),
+            (data.get('preview_url') or '').strip() or None,
+            (data.get('css_value') or '').strip(),
+            int(data.get('price', 0)),
+            int(bool(data.get('is_upload', False))),
+            int(bool(data.get('is_animated', False))),
+        )
+    )
+    conn.commit()
+    new_id = c.lastrowid
+    conn.close()
+    return jsonify({'success': True, 'id': new_id})
+
+
+@app.route('/api/admin/shop/<int:item_id>', methods=['PUT'])
+@admin_required
+def api_admin_shop_update(item_id):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT id FROM shop_items WHERE id=?', (item_id,))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'error': 'Товар не найден'}), 404
+    c.execute(
+        '''UPDATE shop_items SET name=?, description=?, type=?, preview_url=?,
+           css_value=?, price=?, is_upload=?, is_animated=? WHERE id=?''',
+        (
+            (data.get('name') or '').strip(),
+            (data.get('description') or '').strip(),
+            (data.get('type') or 'frame').strip(),
+            (data.get('preview_url') or '').strip() or None,
+            (data.get('css_value') or '').strip(),
+            int(data.get('price', 0)),
+            int(bool(data.get('is_upload', False))),
+            int(bool(data.get('is_animated', False))),
+            item_id,
+        )
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+@app.route('/api/admin/shop/<int:item_id>', methods=['DELETE'])
+@admin_required
+def api_admin_shop_delete(item_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('DELETE FROM user_items WHERE item_id=?', (item_id,))
+    c.execute('DELETE FROM shop_items WHERE id=?', (item_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ── Манга (в БД) ─────────────────────────────────────────────────────────────
+
+@app.route('/api/admin/manga')
+@admin_required
+def api_admin_manga():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 30))
+    search = request.args.get('q', '').strip()
+    offset = (page - 1) * per_page
+
+    conn = get_db()
+    c = conn.cursor()
+
+    where = ''
+    params: list = []
+    if search:
+        where = 'WHERE manga_title LIKE ? OR manga_slug LIKE ?'
+        like = f'%{search}%'
+        params = [like, like]
+
+    c.execute(f'SELECT COUNT(*) FROM manga {where}', params)
+    total = c.fetchone()[0]
+
+    c.execute(f'''
+        SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+               cover_url, views, chapters_count, last_updated,
+               (SELECT COUNT(*) FROM subscriptions WHERE manga_id=m.manga_id) as sub_count,
+               (SELECT COUNT(*) FROM comments WHERE manga_slug=m.manga_slug) as comment_count
+        FROM manga m {where}
+        ORDER BY views DESC
+        LIMIT ? OFFSET ?
+    ''', params + [per_page, offset])
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'manga': rows, 'total': total, 'page': page, 'per_page': per_page})
+
+
+# ── XP Лог ──────────────────────────────────────────────────────────────────
+
+@app.route('/api/admin/xp_log')
+@admin_required
+def api_admin_xp_log():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 50))
+    uid = request.args.get('uid')
+    offset = (page - 1) * per_page
+
+    conn = get_db()
+    c = conn.cursor()
+
+    where = 'WHERE x.user_id = ?' if uid else ''
+    params: list = [int(uid)] if uid else []
+
+    c.execute(f'SELECT COUNT(*) FROM xp_log x {where}', params)
+    total = c.fetchone()[0]
+
+    c.execute(f'''
+        SELECT x.id, x.user_id, x.reason, x.ref_id, x.amount, x.created_at,
+               u.telegram_username, u.telegram_first_name,
+               COALESCE(up.custom_name,'') as custom_name
+        FROM xp_log x
+        JOIN users u ON u.id = x.user_id
+        LEFT JOIN user_profile up ON up.user_id = x.user_id
+        {where}
+        ORDER BY x.created_at DESC
+        LIMIT ? OFFSET ?
+    ''', params + [per_page, offset])
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({'logs': rows, 'total': total})
 
 
 # ==================== ЗАПУСК ====================

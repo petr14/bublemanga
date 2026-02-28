@@ -13,194 +13,121 @@
     :root {
       --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       --accent: #667eea;
-      --bg: #0a0a0a;
-      --card: #1a1a1a;
-      --card2: #141414;
+      --bg: #0a0a0a; --card2: #141414;
       --border: rgba(255,255,255,.06);
-      --text: #ffffff;
-      --text-2: #b8b8b8;
-      --text-3: #71717a;
+      --text: #ffffff; --text-2: #b8b8b8; --text-3: #71717a;
     }
-    html, body {
-      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg); color: var(--text);
-      -webkit-font-smoothing: antialiased; line-height: 1.6;
-    }
-    a { color: inherit; }
+    html,body { font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; }
+    a { color:inherit; }
 
-    /* ── Шапка ─────────────────────────────────── */
-    .site-header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-      background: rgba(10,10,10,.97);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,.08);
-    }
-    .site-header-inner {
-      max-width: 1400px; margin: 0 auto; padding: 14px 20px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    }
-    .site-logo {
-      font-size: 20px; font-weight: 800; text-decoration: none; letter-spacing: -.5px;
-      background: var(--primary);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      display: flex; align-items: center; gap: 7px;
-    }
-    .site-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .nav-btn {
-      padding: 8px 16px; background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.1); border-radius: 50px;
-      color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
-      cursor: pointer; font-family: inherit; white-space: nowrap;
-      transition: background .2s, transform .15s;
-      display: inline-flex; align-items: center; gap: 5px;
-    }
-    .nav-btn:active { transform: scale(.95); }
-    .nav-btn.active { background: var(--primary); border-color: transparent; }
-    @media(min-width:1024px) {
-      .nav-btn:hover { background: rgba(255,255,255,.09); }
-      .nav-btn.active:hover { opacity: .88; }
-    }
+    /* ── Шапка ── */
+    .site-header { position:fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,10,10,.97); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.08); }
+    .site-header-inner { max-width:1400px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .site-logo { font-size:20px; font-weight:800; text-decoration:none; letter-spacing:-.5px; background:var(--primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; display:flex; align-items:center; gap:7px; }
+    .site-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .nav-btn { padding:8px 16px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:50px; color:#fff; text-decoration:none; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; transition:background .2s,transform .15s; display:inline-flex; align-items:center; gap:5px; }
+    .nav-btn:active { transform:scale(.95); }
+    .nav-btn.active { background:var(--primary); border-color:transparent; }
+    @media(min-width:1024px){ .nav-btn:hover { background:rgba(255,255,255,.09); } .nav-btn.active:hover { opacity:.88; } }
 
-    /* ── Страница ───────────────────────────────── */
-    .page-wrap { padding-top: 60px; }
+    .page-wrap { padding-top:60px; }
 
-    /* ── Hero ─────────────────────────────────────── */
-    .shop-hero {
-      text-align: center; padding: 4rem 1rem 2.5rem;
-      background: linear-gradient(135deg, #08081a 0%, #0f0c2a 50%, #10091e 100%);
-      border-bottom: 1px solid var(--border);
-    }
-    .shop-hero h1 {
-      font-size: 2.5rem; font-weight: 800;
-      background: var(--primary);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      margin-bottom: .5rem;
-    }
-    .shop-hero p { color: var(--text-2); font-size: .95rem; }
+    /* ── Hero ── */
+    .shop-hero { text-align:center; padding:2.8rem 1rem 1.8rem; background:linear-gradient(135deg,#08081a 0%,#0f0c2a 50%,#10091e 100%); border-bottom:1px solid var(--border); }
+    .shop-hero h1 { font-size:2.1rem; font-weight:800; background:var(--primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.35rem; }
+    .shop-hero p { color:var(--text-2); font-size:.88rem; }
+    .balance-chip { display:inline-flex; align-items:center; gap:.4rem; background:rgba(102,126,234,.12); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.33rem .95rem; margin-top:.8rem; font-weight:700; font-size:.9rem; color:#a5b4fc; }
+    .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.4); border-radius:20px; padding:.33rem .95rem; margin-top:.55rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
-    .balance-chip {
-      display: inline-flex; align-items: center; gap: .4rem;
-      background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.3);
-      border-radius: 20px; padding: .4rem 1.1rem; margin-top: 1rem;
-      font-weight: 700; font-size: 1rem; color: #a5b4fc;
-    }
+    /* ── Вкладки ── */
+    .shop-tabs-wrap { position:sticky; top:60px; z-index:100; background:rgba(10,10,10,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; }
+    .shop-tabs::-webkit-scrollbar { display:none; }
+    .shop-tab { flex-shrink:0; padding:7px 15px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:50px; color:var(--text-2); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
+    .shop-tab:hover { background:rgba(255,255,255,.1); color:#fff; }
+    .shop-tab.active { background:linear-gradient(135deg,#667eea,#764ba2); border-color:transparent; color:#fff; }
 
-    /* ── Контейнер ─────────────────────────────── */
-    .shop-container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+    /* ── Контейнер ── */
+    .shop-container { max-width:960px; margin:0 auto; padding:1.4rem 1rem 5rem; }
+    .section-head { font-size:.92rem; font-weight:700; color:#d4d4d8; margin:1.5rem 0 .75rem; display:flex; align-items:center; gap:.4rem; }
 
-    .section-title {
-      font-size: 1.1rem; font-weight: 700; color: #d4d4d8;
-      margin: 2rem 0 1rem; display: flex; align-items: center; gap: .5rem;
-    }
+    /* ── Сетки ── */
+    .items-grid        { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:.9rem; }
+    .items-grid-avatar { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:.9rem; }
 
-    .items-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
-    }
+    /* ── Карточка ── */
+    .item-card { background:var(--card2); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:border-color .2s,transform .15s,box-shadow .2s; display:flex; flex-direction:column; position:relative; }
+    .item-card:hover { border-color:rgba(102,126,234,.3); transform:translateY(-2px); }
+    .item-card.owned  { border-color:rgba(102,126,234,.35); }
+    .item-card.equipped { border-color:#667eea; box-shadow:0 0 0 1px #667eea,0 0 22px rgba(102,126,234,.22); }
 
-    /* ── Карточка товара ───────────────────────── */
-    .item-card {
-      background: var(--card2); border: 1px solid var(--border);
-      border-radius: 16px; overflow: hidden;
-      transition: border-color .2s, transform .15s;
-      display: flex; flex-direction: column; position: relative;
-    }
-    .item-card:hover { border-color: rgba(102,126,234,.3); transform: translateY(-2px); }
-    .item-card.owned  { border-color: rgba(102,126,234,.35); }
-    .item-card.equipped { border-color: var(--accent); box-shadow: 0 0 20px rgba(102,126,234,.2); }
+    /* Превью — аватар */
+    .item-preview-avatar { height:145px; display:flex; align-items:center; justify-content:center; background:#0a0a0a; position:relative; overflow:hidden; }
+    .avatar-circle { width:88px; height:88px; border-radius:50%; overflow:hidden; border:3px solid rgba(102,126,234,.45); box-shadow:0 0 20px rgba(102,126,234,.3); }
+    .avatar-circle img { width:100%; height:100%; object-fit:cover; }
+    .avatar-circle .av-placeholder { width:100%; height:100%; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:2rem; }
 
-    .item-preview {
-      height: 120px; display: flex; align-items: center; justify-content: center;
-      font-size: 3rem; background: #0d0d0d; position: relative; overflow: hidden;
-    }
-    .item-preview img { width: 100%; height: 100%; object-fit: cover; }
+    /* Превью — рамка */
+    .item-preview-frame { height:130px; display:flex; align-items:center; justify-content:center; background:#0a0a0a; position:relative; overflow:hidden; }
 
-    .item-badge-equipped {
-      position: absolute; top: .4rem; right: .4rem;
-      background: var(--accent); border-radius: 20px; padding: .15rem .5rem;
-      font-size: .65rem; font-weight: 700; color: #fff;
-    }
+    /* Превью — фон */
+    .item-preview-bg { height:115px; position:relative; overflow:hidden; background:#0a0a0a; }
+    .item-preview-bg img { width:100%; height:100%; object-fit:cover; }
+    .item-preview-bg .bg-overlay { position:absolute; inset:0; background:linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.65)); }
+    .item-preview-bg .bg-fake { position:absolute; bottom:9px; left:11px; display:flex; align-items:center; gap:6px; }
+    .item-preview-bg .bf-av { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#667eea,#764ba2); border:2px solid rgba(255,255,255,.5); }
+    .item-preview-bg .bf-name { font-size:9.5px; font-weight:700; color:rgba(255,255,255,.9); }
 
-    .item-body { padding: .85rem; flex: 1; display: flex; flex-direction: column; gap: .5rem; }
-    .item-name { font-weight: 700; font-size: .9rem; color: #f4f4f5; }
-    .item-desc { font-size: .75rem; color: var(--text-3); flex: 1; }
+    /* Превью — generic */
+    .item-preview { height:125px; display:flex; align-items:center; justify-content:center; font-size:3rem; background:#0d0d0d; position:relative; overflow:hidden; }
+    .item-preview img { width:100%; height:100%; object-fit:cover; }
 
-    .item-footer {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: .6rem .85rem .85rem;
-    }
-    .item-price {
-      display: flex; align-items: center; gap: .3rem;
-      font-weight: 700; font-size: .9rem; color: #a5b4fc;
-    }
-    .item-price.free { color: #4ade80; }
+    /* Бейджи на карточках */
+    .anim-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#f59e0b,#ef4444); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:.3px; z-index:2; }
+    .item-badge-equipped { position:absolute; top:.32rem; right:.32rem; background:#667eea; border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:700; color:#fff; z-index:2; }
+    .loan-badge { position:absolute; bottom:.32rem; left:.32rem; background:linear-gradient(135deg,#f59e0b,#d97706); border-radius:20px; padding:.1rem .42rem; font-size:.57rem; font-weight:700; color:#fff; z-index:2; }
 
-    .btn-buy, .btn-equip, .btn-unequip, .btn-activate, .btn-buy-perm {
-      padding: .35rem .85rem; border-radius: 20px; font-size: .8rem; font-weight: 700;
-      cursor: pointer; border: none; transition: opacity .2s, transform .1s;
-      font-family: inherit;
-    }
-    .btn-buy { background: var(--primary); color: #fff; }
-    .btn-buy:hover { opacity: .85; transform: scale(1.03); }
-    .btn-buy:disabled { opacity: .4; cursor: not-allowed; transform: none; }
-    .btn-equip {
-      background: rgba(102,126,234,.12); color: #a5b4fc;
-      border: 1px solid rgba(102,126,234,.3);
-    }
-    .btn-equip:hover { background: rgba(102,126,234,.22); }
-    .btn-unequip {
-      background: rgba(240,93,176,.1); color: #f9a8d4;
-      border: 1px solid rgba(240,93,176,.2);
-    }
-    .btn-unequip:hover { background: rgba(240,93,176,.2); }
-    .btn-activate {
-      background: linear-gradient(135deg,#f59e0b,#d97706); color: #fff;
-    }
-    .btn-activate:hover { opacity: .85; transform: scale(1.03); }
-    .btn-buy-perm {
-      background: rgba(102,126,234,.12); color: #a5b4fc;
-      border: 1px solid rgba(102,126,234,.3); font-size: .72rem;
-    }
-    .btn-buy-perm:hover { background: rgba(102,126,234,.22); }
-    .btn-buy-perm:disabled { opacity: .4; cursor: not-allowed; }
-    .loan-badge {
-      position: absolute; top: .4rem; left: .4rem;
-      background: linear-gradient(135deg,#f59e0b,#d97706); border-radius: 20px; padding: .15rem .5rem;
-      font-size: .6rem; font-weight: 700; color: #fff;
-    }
-    .item-footer-col {
-      display: flex; flex-direction: column; align-items: flex-end; gap: .35rem;
-    }
-    .premium-banner {
-      display: inline-flex; align-items: center; gap: .5rem;
-      background: linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1));
-      border: 1px solid rgba(245,158,11,.4);
-      border-radius: 20px; padding: .4rem 1.1rem; margin-top: .75rem;
-      font-weight: 700; font-size: .9rem; color: #fcd34d;
-    }
+    .item-body { padding:.7rem .8rem; flex:1; display:flex; flex-direction:column; gap:.28rem; }
+    .item-name { font-weight:700; font-size:.83rem; color:#f4f4f5; line-height:1.3; }
+    .item-desc { font-size:.7rem; color:var(--text-3); flex:1; line-height:1.5; }
+    .item-footer { display:flex; align-items:center; justify-content:space-between; padding:.45rem .8rem .75rem; gap:5px; }
+    .item-price { display:flex; align-items:center; gap:.22rem; font-weight:700; font-size:.82rem; color:#a5b4fc; flex-shrink:0; }
+    .item-price.free { color:#4ade80; }
 
-    .login-notice { text-align: center; padding: 3rem 1rem; color: var(--text-3); }
-    .login-notice a { color: var(--accent); text-decoration: none; }
+    .btn-buy,.btn-equip,.btn-unequip,.btn-activate,.btn-buy-perm { padding:.3rem .75rem; border-radius:20px; font-size:.76rem; font-weight:700; cursor:pointer; border:none; transition:opacity .2s,transform .1s; font-family:inherit; flex-shrink:0; }
+    .btn-buy { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; }
+    .btn-buy:hover { opacity:.85; transform:scale(1.03); }
+    .btn-buy:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+    .btn-equip { background:rgba(102,126,234,.12); color:#a5b4fc; border:1px solid rgba(102,126,234,.3); }
+    .btn-equip:hover { background:rgba(102,126,234,.22); }
+    .btn-unequip { background:rgba(240,93,176,.1); color:#f9a8d4; border:1px solid rgba(240,93,176,.2); }
+    .btn-unequip:hover { background:rgba(240,93,176,.2); }
+    .btn-activate { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+    .btn-activate:hover { opacity:.85; transform:scale(1.03); }
+    .btn-buy-perm { background:rgba(102,126,234,.12); color:#a5b4fc; border:1px solid rgba(102,126,234,.3); font-size:.68rem; }
+    .btn-buy-perm:hover { background:rgba(102,126,234,.22); }
+    .btn-buy-perm:disabled { opacity:.4; cursor:not-allowed; }
+    .item-footer-col { display:flex; flex-direction:column; align-items:flex-end; gap:.28rem; }
 
-    /* ── Toast ─────────────────────────────────── */
-    .toast {
-      position: fixed; bottom: 1.5rem; left: 50%;
-      transform: translateX(-50%) translateY(60px);
-      background: #18181b; border: 1px solid rgba(255,255,255,.1);
-      border-radius: 12px; padding: .7rem 1.4rem;
-      font-size: .85rem; font-weight: 600; color: #f4f4f5;
-      transition: transform .3s; z-index: 9999; pointer-events: none;
-      font-family: 'Poppins', sans-serif;
+    .empty-section { text-align:center; padding:3.5rem 1rem; color:var(--text-3); }
+    .empty-section .eico { font-size:2.5rem; margin-bottom:.5rem; }
+    .login-notice { text-align:center; padding:3rem 1rem; color:var(--text-3); }
+    .login-notice a { color:var(--accent); text-decoration:none; }
+
+    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(60px); background:#18181b; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .3s; z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+    .toast.ok  { border-color:rgba(102,126,234,.4); color:#a5b4fc; }
+    .toast.err { border-color:rgba(239,68,68,.4); color:#fca5a5; }
+
+    @media(max-width:600px){
+      .shop-hero h1 { font-size:1.65rem; }
+      .items-grid        { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; }
+      .items-grid-avatar { grid-template-columns:repeat(auto-fill,minmax(125px,1fr)); gap:.7rem; }
     }
-    .toast.show { transform: translateX(-50%) translateY(0); }
-    .toast.ok  { border-color: rgba(102,126,234,.4); color: #a5b4fc; }
-    .toast.err { border-color: rgba(239,68,68,.4); color: #fca5a5; }
   </style>
 </head>
 <body>
 
-<!-- Шапка -->
 <header class="site-header">
   <div class="site-header-inner">
     <a href="/" class="site-logo"><span>B</span><span>BubbleManga</span></a>
@@ -212,9 +139,7 @@
       <a href="/profile/me" class="nav-btn">Профиль</a>
       <a href="/logout" class="nav-btn">Выйти</a>
       {% else %}
-      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">
-        <span></span><span>Войти</span>
-      </a>
+      <a href="https://t.me/hookah_p_bot" target="_blank" class="nav-btn active">Войти</a>
       {% endif %}
     </nav>
   </div>
@@ -223,7 +148,6 @@
 <div class="page-wrap">
   <div id="shop-root"></div>
 </div>
-
 <div class="toast"></div>
 
 <script type="importmap">
@@ -232,7 +156,7 @@
 <script type="module">
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-const {createElement:h,Fragment,useState,useCallback} = React;
+const {createElement:h,Fragment,useState,useCallback,useMemo} = React;
 
 const ALL_ITEMS       = {{ items | tojson }};
 const OWNED_IDS       = new Set({{ owned_ids | tojson }});
@@ -243,213 +167,234 @@ const IS_PREMIUM      = {{ is_premium | tojson }};
 const PREMIUM_EXPIRES = {{ premium_expires_at | tojson }};
 const LOANED_IDS      = new Set({{ loaned_ids | tojson }});
 
-const TYPE_LABELS = {
-  frame:      {icon:'',  label:'Рамки'},
-  background: {icon:'', label:'Фоны профиля'},
-  badge:      {icon:'', label:'Значки'},
-  avatar_slot:{icon:'', label:'Загрузка аватара'},
-  bg_slot:    {icon:'', label:'Загрузка фона'},
+const TABS = [
+  {id:'all',        label:'✨ Все'},
+  {id:'avatar',     label:'👤 Аватары'},
+  {id:'frame',      label:'🖼 Рамки'},
+  {id:'background', label:'🌄 Фоны'},
+  {id:'badge',      label:'🏅 Значки'},
+  {id:'other',      label:'⚙️ Слоты'},
+];
+const OTHER_TYPES = new Set(['avatar_slot','bg_slot']);
+
+const GROUP_ORDER  = ['avatar','frame','background','badge','avatar_slot','bg_slot'];
+const GROUP_LABELS = {
+  avatar:     '👤 Аватары',
+  frame:      '🖼 Рамки аватара',
+  background: '🌄 Фоны профиля',
+  badge:      '🏅 Значки',
+  avatar_slot:'📤 Загрузка аватара',
+  bg_slot:    '📤 Загрузка фона',
 };
 
-function toast(msg, type='ok'){
+function toast(msg,type='ok'){
   const el=document.querySelector('.toast');
-  if(!el) return;
-  el.textContent=msg;
-  el.className=`toast ${type} show`;
-  setTimeout(()=>{ el.className=`toast ${type}`; }, 2500);
+  if(!el)return;
+  el.textContent=msg; el.className=`toast ${type} show`;
+  setTimeout(()=>{el.className=`toast ${type}`;},2500);
 }
 
-function ItemPreview({item}){
-  if(item.preview_url)
-    return h('div',{className:'item-preview'}, h('img',{src:item.preview_url,alt:''}));
-
-  if(item.type==='frame' && item.css_value)
-    return h('div',{className:'item-preview'},
-      h('div',{style:{
-        width:64, height:64, borderRadius:'50%',
-        background:'linear-gradient(135deg,#667eea,#764ba2)',
-        border:`3px solid ${item.css_value}`,
-        boxShadow:`0 0 12px ${item.css_value}55`
-      }})
-    );
-
-  if(item.type==='background' && item.css_value)
-    return h('div',{className:'item-preview', style:{background:item.css_value}});
-
-  if(item.type==='badge' && item.css_value)
-    return h('div',{className:'item-preview'},
-      h('span',{style:{fontSize:'2.5rem'}}, item.css_value)
-    );
-
-  const typeEmojis = {avatar_slot:'', bg_slot:''};
-  return h('div',{className:'item-preview'},
-    h('span',{style:{fontSize:'2.5rem'}}, typeEmojis[item.type] || '')
-  );
-}
-
-function ItemCard({item, coins, onBuy, onEquip, onActivate}){
-  const owned    = OWNED_IDS.has(item.id);
-  const loaned   = LOANED_IDS.has(item.id);
-  const equipped = !!(EQUIPPED[item.id]);
-  const canAfford = coins >= item.price;
-
-  let cardClass = 'item-card';
-  if(equipped) cardClass += ' equipped';
-  else if(owned) cardClass += ' owned';
-
-  // Кнопки для footer
-  let footerButtons;
-  if(owned && !loaned){
-    // Постоянное владение
-    footerButtons = h('button',{
-      className: equipped ? 'btn-unequip' : 'btn-equip',
-      onClick: ()=>onEquip(item)
-    }, equipped ? 'Снять' : 'Надеть');
-  } else if(loaned){
-    // Временная активация (Premium loan)
-    footerButtons = h('div',{className:'item-footer-col'},
-      h('button',{
-        className: equipped ? 'btn-unequip' : 'btn-equip',
-        onClick: ()=>onEquip(item)
-      }, equipped ? 'Снять' : 'Надеть'),
-      h('button',{
-        className:'btn-buy-perm',
-        disabled: !canAfford,
-        title: canAfford ? 'Купить навсегда' : `Нужно ${item.price} монет`,
-        onClick: ()=>onBuy(item)
-      }, `Купить (${item.price.toLocaleString()})`)
-    );
-  } else if(USER_ID && IS_PREMIUM){
-    // Не куплено, есть Premium — показать два варианта
-    footerButtons = h('div',{className:'item-footer-col'},
-      h('button',{
-        className:'btn-activate',
-        onClick: ()=>onActivate(item)
-      }, 'Активировать'),
-      h('button',{
-        className:'btn-buy-perm',
-        disabled: !canAfford,
-        title: canAfford ? 'Купить навсегда' : `Нужно ${item.price} монет`,
-        onClick: ()=>onBuy(item)
-      }, `Купить (${item.price.toLocaleString()})`)
-    );
-  } else if(USER_ID){
-    footerButtons = h('button',{
-      className:'btn-buy',
-      disabled: !canAfford,
-      title: canAfford ? '' : `Нужно ${item.price} монет`,
-      onClick: ()=>onBuy(item)
-    }, 'Купить');
-  } else {
-    footerButtons = h('button',{className:'btn-buy',disabled:true}, 'Войти');
-  }
-
-  return h('div',{className:cardClass},
-    equipped && h('div',{className:'item-badge-equipped'}, '✓ Надето'),
-    loaned && h('div',{className:'loan-badge'}, '✨ Premium'),
-    h(ItemPreview,{item}),
-
-    h('div',{className:'item-body'},
-      h('div',{className:'item-name'}, item.name),
-      item.description && h('div',{className:'item-desc'}, item.description)
-    ),
-
-    h('div',{className:'item-footer'},
-      h('div',{className:`item-price${item.price===0?' free':''}`},
-        item.price===0 ? 'Бесплатно' : h(Fragment,null,'',item.price.toLocaleString())
-      ),
-      footerButtons
+// ── Превью ────────────────────────────────────────────────────────────────────
+function PreviewAvatar({item}){
+  return h('div',{className:'item-preview-avatar'},
+    item.is_animated && h('div',{className:'anim-badge'},'GIF'),
+    h('div',{className:'avatar-circle'},
+      item.preview_url
+        ? h('img',{src:item.preview_url,alt:'',loading:'lazy'})
+        : h('div',{className:'av-placeholder'},'👤')
     )
   );
 }
 
-function ShopPage(){
-  const [coins, setCoins] = useState(INIT_COINS);
-  const [owned, setOwned] = useState(new Set(OWNED_IDS));
-  const [loaned, setLoaned] = useState(new Set(LOANED_IDS));
-  const [eqMap, setEqMap] = useState({...EQUIPPED});
+function PreviewFrame({item}){
+  if(item.preview_url)
+    return h('div',{className:'item-preview-frame'},h('img',{src:item.preview_url,alt:'',style:{width:'100%',height:'100%',objectFit:'cover'}}));
+  const s = item.css_value
+    ? {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)',border:`4px solid ${item.css_value}`,boxShadow:`0 0 16px ${item.css_value}99`}
+    : {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)'};
+  return h('div',{className:'item-preview-frame'},h('div',{style:s}));
+}
 
-  const buy = useCallback(async(item)=>{
+function PreviewBackground({item}){
+  if(item.preview_url)
+    return h('div',{className:'item-preview-bg'},
+      item.is_animated && h('div',{className:'anim-badge'},'GIF'),
+      h('img',{src:item.preview_url,alt:'',loading:'lazy'}),
+      h('div',{className:'bg-overlay'}),
+      h('div',{className:'bg-fake'},
+        h('div',{className:'bf-av'}),
+        h('div',{className:'bf-name'},'Профиль')
+      )
+    );
+  if(item.css_value)
+    return h('div',{className:'item-preview-bg',style:{background:item.css_value}},
+      h('div',{className:'bg-overlay'}),
+      h('div',{className:'bg-fake'},
+        h('div',{className:'bf-av'}),
+        h('div',{className:'bf-name'},'Профиль')
+      )
+    );
+  return h('div',{className:'item-preview',style:{height:115}},'🌄');
+}
+
+function ItemPreview({item}){
+  if(item.type==='avatar')     return h(PreviewAvatar,{item});
+  if(item.type==='frame')      return h(PreviewFrame,{item});
+  if(item.type==='background') return h(PreviewBackground,{item});
+  if(item.type==='badge'&&item.css_value)
+    return h('div',{className:'item-preview'},h('span',{style:{fontSize:'2.8rem'}},item.css_value));
+  if(item.preview_url)
+    return h('div',{className:'item-preview'},h('img',{src:item.preview_url,alt:''}));
+  const emo={avatar_slot:'📤',bg_slot:'🖼️'};
+  return h('div',{className:'item-preview'},h('span',{style:{fontSize:'2.5rem'}},emo[item.type]||'📦'));
+}
+
+// ── Карточка ─────────────────────────────────────────────────────────────────
+function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
+  const owned    = OWNED_IDS.has(item.id);
+  const loaned   = LOANED_IDS.has(item.id);
+  const equipped = !!(eqMap[item.id]);
+  const canAfford = coins >= item.price;
+
+  let cls = 'item-card';
+  if(equipped) cls+=' equipped';
+  else if(owned) cls+=' owned';
+
+  let btns;
+  if(owned&&!loaned){
+    btns = h('button',{className:equipped?'btn-unequip':'btn-equip',onClick:()=>onEquip(item)},equipped?'Снять':'Надеть');
+  } else if(loaned){
+    btns = h('div',{className:'item-footer-col'},
+      h('button',{className:equipped?'btn-unequip':'btn-equip',onClick:()=>onEquip(item)},equipped?'Снять':'Надеть'),
+      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} пузыриков`,onClick:()=>onBuy(item)},`Купить (${item.price.toLocaleString()})`)
+    );
+  } else if(USER_ID&&IS_PREMIUM){
+    btns = h('div',{className:'item-footer-col'},
+      h('button',{className:'btn-activate',onClick:()=>onActivate(item)},'Активировать'),
+      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} пузыриков`,onClick:()=>onBuy(item)},`Купить (${item.price.toLocaleString()})`)
+    );
+  } else if(USER_ID){
+    btns = h('button',{className:'btn-buy',disabled:!canAfford,title:canAfford?'':`Нужно ${item.price} пузыриков`,onClick:()=>onBuy(item)},'Купить');
+  } else {
+    btns = h('button',{className:'btn-buy',disabled:true},'Войти');
+  }
+
+  return h('div',{className:cls},
+    equipped && h('div',{className:'item-badge-equipped'},'✓ Надето'),
+    loaned   && h('div',{className:'loan-badge'},'✨ Premium'),
+    h(ItemPreview,{item}),
+    h('div',{className:'item-body'},
+      h('div',{className:'item-name'},item.name),
+      item.description && h('div',{className:'item-desc'},item.description)
+    ),
+    h('div',{className:'item-footer'},
+      h('div',{className:`item-price${item.price===0?' free':''}`},
+        item.price===0
+          ? 'Бесплатно'
+          : h(Fragment,null,
+              h('img',{src:'/static/bubbles.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.15em',marginRight:'3px'},alt:''}),
+              item.price.toLocaleString()
+            )
+      ),
+      btns
+    )
+  );
+}
+
+// ── Страница ─────────────────────────────────────────────────────────────────
+function ShopPage(){
+  const [coins,   setCoins]  = useState(INIT_COINS);
+  const [activeTab, setTab]  = useState('all');
+  const [eqMap,   setEqMap]  = useState({...EQUIPPED});
+
+  const buy = useCallback(async item=>{
     const r = await fetch(`/api/shop/buy/${item.id}`,{method:'POST'});
     const j = await r.json();
     if(!r.ok){ toast(j.error||'Ошибка покупки','err'); return; }
-    setOwned(s=>new Set([...s,item.id]));
-    setLoaned(s=>{ const n=new Set(s); n.delete(item.id); LOANED_IDS.delete(item.id); return n; });
-    setCoins(j.coins);
-    OWNED_IDS.add(item.id);
+    OWNED_IDS.add(item.id); LOANED_IDS.delete(item.id);
+    setCoins(j.coins??j.bubbles??0);
     toast(`Куплено: ${item.name}`);
   },[]);
 
-  const equip = useCallback(async(item)=>{
+  const equip = useCallback(async item=>{
     const r = await fetch(`/api/profile/equip/${item.id}`,{method:'POST'});
     const j = await r.json();
     if(!r.ok){ toast(j.error||'Ошибка','err'); return; }
     setEqMap(prev=>{
-      const next = {...prev};
+      const next={...prev};
       if(j.equipped){
         ALL_ITEMS.filter(i=>i.type===item.type&&i.id!==item.id).forEach(i=>delete next[i.id]);
-        OWNED_IDS.forEach(id=>{
-          const it=ALL_ITEMS.find(x=>x.id===id);
-          if(it&&it.type===item.type&&it.id!==item.id) delete next[it.id];
-        });
         next[item.id]=true; EQUIPPED[item.id]=true;
       } else {
         delete next[item.id]; delete EQUIPPED[item.id];
       }
       return next;
     });
-    toast(j.equipped ? `Надето: ${item.name}` : `Снято: ${item.name}`);
+    toast(j.equipped?`Надето: ${item.name}`:`Снято: ${item.name}`);
   },[]);
 
-  const activate = useCallback(async(item)=>{
+  const activate = useCallback(async item=>{
     const r = await fetch(`/api/shop/activate/${item.id}`,{method:'POST'});
     const j = await r.json();
     if(!r.ok){ toast(j.error||'Ошибка активации','err'); return; }
-    setOwned(s=>new Set([...s,item.id]));
-    setLoaned(s=>{ const n=new Set(s); n.add(item.id); LOANED_IDS.add(item.id); OWNED_IDS.add(item.id); return n; });
+    OWNED_IDS.add(item.id); LOANED_IDS.add(item.id);
     toast(`Активировано: ${item.name}`);
   },[]);
 
-  const groups = {};
-  ALL_ITEMS.forEach(item=>{ if(!groups[item.type]) groups[item.type]=[]; groups[item.type].push(item); });
-  const typeOrder = ['frame','background','badge','avatar_slot','bg_slot'];
+  const visible = useMemo(()=>{
+    if(activeTab==='all')   return ALL_ITEMS;
+    if(activeTab==='other') return ALL_ITEMS.filter(i=>OTHER_TYPES.has(i.type));
+    return ALL_ITEMS.filter(i=>i.type===activeTab);
+  },[activeTab]);
 
-  // Форматируем дату истечения Premium
-  let premiumExpStr = null;
-  if(IS_PREMIUM && PREMIUM_EXPIRES){
-    try {
-      const ds = PREMIUM_EXPIRES.includes('+') || PREMIUM_EXPIRES.endsWith('Z') ? PREMIUM_EXPIRES : PREMIUM_EXPIRES+'Z';
-      premiumExpStr = new Date(ds).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
-    } catch(e){ premiumExpStr = PREMIUM_EXPIRES.slice(0,10); }
+  function renderGrid(items,type){
+    if(!items.length) return h('div',{className:'empty-section'},h('div',{className:'eico'},'🛍️'),h('div',null,'Пока ничего нет'));
+    const gc = type==='avatar' ? 'items-grid-avatar' : 'items-grid';
+    return h('div',{className:gc},
+      items.map(item=>h(ItemCard,{key:item.id,item,coins,eqMap,onBuy:buy,onEquip:equip,onActivate:activate}))
+    );
+  }
+
+  function renderAll(){
+    const groups={};
+    visible.forEach(i=>{ (groups[i.type]||(groups[i.type]=[])).push(i); });
+    return GROUP_ORDER.filter(t=>groups[t]).map(type=>
+      h(Fragment,{key:type},
+        h('div',{className:'section-head'},GROUP_LABELS[type]||type),
+        renderGrid(groups[type],type)
+      )
+    );
+  }
+
+  // Форматируем Premium дату
+  let premiumExpStr=null;
+  if(IS_PREMIUM&&PREMIUM_EXPIRES){
+    try{
+      const ds=PREMIUM_EXPIRES.includes('+')||PREMIUM_EXPIRES.endsWith('Z')?PREMIUM_EXPIRES:PREMIUM_EXPIRES+'Z';
+      premiumExpStr=new Date(ds).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+    }catch(e){ premiumExpStr=PREMIUM_EXPIRES.slice(0,10); }
   }
 
   return h(Fragment,null,
     h('div',{className:'shop-hero'},
-      h('h1',null,'Магазин'),
-      h('p',null,'Украшай профиль — покупай за монеты, заработанные чтением'),
-      USER_ID && h('div',{className:'balance-chip'},'',h('span',null,coins.toLocaleString(),' монет')),
-      IS_PREMIUM && premiumExpStr && h('div',{className:'premium-banner'},
-        '✨ Premium активен до ',premiumExpStr
+      h('h1',null,'🛒 Магазин'),
+      h('p',null,'Украшай профиль — покупай за пузырики, заработанные чтением'),
+      USER_ID && h('div',{className:'balance-chip'},
+        h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
+        h('span',null,coins.toLocaleString(),' пузыриков')
+      ),
+      IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'✨ Premium активен до ',premiumExpStr)
+    ),
+
+    h('div',{className:'shop-tabs-wrap'},
+      h('div',{className:'shop-tabs'},
+        TABS.map(t=>h('button',{key:t.id,className:`shop-tab${activeTab===t.id?' active':''}`,onClick:()=>setTab(t.id)},t.label))
       )
     ),
 
     h('div',{className:'shop-container'},
-      !USER_ID && h('div',{className:'login-notice'},
-        'Чтобы покупать товары, ',
-        h('a',{href:'/'},'войди через Telegram')
-      ),
-
-      typeOrder.filter(t=>groups[t]).map(type=>{
-        const {icon,label} = TYPE_LABELS[type]||{icon:'',label:type};
-        return h(Fragment,{key:type},
-          h('div',{className:'section-title'}, icon,' ',label),
-          h('div',{className:'items-grid'},
-            groups[type].map(item=>
-              h(ItemCard,{key:item.id,item,coins,onBuy:buy,onEquip:equip,onActivate:activate})
-            )
-          )
-        );
-      })
+      !USER_ID && h('div',{className:'login-notice'},'Чтобы покупать, ',h('a',{href:'/'},'войди через Telegram')),
+      activeTab==='all' ? renderAll() : renderGrid(visible, activeTab)
     )
   );
 }
