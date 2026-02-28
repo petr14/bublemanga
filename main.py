@@ -3395,8 +3395,8 @@ def top_page():
         '''SELECT u.id, u.telegram_first_name, u.telegram_username,
                   u.is_premium,
                   s.xp, s.level, s.total_chapters_read,
-                  p.avatar_url,
-                  COALESCE(p.custom_name, '') as custom_name,
+                  COALESCE(p.custom_avatar_url, p.avatar_url) as avatar_url,
+                  NULLIF(TRIM(COALESCE(p.custom_name, '')), '') as custom_name,
                   (SELECT si.css_value FROM shop_items si
                    JOIN user_items ui ON si.id = ui.item_id
                    WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
