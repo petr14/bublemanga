@@ -335,6 +335,35 @@ def init_db():
         UNIQUE(collection_id, manga_id)
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS collection_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        collection_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, collection_id)
+    )''')
+
+    # Очередь уведомлений для не-премиум пользователей (ежедневный дайджест)
+    c.execute('''CREATE TABLE IF NOT EXISTS notification_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        manga_id TEXT NOT NULL,
+        manga_title TEXT NOT NULL,
+        manga_slug TEXT NOT NULL,
+        chapter_number TEXT,
+        chapter_volume TEXT,
+        chapter_name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, manga_id, chapter_number)
+    )''')
+
+    # Миграция: добавить колонку last_digest_date в users
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN last_digest_date TEXT')
+        conn.commit()
+    except Exception:
+        pass  # Колонка уже существует
+
     # Все прочитанные главы (одна запись на главу, в отличие от reading_history)
     c.execute('''CREATE TABLE IF NOT EXISTS chapters_read (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -468,6 +497,9 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_chapters_read_user_manga ON chapters_read(user_id, manga_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_collection_items ON collection_items(collection_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_collection_likes ON collection_likes(collection_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_collection_likes_user ON collection_likes(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_notification_queue_user ON notification_queue(user_id)')
 
     # Комментарии к манге
     c.execute('''CREATE TABLE IF NOT EXISTS comments (
@@ -1995,17 +2027,45 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
     # Уведомить подписанных пользователей
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT user_id FROM subscriptions WHERE manga_id = ?', (manga_id,))
+    c.execute(
+        '''SELECT s.user_id, u.is_premium, u.notifications_enabled
+           FROM subscriptions s
+           JOIN users u ON s.user_id = u.id
+           WHERE s.manga_id = ? AND u.is_active = 1''',
+        (manga_id,)
+    )
     subscribers = c.fetchall()
     conn.close()
-    
+
     for sub in subscribers:
-        uid = sub[0]
-        coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
-        if _bot_loop and _bot_loop.is_running():
-            asyncio.run_coroutine_threadsafe(coro, _bot_loop)
+        uid = sub['user_id']
+        if sub['notifications_enabled'] == 0:
+            continue
+        if sub['is_premium']:
+            # Премиум: мгновенное уведомление со ссылкой на чтение
+            coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
+            if _bot_loop and _bot_loop.is_running():
+                asyncio.run_coroutine_threadsafe(coro, _bot_loop)
+            else:
+                asyncio.run(coro)
         else:
-            asyncio.run(coro)
+            # Не премиум: добавить в очередь ежедневного дайджеста
+            try:
+                conn2 = get_db()
+                c2 = conn2.cursor()
+                c2.execute(
+                    '''INSERT OR IGNORE INTO notification_queue
+                       (user_id, manga_id, manga_title, manga_slug, chapter_number, chapter_volume, chapter_name)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (uid, manga_id, manga_title, manga_slug,
+                     str(chapter_number) if chapter_number else None,
+                     str(chapter_volume) if chapter_volume else None,
+                     chapter_name)
+                )
+                conn2.commit()
+                conn2.close()
+            except Exception as e:
+                print(f"❌ Ошибка добавления в очередь: {e}")
 
 def check_new_chapters():
     """Проверка новых глав и обновление БД всеми 21 главой из API"""
@@ -2077,15 +2137,101 @@ def _revoke_premium_loans(c, user_id):
     c.execute('DELETE FROM user_items WHERE user_id = ? AND is_premium_loan = 1', (user_id,))
 
 
+async def send_daily_digest():
+    """Отправить ежедневный дайджест новых глав непремиум-пользователям"""
+    global telegram_app
+    if not telegram_app:
+        return
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        # Пользователи с очередью и не получавшие дайджест сегодня
+        c.execute(
+            '''SELECT DISTINCT nq.user_id, u.telegram_id
+               FROM notification_queue nq
+               JOIN users u ON nq.user_id = u.id
+               WHERE (u.last_digest_date IS NULL OR u.last_digest_date < ?)
+                 AND u.is_active = 1 AND u.notifications_enabled = 1''',
+            (today,)
+        )
+        users = c.fetchall()
+        conn.close()
+    except Exception as e:
+        print(f"❌ Ошибка получения очереди дайджестов: {e}")
+        return
+
+    for row in users:
+        user_id = row['user_id']
+        telegram_id = row['telegram_id']
+        try:
+            conn2 = get_db()
+            c2 = conn2.cursor()
+            c2.execute(
+                '''SELECT manga_title, manga_slug, chapter_number, chapter_volume, chapter_name
+                   FROM notification_queue WHERE user_id = ?
+                   ORDER BY created_at ASC''',
+                (user_id,)
+            )
+            chapters = c2.fetchall()
+            if not chapters:
+                conn2.close()
+                continue
+
+            message = "📚 <b>Новые главы из твоих подписок:</b>\n\n"
+            for ch in chapters:
+                message += f"📖 <b>{ch['manga_title']}</b>"
+                if ch['chapter_number']:
+                    message += f" — Глава {ch['chapter_number']}"
+                if ch['chapter_volume']:
+                    message += f" (Том {ch['chapter_volume']})"
+                if ch['chapter_name']:
+                    message += f"\n    <i>{ch['chapter_name']}</i>"
+                message += "\n"
+            message += "\n💎 <i>Оформи Premium — получай мгновенные уведомления с прямыми ссылками на чтение!</i>"
+
+            await telegram_app.bot.send_message(
+                chat_id=telegram_id,
+                text=message,
+                parse_mode='HTML'
+            )
+            # Обновить дату дайджеста и очистить очередь
+            c2.execute('UPDATE users SET last_digest_date = ? WHERE id = ?', (today, user_id))
+            c2.execute('DELETE FROM notification_queue WHERE user_id = ?', (user_id,))
+            conn2.commit()
+        except Exception as e:
+            print(f"❌ Ошибка отправки дайджеста пользователю {user_id}: {e}")
+        finally:
+            try:
+                conn2.close()
+            except Exception:
+                pass
+
+
 def background_checker():
     """Фоновый процесс проверки"""
     logger.info("🤖 Фоновый мониторинг запущен!")
     check_new_chapters()
-    
+    _last_digest_day = None
+
     while True:
         try:
             time.sleep(60)  # Проверка каждую минуту
             check_new_chapters()
+
+            # Ежедневный дайджест: один раз в день
+            today = datetime.utcnow().strftime('%Y-%m-%d')
+            if _last_digest_day != today:
+                _last_digest_day = today
+                coro = send_daily_digest()
+                if _bot_loop and _bot_loop.is_running():
+                    asyncio.run_coroutine_threadsafe(coro, _bot_loop)
+                else:
+                    try:
+                        asyncio.run(coro)
+                    except Exception:
+                        pass
+
             # Проверяем истёкшие Premium подписки
             try:
                 now_iso = datetime.utcnow().isoformat()
@@ -4300,11 +4446,12 @@ def api_user_subscriptions():
 def api_user_collections():
     """Коллекции пользователя (uid= для просмотра чужих публичных)"""
     uid = request.args.get('uid', type=int)
+    viewer_id = session.get('user_id')
     if uid:
         target_id = uid
         only_public = True
     else:
-        target_id = session.get('user_id')
+        target_id = viewer_id
         only_public = False
     if not target_id:
         return jsonify([])
@@ -4313,9 +4460,11 @@ def api_user_collections():
     if only_public:
         c.execute(
             '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at,
-                      COUNT(ci.manga_id) as items_count
+                      COUNT(DISTINCT ci.manga_id) as items_count,
+                      COUNT(DISTINCT lk.user_id) as likes_count
                FROM collections c
                LEFT JOIN collection_items ci ON c.id = ci.collection_id
+               LEFT JOIN collection_likes lk ON c.id = lk.collection_id
                WHERE c.user_id = ? AND c.is_public = 1
                GROUP BY c.id
                ORDER BY c.created_at DESC''',
@@ -4324,15 +4473,26 @@ def api_user_collections():
     else:
         c.execute(
             '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at,
-                      COUNT(ci.manga_id) as items_count
+                      COUNT(DISTINCT ci.manga_id) as items_count,
+                      COUNT(DISTINCT lk.user_id) as likes_count
                FROM collections c
                LEFT JOIN collection_items ci ON c.id = ci.collection_id
+               LEFT JOIN collection_likes lk ON c.id = lk.collection_id
                WHERE c.user_id = ?
                GROUP BY c.id
                ORDER BY c.created_at DESC''',
             (target_id,)
         )
     rows = [dict(r) for r in c.fetchall()]
+    # Пометить лайкнутые текущим пользователем
+    if viewer_id and rows:
+        ids = [r['id'] for r in rows]
+        placeholders = ','.join('?' * len(ids))
+        c.execute(f'SELECT collection_id FROM collection_likes WHERE user_id = ? AND collection_id IN ({placeholders})',
+                  [viewer_id] + ids)
+        liked_ids = {r[0] for r in c.fetchall()}
+        for r in rows:
+            r['my_like'] = r['id'] in liked_ids
     conn.close()
     return jsonify(rows)
 
@@ -4464,6 +4624,160 @@ def api_remove_from_collection(coll_id, manga_id):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
+
+@app.route('/api/collections/<int:coll_id>/like', methods=['POST', 'DELETE'])
+def api_collection_like(coll_id):
+    """Лайк / анлайк коллекции"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT id, is_public, user_id FROM collections WHERE id = ?', (coll_id,))
+    coll = c.fetchone()
+    if not coll:
+        conn.close()
+        return jsonify({'error': 'Не найдено'}), 404
+    if not coll['is_public'] and coll['user_id'] != user_id:
+        conn.close()
+        return jsonify({'error': 'Доступ запрещён'}), 403
+    if request.method == 'POST':
+        c.execute('INSERT OR IGNORE INTO collection_likes (user_id, collection_id) VALUES (?, ?)', (user_id, coll_id))
+    else:
+        c.execute('DELETE FROM collection_likes WHERE user_id = ? AND collection_id = ?', (user_id, coll_id))
+    conn.commit()
+    c.execute('SELECT COUNT(*) as cnt FROM collection_likes WHERE collection_id = ?', (coll_id,))
+    likes_count = c.fetchone()['cnt']
+    conn.close()
+    return jsonify({'success': True, 'likes_count': likes_count, 'my_like': request.method == 'POST'})
+
+
+@app.route('/upload/collection-cover', methods=['POST'])
+def upload_collection_cover():
+    """Загрузить обложку коллекции"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    coll_id = request.form.get('collection_id', type=int)
+    if not coll_id:
+        return jsonify({'error': 'collection_id обязателен'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT id FROM collections WHERE id = ? AND user_id = ?', (coll_id, user_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'error': 'Коллекция не найдена'}), 404
+    if 'file' not in request.files:
+        conn.close()
+        return jsonify({'error': 'Файл не выбран'}), 400
+    f = request.files['file']
+    if not f.filename or not _allowed_file(f.filename):
+        conn.close()
+        return jsonify({'error': 'Недопустимый формат файла'}), 400
+    coll_dir = os.path.join(UPLOAD_FOLDER, 'collections', str(coll_id))
+    os.makedirs(coll_dir, exist_ok=True)
+    ext = f.filename.rsplit('.', 1)[1].lower()
+    filename = f'cover.{ext}'
+    f.save(os.path.join(coll_dir, filename))
+    cover_url = f'/static/uploads/collections/{coll_id}/{filename}'
+    c.execute('UPDATE collections SET cover_url = ? WHERE id = ?', (cover_url, coll_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'cover_url': cover_url})
+
+
+@app.route('/collection/<int:coll_id>')
+def collection_detail(coll_id):
+    """Страница коллекции"""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        '''SELECT c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at, c.user_id,
+                  COUNT(DISTINCT ci.manga_id) as items_count,
+                  COUNT(DISTINCT lk.user_id) as likes_count,
+                  COALESCE(p.custom_avatar_url, p.avatar_url) as owner_avatar,
+                  NULLIF(TRIM(COALESCE(p.custom_name, '')), '') as owner_name,
+                  u.telegram_first_name, u.telegram_username
+           FROM collections c
+           LEFT JOIN collection_items ci ON c.id = ci.collection_id
+           LEFT JOIN collection_likes lk ON c.id = lk.collection_id
+           LEFT JOIN user_profile p ON c.user_id = p.user_id
+           LEFT JOIN users u ON c.user_id = u.id
+           WHERE c.id = ?
+           GROUP BY c.id''',
+        (coll_id,)
+    )
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        abort(404)
+    coll = dict(row)
+    user_id = session.get('user_id')
+    if not coll['is_public'] and coll['user_id'] != user_id:
+        conn.close()
+        abort(403)
+    my_like = False
+    if user_id:
+        c.execute('SELECT 1 FROM collection_likes WHERE user_id = ? AND collection_id = ?', (user_id, coll_id))
+        my_like = c.fetchone() is not None
+    c.execute(
+        '''SELECT m.manga_id, m.manga_title, m.manga_slug, m.cover_url, m.manga_type
+           FROM collection_items ci
+           JOIN manga m ON ci.manga_id = m.manga_id
+           WHERE ci.collection_id = ?
+           ORDER BY ci.added_at DESC''',
+        (coll_id,)
+    )
+    items = [dict(r) for r in c.fetchall()]
+    conn.close()
+    owner_name = (coll['owner_name'] or coll['telegram_first_name'] or
+                  coll['telegram_username'] or f'#{coll["user_id"]}')
+    is_owner = (user_id == coll['user_id'])
+    return render_template('collection_detail.html',
+                           coll=coll, items=items, my_like=my_like,
+                           owner_name=owner_name, user_id=user_id, is_owner=is_owner)
+
+
+@app.route('/collections/top')
+def collections_top_page():
+    """Топ коллекций"""
+    conn = get_db()
+    c = conn.cursor()
+    user_id = session.get('user_id')
+    c.execute(
+        '''SELECT c.id, c.name, c.description, c.cover_url, c.created_at, c.user_id,
+                  COUNT(DISTINCT ci.manga_id) as items_count,
+                  COUNT(DISTINCT lk.user_id) as likes_count,
+                  COALESCE(p.custom_avatar_url, p.avatar_url) as owner_avatar,
+                  NULLIF(TRIM(COALESCE(p.custom_name, '')), '') as owner_name,
+                  u.telegram_first_name, u.telegram_username
+           FROM collections c
+           LEFT JOIN collection_items ci ON c.id = ci.collection_id
+           LEFT JOIN collection_likes lk ON c.id = lk.collection_id
+           LEFT JOIN user_profile p ON c.user_id = p.user_id
+           LEFT JOIN users u ON c.user_id = u.id
+           WHERE c.is_public = 1
+           GROUP BY c.id
+           ORDER BY likes_count DESC, items_count DESC, c.created_at DESC
+           LIMIT 50'''
+    )
+    collections = []
+    for row in c.fetchall():
+        d = dict(row)
+        d['owner_name'] = (d['owner_name'] or d['telegram_first_name'] or
+                           d['telegram_username'] or f'#{d["user_id"]}')
+        collections.append(d)
+    my_likes = set()
+    if user_id and collections:
+        ids = [d['id'] for d in collections]
+        placeholders = ','.join('?' * len(ids))
+        c.execute(f'SELECT collection_id FROM collection_likes WHERE user_id = ? AND collection_id IN ({placeholders})',
+                  [user_id] + ids)
+        my_likes = {r[0] for r in c.fetchall()}
+    conn.close()
+    return render_template('collections_top.html',
+                           collections=collections, my_likes=my_likes, user_id=user_id)
 
 
 # ==================== АДМИНКА ====================
