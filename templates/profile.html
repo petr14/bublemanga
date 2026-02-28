@@ -425,8 +425,8 @@
 
         <div class="hero-info">
             <div>
-                <span class="level-badge">⚡ Уровень {{ profile.level }}</span>
-                {% if profile.user.is_premium %}<span class="premium-badge">⭐ Premium</span>{% endif %}
+                <span class="level-badge"> Уровень {{ profile.level }}</span>
+                {% if profile.user.is_premium %}<span class="premium-badge"> Premium</span>{% endif %}
             </div>
             <h1 class="profile-name">{{ profile.display_name }}</h1>
             <p class="profile-bio" id="heroBio">{{ profile.profile.bio if profile.profile and profile.profile.bio else 'Нет описания' }}</p>
@@ -446,7 +446,7 @@
             </div>
             {% if is_own %}
             <div class="hero-actions">
-                <button class="btn-edit" onclick="openEditModal('main')">✏️ Редактировать профиль</button>
+                <button class="btn-edit" onclick="openEditModal('main')"> Редактировать профиль</button>
             </div>
             {% endif %}
         </div>
@@ -455,8 +455,8 @@
 
 <!-- TABS -->
 <div class="tabs-bar">
-    <button class="tab-btn active" data-tab="profile">📊 Профиль</button>
-    <button class="tab-btn" data-tab="library">📚 Библиотека</button>
+    <button class="tab-btn active" data-tab="profile"> Профиль</button>
+    <button class="tab-btn" data-tab="library"> Библиотека</button>
 </div>
 
 <!-- ПРОФИЛЬ -->
@@ -470,13 +470,13 @@
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card"><span class="stat-icon">📖</span><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><span class="stat-name">Глав прочитано</span></div>
-        <div class="stat-card"><span class="stat-icon">📄</span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
-        <div class="stat-card"><span class="stat-icon">⚡</span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
+        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><span class="stat-name">Глав прочитано</span></div>
+        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
+        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
         <div class="stat-card"><span class="stat-icon"><img src="/static/bubbles.svg" style="width:24px;height:24px;vertical-align:middle" alt=""></span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Шарики</span></div>
     </div>
 
-    <div class="section-head">🏆 Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
+    <div class="section-head"> Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
     {% if profile.achievements %}
     <div class="ach-grid">
         {% for a in profile.achievements %}
@@ -492,7 +492,7 @@
     {% endif %}
 
     {% if is_own %}
-    <div class="section-head" style="margin-bottom:12px">📋 Задания</div>
+    <div class="section-head" style="margin-bottom:12px"> Задания</div>
     <div id="quests-container">
       <div class="quests-tabs">
         <button class="quest-tab-btn active" onclick="switchQuestTab('active',this)">Активные</button>
@@ -507,9 +507,9 @@
 <!-- БИБЛИОТЕКА -->
 <div id="tab-library" class="tab-pane">
     <div class="lib-tabs">
-        {% if is_own %}<button class="lib-btn active" data-lib="history">📜 История</button>{% endif %}
+        {% if is_own %}<button class="lib-btn active" data-lib="history"> История</button>{% endif %}
         <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">🔔 Подписки</button>
-        <button class="lib-btn" data-lib="collections">📁 Коллекции</button>
+        <button class="lib-btn" data-lib="collections"> Коллекции</button>
     </div>
 
     {% if is_own %}
@@ -536,7 +536,7 @@
 <!-- Редактировать профиль (единый modal с табами) -->
 <div class="modal-overlay" id="editProfileModal">
     <div class="modal modal-wide">
-        <div class="modal-title">✏️ Редактировать профиль <button class="modal-close" onclick="closeModal('editProfileModal')">✕</button></div>
+        <div class="modal-title"> Редактировать профиль <button class="modal-close" onclick="closeModal('editProfileModal')">✕</button></div>
 
         <!-- Табы -->
         <div class="edit-tabs">
@@ -582,7 +582,7 @@
             </div>
             {% else %}
             <div class="premium-lock-notice" style="margin-bottom:16px">
-                <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+                <div style="font-size:2rem;margin-bottom:8px"></div>
                 <div style="font-weight:700;margin-bottom:6px">Требуется Premium</div>
                 <div style="font-size:13px;color:var(--text2)">Загрузка кастомного аватара доступна только Premium пользователям.</div>
             </div>
@@ -612,7 +612,7 @@
             </div>
             {% else %}
             <div class="premium-lock-notice" style="margin-bottom:16px">
-                <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+                <div style="font-size:2rem;margin-bottom:8px"></div>
                 <div style="font-weight:700;margin-bottom:6px">Требуется Premium для своего фона</div>
             </div>
             {% endif %}
@@ -625,7 +625,7 @@
 <!-- Коллекция -->
 <div class="modal-overlay" id="collModal">
     <div class="modal">
-        <div class="modal-title"><span id="collModalTitle">📁 Новая коллекция</span> <button class="modal-close" onclick="closeModal('collModal')">✕</button></div>
+        <div class="modal-title"><span id="collModalTitle"> Новая коллекция</span> <button class="modal-close" onclick="closeModal('collModal')">✕</button></div>
         <div class="field"><label>Название *</label><input type="text" id="collName" maxlength="100" placeholder="Например: Любимые isekai"></div>
         <div class="field"><label>Описание</label><textarea id="collDesc" maxlength="500" placeholder="Необязательно..."></textarea></div>
         <div class="field">
@@ -675,12 +675,12 @@
         const pct = Math.min(100, q.condition_value > 0 ? Math.round((q.progress / q.condition_value) * 100) : 0);
         const iconHtml = q.icon_url
             ? `<img src="${esc(q.icon_url)}" alt="">`
-            : `<span>${esc(q.icon || '📋')}</span>`;
+            : `<span>${esc(q.icon || '')}</span>`;
         const badge = done
             ? `<span class="quest-card-badge-done">✓ Готово</span>`
             : `<span class="quest-card-badge-new">Ур. ${q.required_level}+</span>`;
         const rewards = [];
-        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon">⚡</div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
+        if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon"></div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
         if (q.coins_reward) rewards.push(`<div class="quest-reward-badge coins"><div class="quest-reward-icon"><img src="/static/bubbles.svg"  alt=""></div><span class="quest-reward-val">${q.coins_reward}</span></div>`);
         return `
         <div class="quest-card${done ? ' done' : ''}">
@@ -709,7 +709,7 @@
         const list = tab === 'active' ? active : done;
         const el = document.getElementById(`qtab-${tab}`);
         if (!list.length) {
-            el.innerHTML = `<p class="ach-empty">${tab === 'active' ? 'Все задания выполнены! 🎉' : 'Выполненных заданий пока нет.'}</p>`;
+            el.innerHTML = `<p class="ach-empty">${tab === 'active' ? 'Все задания выполнены! ' : 'Выполненных заданий пока нет.'}</p>`;
             return;
         }
         el.innerHTML = `<div class="quest-cards">${list.map(renderQuestCard).join('')}</div>`;
@@ -777,7 +777,7 @@
             .then(r => r.json())
             .then(rows => {
                 const el = document.getElementById('historyContent');
-                if (!rows.length) { el.innerHTML = emptyState('📜', 'История пуста', 'Начни читать мангу!'); return; }
+                if (!rows.length) { el.innerHTML = emptyState('', 'История пуста', 'Начни читать мангу!'); return; }
                 el.innerHTML = '<div class="history-list">' + rows.map(r => `
                     <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}" class="hitem">
                         <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">
@@ -819,8 +819,8 @@
 
     function renderColls(colls) {
         const el = document.getElementById('collsContent');
-        if (!colls.length) { el.innerHTML = emptyState('📁', 'Нет коллекций', IS_OWN ? 'Создай первую коллекцию!' : 'Пока нет публичных коллекций'); return; }
-        const emojis = ['📚','🎌','⚔️','🌸','🔥','👾','💫','🎭'];
+        if (!colls.length) { el.innerHTML = emptyState('', 'Нет коллекций', IS_OWN ? 'Создай первую коллекцию!' : 'Пока нет публичных коллекций'); return; }
+        const emojis = ['','🎌','⚔️','🌸','🔥','👾','💫','🎭'];
         el.innerHTML = '<div class="coll-grid">' + colls.map((c, i) => `
             <div class="coll-card" onclick="openColl(${c.id}, ${JSON.stringify(c.name)})">
                 <div class="coll-cover">${emojis[i % emojis.length]}</div>
@@ -828,9 +828,9 @@
                     <div class="coll-name">${esc(c.name)}</div>
                     <div class="coll-desc">${esc(c.description || '—')}</div>
                     <div class="coll-meta">
-                        <span class="coll-count">📖 ${c.items_count} манг</span>
+                        <span class="coll-count"> ${c.items_count} манг</span>
                         ${IS_OWN ? `<div class="coll-actions" onclick="event.stopPropagation()">
-                            <button class="coll-btn" onclick="editColl(${c.id},${JSON.stringify(c.name)},${JSON.stringify(c.description||'')},${c.is_public})" title="Изменить">✏️</button>
+                            <button class="coll-btn" onclick="editColl(${c.id},${JSON.stringify(c.name)},${JSON.stringify(c.description||'')},${c.is_public})" title="Изменить"></button>
                             <button class="coll-btn del" onclick="deleteColl(${c.id})" title="Удалить">🗑</button>
                         </div>` : ''}
                     </div>
@@ -847,7 +847,7 @@
             .then(r => r.json())
             .then(items => {
                 const box = document.getElementById('collItemsContent');
-                if (!items.length) { box.innerHTML = emptyState('📖', 'Коллекция пуста', IS_OWN ? 'Добавляй мангу со страниц манги' : ''); return; }
+                if (!items.length) { box.innerHTML = emptyState('', 'Коллекция пуста', IS_OWN ? 'Добавляй мангу со страниц манги' : ''); return; }
                 box.innerHTML = '<div class="manga-grid-lib">' + items.map(m => `
                     <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
                         ${IS_OWN ? `<button class="mcard-remove" onclick="event.stopPropagation();removeManga(${id},'${esc(m.manga_id)}',this.closest('.mcard'))" title="Убрать">✕</button>` : ''}
@@ -864,7 +864,7 @@
 
     function editColl(id, name, desc, isPublic) {
         editingCollId = id;
-        document.getElementById('collModalTitle').textContent = '✏️ Изменить коллекцию';
+        document.getElementById('collModalTitle').textContent = ' Изменить коллекцию';
         document.getElementById('collName').value = name;
         document.getElementById('collDesc').value = desc;
         document.getElementById('collPublic').checked = !!isPublic;
@@ -899,7 +899,7 @@
             editingCollId = null;
             document.getElementById('collName').value = '';
             document.getElementById('collDesc').value = '';
-            document.getElementById('collModalTitle').textContent = '📁 Новая коллекция';
+            document.getElementById('collModalTitle').textContent = ' Новая коллекция';
             document.getElementById('collSaveBtn').textContent = 'Создать';
             libLoaded['collections'] = false;
             fetchColls();
