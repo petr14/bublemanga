@@ -64,7 +64,7 @@ CRYPTOCLOUD_SECRET_KEY = os.environ.get('CRYPTOCLOUD_SECRET_KEY', '')  # для 
 CRYPTOCLOUD_SHOP_ID    = os.environ.get('CRYPTOCLOUD_SHOP_ID', '')
 
 # Базовый URL сайта (для redirect после оплаты)
-SITE_URL = 'http://91.196.34.216'
+SITE_URL = 'https://91.196.34.216'
 
 app = Flask(__name__)
 
@@ -1810,7 +1810,7 @@ def get_recent_chapters_from_api(limit=21):
                 'chapter_volume': latest_chapter.get('volume'),
                 'chapter_name': latest_chapter.get('name'),
                 'created_at': latest_chapter.get('createdAt'),
-                'chapter_url': f"http://91.196.34.216/read/{manga_slug}/{latest_chapter.get('slug')}"
+                'chapter_url': f"{SITE_URL}/read/{manga_slug}/{latest_chapter.get('slug')}"
             }
             
             recent_chapters.append(chapter_data)
@@ -1996,7 +1996,7 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
     chapter_volume = chapter_info.get("volume")
     chapter_name = chapter_info.get("name")
     chapter_id = chapter_info.get("id")
-    chapter_url = f"http://91.196.34.216/read/{manga_slug}/{chapter_slug}"
+    chapter_url = f"{SITE_URL}/read/{manga_slug}/{chapter_slug}"
 
     pages = get_chapter_pages(chapter_slug)
     if not pages:
@@ -2358,8 +2358,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await buy_command(update, context)
         return
 
-    login_url = f"http://91.196.34.216/login/{user['login_token']}"
-    webapp_url = f"http://91.196.34.216"
+    login_url = f"{SITE_URL}/login/{user['login_token']}"
+    webapp_url = SITE_URL
 
     keyboard = [
         [InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
@@ -2438,7 +2438,7 @@ async def handle_search_message(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard.append([
         InlineKeyboardButton(
             "🌐 Открыть все результаты на сайте",
-            url=f"http://91.196.34.216/search?q={query}"
+            url=f"{SITE_URL}/search?q={query}"
         )
     ])
     
@@ -2519,8 +2519,8 @@ async def my_subscriptions_callback(update: Update, context: ContextTypes.DEFAUL
         ])
     
     keyboard.append([
-        InlineKeyboardButton("🌐 Открыть на сайте", 
-                           url=f"http://91.196.34.216/login/{user['login_token']}")
+        InlineKeyboardButton("🌐 Открыть на сайте",
+                           url=f"{SITE_URL}/login/{user['login_token']}")
     ])
     keyboard.append([
         InlineKeyboardButton("◀️ Назад", callback_data="back_to_start")
@@ -2563,9 +2563,9 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text("❌ Ошибка пользователя")
         return
     
-    login_url = f"http://91.196.34.216/login/{user['login_token']}"
-    webapp_url = f"http://91.196.34.216"
-    
+    login_url = f"{SITE_URL}/login/{user['login_token']}"
+    webapp_url = SITE_URL
+
     keyboard = [
         [InlineKeyboardButton("🌐 Открыть сайт", url=webapp_url)],
         [InlineKeyboardButton("📝 Войти на сайте", url=login_url)],
@@ -3201,7 +3201,7 @@ def read_chapter(manga_slug, chapter_slug):
             'manga_slug': manga_slug_db,  # Используем manga_slug из БД
             'pages_json': json.dumps(page_urls),
             'pages': page_urls,
-            'chapter_url': f"http://91.196.34.216/read/{manga_slug_db}/{chapter_slug}"
+            'chapter_url': f"{SITE_URL}/read/{manga_slug_db}/{chapter_slug}"
         }
         
         # Показываем главу без сохранения в БД
@@ -5778,6 +5778,6 @@ if __name__ == "__main__":
     # Запуск Telegram бота (теперь он сам создает поток)
     run_telegram_bot()
     
-    print("🌐 Веб-сервер запущен на http://91.196.34.216")
+    print(f"🌐 Веб-сервер запущен на {SITE_URL}")
     socketio.run(app, debug=True, use_reloader=False,
                  host='0.0.0.0', port=80, allow_unsafe_werkzeug=True)
