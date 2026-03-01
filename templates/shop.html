@@ -30,7 +30,7 @@
     .nav-btn.active { background:var(--primary); border-color:transparent; }
     @media(min-width:1024px){ .nav-btn:hover { background:rgba(255,255,255,.09); } .nav-btn.active:hover { opacity:.88; } }
 
-    .page-wrap { padding-top:72px; }
+    .page-wrap { padding-top:0; }
 
     /* ── Hero ── */
     .shop-hero { text-align:center; padding:1.8rem 1rem 1.4rem; background:linear-gradient(135deg,#08081a 0%,#0f0c2a 50%,#10091e 100%); border-bottom:1px solid var(--border); }
@@ -41,7 +41,8 @@
     .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
     /* ── Вкладки ── */
-    .shop-tabs-wrap { position:sticky; top:60px; z-index:100; background:rgba(10,10,10,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    .shop-tabs-wrap { position:sticky; top:160px; z-index:100; background:rgba(10,10,10,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    @media(max-width:700px){ .shop-tabs-wrap { top:100px; } }
     .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; justify-content:center; }
     .shop-tabs::-webkit-scrollbar { display:none; }
     .shop-tab { flex-shrink:0; padding:7px 15px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:50px; color:var(--text-2); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
@@ -192,10 +193,30 @@
       .hero-badges { gap:.4rem; margin-top:.6rem; }
       .balance-chip { font-size:.82rem; padding:.28rem .8rem; }
       .premium-banner { font-size:.75rem; padding:.28rem .8rem; }
-      .items-grid        { grid-template-columns:repeat(2,1fr); gap:.6rem; }
-      .items-grid-avatar { grid-template-columns:repeat(2,1fr); gap:.6rem; }
-      .coins-grid        { grid-template-columns:repeat(2,1fr); gap:.6rem; }
-      .shop-container    { padding-left:12px; padding-right:12px; }
+      .items-grid        { grid-template-columns:repeat(2,1fr); gap:.55rem; }
+      .items-grid-avatar { grid-template-columns:repeat(2,1fr); gap:.55rem; }
+      .coins-grid        { grid-template-columns:repeat(2,1fr); gap:.55rem; }
+      .shop-container    { padding-left:10px; padding-right:10px; }
+      /* Card previews — shorter for 2-column layout */
+      .item-preview-avatar { height:110px; }
+      .avatar-circle { width:68px; height:68px; }
+      .item-preview-frame { height:100px; }
+      .item-preview-bg { height:88px; }
+      .item-preview { height:96px; font-size:2.2rem; }
+      /* Card body/footer — tighter */
+      .item-body { padding:.5rem .6rem; gap:.2rem; }
+      .item-name { font-size:.78rem; }
+      .item-desc { font-size:.67rem; }
+      .item-footer { padding:.35rem .6rem .55rem; gap:4px; flex-wrap:nowrap; }
+      .item-price { font-size:.75rem; }
+      .btn-buy,.btn-equip,.btn-unequip,.btn-activate { padding:.26rem .55rem; font-size:.7rem; }
+      .btn-buy-perm { padding:.22rem .45rem; font-size:.64rem; }
+      /* Coin packages — compact */
+      .coin-pkg-card { padding:.9rem .75rem; gap:.5rem; border-radius:14px; }
+      .coin-pkg-amount { font-size:1.5rem; }
+      .coin-pkg-label { font-size:.72rem; }
+      .coin-pkg-price { font-size:.75rem; padding:.22rem .65rem; }
+      .btn-stars { font-size:.76rem; padding:.42rem .8rem; }
     }
   </style>
 </head>
