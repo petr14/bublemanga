@@ -1,0 +1,90 @@
+{# ═══ Общий футер BubbleManga ════════════════════════════════════════════════ #}
+<style>
+.g-footer {
+  background: rgba(10, 10, 10, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin-top: 40px;
+  padding: 28px 20px;
+}
+.g-footer-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.g-footer-brand { display: flex; flex-direction: column; gap: 3px; }
+.g-footer-logo {
+  font-size: 17px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-decoration: none;
+  font-family: 'Poppins', sans-serif;
+}
+.g-footer-tagline {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'Poppins', sans-serif;
+}
+.g-footer-nav {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.g-footer-nav a {
+  padding: 5px 11px;
+  border-radius: 7px;
+  color: rgba(244, 244, 245, 0.55);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all .17s;
+  font-family: 'Poppins', sans-serif;
+}
+.g-footer-nav a:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f4f5;
+}
+.g-footer-copy {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Poppins', sans-serif;
+}
+.g-footer-copy a {
+  color: rgba(102, 126, 234, 0.65);
+  text-decoration: none;
+  transition: color .17s;
+}
+.g-footer-copy a:hover { color: #818cf8; }
+@media (max-width: 600px) {
+  .g-footer-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .g-footer-nav { gap: 0; }
+}
+</style>
+
+<footer class="g-footer">
+  <div class="g-footer-inner">
+    <div class="g-footer-brand">
+      <a href="/" class="g-footer-logo">BubbleManga</a>
+      <p class="g-footer-tagline">Читайте мангу онлайн</p>
+    </div>
+    <nav class="g-footer-nav">
+      <a href="/">Главная</a>
+      <a href="/top">Топ</a>
+      <a href="/collections/top">Коллекции</a>
+      <a href="/shop">Магазин</a>
+    </nav>
+    <div class="g-footer-copy">
+      <span>© 2025 BubbleManga</span>
+      <a href="https://t.me/hookah_p_bot" target="_blank">Telegram</a>
+    </div>
+  </div>
+</footer>
