@@ -352,232 +352,329 @@
     </style>
 </head>
 <style>
-/* ── Pagination ──────────────────────────────────────────── */
-.pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin: 36px 0 20px;
-    flex-wrap: wrap;
+/* ── Sort bar ──────────────────────────────────────────────── */
+.sort-bar {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 20px;
 }
-.pg-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 38px;
-    height: 38px;
-    padding: 0 10px;
-    border-radius: 10px;
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
-    color: #ccc;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 500;
-    transition: background .18s, border-color .18s, color .18s;
-    cursor: pointer;
+.sort-btn {
+    padding: 7px 16px; border-radius: 20px; border: 1px solid #2a2a2a;
+    background: #1a1a1a; color: #aaa; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all .18s; white-space: nowrap;
 }
-.pg-btn:hover { background: #2a2a2a; color: #fff; border-color: #667eea; }
-.pg-btn.active { background: linear-gradient(135deg,#667eea,#764ba2); border-color: transparent; color: #fff; font-weight: 700; cursor: default; }
-.pg-btn.disabled { opacity: .35; pointer-events: none; }
-.pg-dots { color: #555; padding: 0 4px; line-height: 38px; }
-
-/* ── Search info bar ─────────────────────────────────────── */
-.search-info { margin-bottom: 24px; padding: 18px 20px; background: #1a1a1a; border-radius: 10px; }
-.search-info h1 { font-size: 1.5em; margin-bottom: 6px; color: #667eea; }
-.search-info p { color: #999; font-size: .9em; }
+.sort-btn:hover { background: #242424; color: #fff; border-color: #667eea; }
+.sort-btn.active {
+    background: linear-gradient(135deg,#667eea,#764ba2);
+    border-color: transparent; color: #fff; font-weight: 600;
+}
+/* ── Search info bar ───────────────────────────────────────── */
+.search-info { margin-bottom: 20px; padding: 16px 20px; background: #1a1a1a; border-radius: 10px; }
+.search-info h1 { font-size: 1.4em; margin-bottom: 5px; color: #667eea; }
+.search-info p { color: #999; font-size: .88em; }
 .results-count { color: #667eea; font-weight: 600; }
+/* ── Load-more area ────────────────────────────────────────── */
+.load-more-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; margin: 32px 0 20px;
+}
+.load-more-btn {
+    padding: 12px 36px; border-radius: 24px;
+    background: linear-gradient(135deg,#667eea,#764ba2);
+    color: #fff; font-size: 14px; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: opacity .18s, transform .18s;
+}
+.load-more-btn:hover { opacity: .88; transform: translateY(-2px); }
+.load-more-btn:disabled { opacity: .4; cursor: default; transform: none; }
+.load-more-counter { font-size: 13px; color: #666; }
 </style>
 <body>
 {% set g_active = 'search' %}{% include 'header.html' %}
 
-    <div class="container">
-        <div class="search-results">
+<div class="container">
+<div class="search-results">
 
-            {# ── Заголовок с итогом ── #}
-            {% if query %}
-            <div class="search-info">
-                <h1>Результаты поиска</h1>
-                <p>
-                    По запросу <span class="search-query">"{{ query }}"</span>
-                    {% if total %}
-                        — <span class="results-count">{{ total }} манг</span>
-                        {% if pages > 1 %}, страница {{ page }} из {{ pages }}{% endif %}
-                    {% else %}
-                        — <span class="results-count">ничего не найдено</span>
-                    {% endif %}
-                </p>
-            </div>
-            {% endif %}
-
-            {# ── Сетка карточек ── #}
-            {% if results %}
-            <div class="manga-grid">
-                {% for manga in results %}
-                <div class="manga-card" data-slug="{{ manga.manga_slug }}" onclick="location.href='/manga/{{ manga.manga_slug }}'">
-                    {% if manga.manga_type %}
-                    <div class="manga-badge">{{ manga.manga_type | type_ru }}</div>
-                    {% endif %}
-                    <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
-                    <div class="manga-info">
-                        <div class="manga-title">{{ manga.manga_title }}</div>
-                        <div class="manga-meta">
-                            {% if manga.manga_status %}
-                            <span class="manga-status status-{{ manga.manga_status|lower }}">
-                                {{ manga.manga_status | status_ru }}
-                            </span>
-                            {% endif %}
-                            {% if manga.rating %}
-                            <span class="rating-badge rating-{{ manga.rating|lower }}">
-                                {{ manga.rating | rating_ru }}
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            {# ── Пагинация ── #}
-            {% if pages > 1 %}
-            {% set win = 2 %}
-            <nav class="pagination" aria-label="Страницы">
-
-                {# Кнопка «Назад» #}
-                {% if page > 1 %}
-                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ page - 1 }}">&#8592;</a>
-                {% else %}
-                <span class="pg-btn disabled">&#8592;</span>
-                {% endif %}
-
-                {# Первая страница #}
-                {% if page - win > 1 %}
-                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page=1">1</a>
-                {% if page - win > 2 %}<span class="pg-dots">…</span>{% endif %}
-                {% endif %}
-
-                {# Окно страниц вокруг текущей #}
-                {% for p in range([1, page - win]|max, [pages, page + win]|min + 1) %}
-                    {% if p == page %}
-                    <span class="pg-btn active">{{ p }}</span>
-                    {% else %}
-                    <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ p }}">{{ p }}</a>
-                    {% endif %}
-                {% endfor %}
-
-                {# Последняя страница #}
-                {% if page + win < pages %}
-                {% if page + win < pages - 1 %}<span class="pg-dots">…</span>{% endif %}
-                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ pages }}">{{ pages }}</a>
-                {% endif %}
-
-                {# Кнопка «Вперёд» #}
-                {% if page < pages %}
-                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ page + 1 }}">&#8594;</a>
-                {% else %}
-                <span class="pg-btn disabled">&#8594;</span>
-                {% endif %}
-
-            </nav>
-            {% endif %}
-
-            {% elif query %}
-            <div class="empty-state">
-                <div class="empty-icon">🔍</div>
-                <h2>Ничего не найдено</h2>
-                <p>Попробуйте изменить поисковый запрос или проверьте написание.</p>
-            </div>
+    {% if query %}
+    <div class="search-info">
+        <h1>Результаты поиска</h1>
+        <p>
+            По запросу <span class="search-query">"{{ query }}"</span>
+            {% if total %}
+                — <span class="results-count" id="total-count">{{ total }} манг</span>
             {% else %}
-            <div class="empty-state">
-                <div class="empty-icon">📚</div>
-                <h2>Поиск манги</h2>
-                <p>Введите название манги в поисковую строку выше</p>
-            </div>
+                — <span class="results-count">ничего не найдено</span>
             {% endif %}
+        </p>
+    </div>
+    {% endif %}
 
+    {% if query %}
+    <!-- Панель сортировки -->
+    <div class="sort-bar" id="sort-bar">
+        <button class="sort-btn active" data-sort="relevance">Релевантность</button>
+        <button class="sort-btn" data-sort="score">⭐ Рейтинг</button>
+        <button class="sort-btn" data-sort="views">👁 Просмотры</button>
+        <button class="sort-btn" data-sort="chapters">📖 Кол-во глав</button>
+        <button class="sort-btn" data-sort="updated">🕐 Дата главы</button>
+    </div>
+    {% endif %}
+
+    <!-- Сетка карточек -->
+    <div class="manga-grid" id="manga-grid">
+        {% for manga in results %}
+        <div class="manga-card" data-slug="{{ manga.manga_slug }}"
+             onclick="location.href='/manga/{{ manga.manga_slug }}'">
+            {% if manga.manga_type %}
+            <div class="manga-badge">{{ manga.manga_type | type_ru }}</div>
+            {% endif %}
+            <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}"
+                 class="manga-cover" loading="lazy"
+                 onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
+            <div class="manga-info">
+                <div class="manga-title">{{ manga.manga_title }}</div>
+                <div class="manga-meta">
+                    {% if manga.manga_status %}
+                    <span class="manga-status status-{{ manga.manga_status|lower }}">
+                        {{ manga.manga_status | status_ru }}
+                    </span>
+                    {% endif %}
+                    {% if manga.rating %}
+                    <span class="rating-badge rating-{{ manga.rating|lower }}">
+                        {{ manga.rating | rating_ru }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
+        {% endfor %}
     </div>
 
-    <script>
-        const searchInput = document.getElementById('searchInput') || document.querySelector('.g-search-input');
-        const suggestionsBox = document.getElementById('suggestionsBox');
+    {% if not results and not query %}
+    <div class="empty-state">
+        <div class="empty-icon">📚</div>
+        <h2>Поиск манги</h2>
+        <p>Введите название манги в поисковую строку выше</p>
+    </div>
+    {% elif not results and query %}
+    <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h2>Ничего не найдено</h2>
+        <p>Попробуйте изменить запрос или проверьте написание.</p>
+    </div>
+    {% endif %}
 
-        if (searchInput) {
-            let debounceTimer;
-            searchInput.addEventListener('input', function() {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(fetchSuggestions, 300);
-            });
-            searchInput.addEventListener('focus', function() {
-                if (this.value.length >= 2) fetchSuggestions();
-            });
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && suggestionsBox) suggestionsBox.style.display = 'none';
-                if (e.key === 'Enter' && suggestionsBox && suggestionsBox.style.display === 'block') {
-                    const first = suggestionsBox.querySelector('.suggestion-item');
-                    if (first) { e.preventDefault(); first.click(); }
+    <!-- Кнопка «Показать ещё» -->
+    {% if results and total > results|length %}
+    <div class="load-more-wrap" id="load-more-wrap">
+        <button class="load-more-btn" id="load-more-btn" onclick="loadMore()">
+            Показать ещё
+        </button>
+        <span class="load-more-counter" id="load-counter">
+            Показано {{ results|length }} из {{ total }}
+        </span>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+
+<script>
+(function(){
+    const QUERY   = {{ query|tojson }};
+    const PER     = 24;
+    let offset    = {{ results|length }};
+    let total     = {{ total }};
+    let curSort   = 'relevance';
+    let loading   = false;
+
+    const grid    = document.getElementById('manga-grid');
+    const wrap    = document.getElementById('load-more-wrap');
+    const btn     = document.getElementById('load-more-btn');
+    const counter = document.getElementById('load-counter');
+    const sortBar = document.getElementById('sort-bar');
+    const totalEl = document.getElementById('total-count');
+
+    // ── Построить карточку из объекта манги ──────────────────────────────
+    const TYPE_RU = {MANGA:'Манга',MANHWA:'Манхва',MANHUA:'Маньхуа',
+                     OEL:'Всемирная манга',NOVEL:'Новелла',ONE_SHOT:'Короткие истории'};
+    const STATUS_RU = {ONGOING:'Выходит',FINISHED:'Завершена',CANCELLED:'Заброшена',
+                       HIATUS:'Пауза',ANNOUNCED:'Анонс'};
+    const RATING_RU = {GENERAL:'Для всех',SENSITIVE:'16+',QUESTIONABLE:'18+',EXPLICIT:'Этти'};
+
+    function esc(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+    function buildCard(m) {
+        const card = document.createElement('div');
+        card.className = 'manga-card';
+        card.dataset.slug = m.manga_slug;
+        card.onclick = () => { location.href = '/manga/' + m.manga_slug; };
+
+        const badge = m.manga_type
+            ? `<div class="manga-badge">${esc(TYPE_RU[m.manga_type]||m.manga_type)}</div>` : '';
+        const statusCls = (m.manga_status||'').toLowerCase();
+        const statusLabel = STATUS_RU[m.manga_status] || m.manga_status || '';
+        const ratingCls = (m.rating||'').toLowerCase();
+        const ratingLabel = RATING_RU[m.rating] || m.rating || '';
+
+        card.innerHTML = `
+            ${badge}
+            <img src="${esc(m.cover_url)}" alt="${esc(m.manga_title)}" class="manga-cover" loading="lazy"
+                 onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
+            <div class="manga-info">
+                <div class="manga-title">${esc(m.manga_title)}</div>
+                <div class="manga-meta">
+                    ${statusLabel ? `<span class="manga-status status-${statusCls}">${esc(statusLabel)}</span>` : ''}
+                    ${ratingLabel ? `<span class="rating-badge rating-${ratingCls}">${esc(ratingLabel)}</span>` : ''}
+                </div>
+            </div>`;
+        return card;
+    }
+
+    // ── Обновить счётчик и кнопку ─────────────────────────────────────────
+    function updateUI() {
+        if (!wrap) return;
+        if (offset >= total) {
+            wrap.style.display = 'none';
+        } else {
+            wrap.style.display = 'flex';
+            if (counter) counter.textContent = `Показано ${offset} из ${total}`;
+        }
+    }
+
+    // ── Загрузить следующую порцию ────────────────────────────────────────
+    async function loadMore() {
+        if (loading || !QUERY || offset >= total) return;
+        loading = true;
+        if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
+
+        try {
+            const url = `/api/search?q=${encodeURIComponent(QUERY)}&offset=${offset}&sort=${curSort}`;
+            const r   = await fetch(url);
+            const data = await r.json();
+
+            const frag = document.createDocumentFragment();
+            (data.results || []).forEach(m => frag.appendChild(buildCard(m)));
+            if (grid) grid.appendChild(frag);
+
+            offset += (data.results || []).length;
+            total   = data.total;
+            if (totalEl) totalEl.textContent = total + ' манг';
+            updateUI();
+        } catch(e) {
+            console.error(e);
+        } finally {
+            loading = false;
+            if (btn) { btn.disabled = false; btn.textContent = 'Показать ещё'; }
+        }
+    }
+    window.loadMore = loadMore;
+
+    // ── Смена сортировки ──────────────────────────────────────────────────
+    if (sortBar) {
+        sortBar.querySelectorAll('.sort-btn').forEach(b => {
+            b.addEventListener('click', async function() {
+                if (this.dataset.sort === curSort) return;
+                sortBar.querySelectorAll('.sort-btn').forEach(x => x.classList.remove('active'));
+                this.classList.add('active');
+                curSort = this.dataset.sort;
+
+                // Очищаем грид
+                if (grid) grid.innerHTML = '';
+                offset = 0;
+                if (btn) { btn.disabled = true; btn.textContent = 'Загрузка...'; }
+                if (wrap) wrap.style.display = 'none';
+
+                try {
+                    const url = `/api/search?q=${encodeURIComponent(QUERY)}&offset=0&sort=${curSort}`;
+                    const r   = await fetch(url);
+                    const data = await r.json();
+
+                    const frag = document.createDocumentFragment();
+                    (data.results || []).forEach(m => frag.appendChild(buildCard(m)));
+                    if (grid) grid.appendChild(frag);
+
+                    offset = (data.results || []).length;
+                    total  = data.total;
+                    if (totalEl) totalEl.textContent = total + ' манг';
+                    updateUI();
+                } catch(e) { console.error(e); }
+                finally {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Показать ещё'; }
                 }
             });
-        }
-
-        document.addEventListener('click', function(e) {
-            if (!suggestionsBox) return;
-            if (searchInput && !searchInput.contains(e.target) && !suggestionsBox.contains(e.target))
-                suggestionsBox.style.display = 'none';
         });
+    }
 
-        async function fetchSuggestions() {
-            if (!suggestionsBox || !searchInput) return;
-            const q = searchInput.value.trim();
-            if (q.length < 2) { suggestionsBox.style.display = 'none'; return; }
-            try {
-                const r    = await fetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`);
-                const list = await r.json();
-                if (list.length) {
-                    suggestionsBox.innerHTML = list.map(s =>
-                        `<div class="suggestion-item" onclick="chooseSuggestion(${JSON.stringify(s)})">${s}</div>`
-                    ).join('');
-                    suggestionsBox.style.display = 'block';
-                } else {
-                    suggestionsBox.style.display = 'none';
-                }
-            } catch {}
-        }
+    // ── Автодополнение ────────────────────────────────────────────────────
+    const searchInput   = document.querySelector('.g-search-input');
+    const suggestionsBox = document.getElementById('suggestionsBox');
 
-        function chooseSuggestion(val) {
-            if (!searchInput) return;
-            searchInput.value = val;
-            if (suggestionsBox) suggestionsBox.style.display = 'none';
-            searchInput.form && searchInput.form.submit();
-        }
-
-        // Фоновое обновление метаданных видимых карточек
-        (function() {
-            const pending = new Set();
-            let timer = null;
-            function flush() {
-                if (!pending.size) return;
-                fetch('/api/manga/bulk-refresh', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({slugs: Array.from(pending)})
-                }).catch(() => {});
-                pending.clear();
+    if (searchInput) {
+        let debounce;
+        searchInput.addEventListener('input', () => { clearTimeout(debounce); debounce = setTimeout(fetchSuggestions, 300); });
+        searchInput.addEventListener('focus', () => { if (searchInput.value.length >= 2) fetchSuggestions(); });
+        searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && suggestionsBox) suggestionsBox.style.display = 'none';
+            if (e.key === 'Enter' && suggestionsBox && suggestionsBox.style.display === 'block') {
+                const first = suggestionsBox.querySelector('.suggestion-item');
+                if (first) { e.preventDefault(); first.click(); }
             }
-            const io = new IntersectionObserver(entries => {
-                entries.forEach(e => {
-                    if (!e.isIntersecting) return;
-                    const slug = e.target.dataset.slug;
-                    if (slug) pending.add(slug);
-                    io.unobserve(e.target);
-                });
-                clearTimeout(timer);
-                timer = setTimeout(flush, 1500);
-            }, {rootMargin: '150px'});
-            document.querySelectorAll('[data-slug]').forEach(el => io.observe(el));
-        })();
-    </script>
+        });
+    }
+    document.addEventListener('click', e => {
+        if (!suggestionsBox) return;
+        if (searchInput && !searchInput.contains(e.target) && !suggestionsBox.contains(e.target))
+            suggestionsBox.style.display = 'none';
+    });
+    async function fetchSuggestions() {
+        if (!suggestionsBox || !searchInput) return;
+        const q = searchInput.value.trim();
+        if (q.length < 2) { suggestionsBox.style.display = 'none'; return; }
+        try {
+            const list = await fetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`).then(r=>r.json());
+            if (list.length) {
+                suggestionsBox.innerHTML = list.map(s =>
+                    `<div class="suggestion-item" onclick="chooseSuggestion(${JSON.stringify(s)})">${esc(s)}</div>`
+                ).join('');
+                suggestionsBox.style.display = 'block';
+            } else { suggestionsBox.style.display = 'none'; }
+        } catch {}
+    }
+    window.chooseSuggestion = function(val) {
+        if (searchInput) { searchInput.value = val; }
+        if (suggestionsBox) suggestionsBox.style.display = 'none';
+        if (searchInput && searchInput.form) searchInput.form.submit();
+    };
+
+    // ── Фоновый refresh видимых карточек ─────────────────────────────────
+    (function() {
+        const pending = new Set(); let t = null;
+        function flush() {
+            if (!pending.size) return;
+            fetch('/api/manga/bulk-refresh', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({slugs:[...pending]})
+            }).catch(()=>{});
+            pending.clear();
+        }
+        const io = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                const s = e.target.dataset.slug;
+                if (s) pending.add(s);
+                io.unobserve(e.target);
+            });
+            clearTimeout(t); t = setTimeout(flush, 1500);
+        }, {rootMargin:'150px'});
+        document.querySelectorAll('[data-slug]').forEach(el => io.observe(el));
+
+        // Наблюдать за новыми карточками после AJAX-подгрузки
+        window._observeNewCards = function(cards) {
+            cards.forEach(el => { if (el.dataset && el.dataset.slug) io.observe(el); });
+        };
+    })();
+
+})();
+</script>
 </body>
 </html>

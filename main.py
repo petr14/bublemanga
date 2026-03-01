@@ -2979,70 +2979,135 @@ def logout():
 
 @app.route('/search')
 def search():
-    _SEARCH_PER_PAGE = 24
+    _PER = 24
 
     query   = request.args.get('q', '').strip()
-    page    = max(1, request.args.get('page', 1, type=int))
     user_id = session.get('user_id')
 
     if not query or len(query) < 2:
         return render_template('search.html',
                                query=query, results=[],
-                               total=0, page=1, pages=1,
-                               per_page=_SEARCH_PER_PAGE,
-                               user_id=user_id)
+                               total=0, user_id=user_id)
 
     if user_id:
         save_search_history(user_id, query)
 
-    offset = (page - 1) * _SEARCH_PER_PAGE
     like   = f'%{query}%'
     starts = f'{query}%'
 
     conn = get_db()
     c    = conn.cursor()
 
-    # Общее кол-во совпадений в БД
     c.execute('''SELECT COUNT(*) FROM manga
                  WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
               (like, like, like))
-    total_db = c.fetchone()[0]
+    total = c.fetchone()[0]
 
     results = []
-    if total_db > 0:
-        # Выборка страницы с ранжированием
+    if total > 0:
         c.execute('''
             SELECT manga_id, manga_slug, manga_title, manga_type,
-                   manga_status, cover_url, rating, score, original_name,
+                   manga_status, cover_url, rating, score, views, chapters_count, last_updated,
                    CASE
-                     WHEN lower(manga_title) = lower(?)           THEN 10
-                     WHEN lower(manga_title) LIKE lower(?)        THEN 5
+                     WHEN lower(manga_title) = lower(?)    THEN 10
+                     WHEN lower(manga_title) LIKE lower(?) THEN 5
                      ELSE 1
-                   END AS relevance
+                   END AS _rel
             FROM manga
             WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
-            ORDER BY relevance DESC, COALESCE(score, 0) DESC
-            LIMIT ? OFFSET ?
-        ''', (query, starts, like, like, like, _SEARCH_PER_PAGE, offset))
+            ORDER BY _rel DESC, COALESCE(score, 0) DESC
+            LIMIT ?
+        ''', (query, starts, like, like, like, _PER))
         results = [dict(r) for r in c.fetchall()]
+        for r in results:
+            r.pop('_rel', None)
 
     conn.close()
 
-    total = total_db
-
-    # Fallback на API только если БД пуста (первая страница)
-    if total == 0 and page == 1:
-        api_results = search_manga_api(query, 50)
+    # Fallback на API только если БД пуста
+    if total == 0:
+        api_results = search_manga_api(query, _PER)
         total   = len(api_results)
-        results = api_results[:_SEARCH_PER_PAGE]
-
-    pages = max(1, (total + _SEARCH_PER_PAGE - 1) // _SEARCH_PER_PAGE)
+        results = api_results
 
     return render_template('search.html',
                            query=query, results=results,
-                           total=total, page=page, pages=pages,
-                           per_page=_SEARCH_PER_PAGE,
-                           user_id=user_id)
+                           total=total, user_id=user_id)
+
+@app.route('/api/search')
+def api_search():
+    """AJAX-поиск манги с сортировкой и offset-пагинацией."""
+    _PER = 24
+    _SORT = {
+        'relevance': None,                            # специальная логика
+        'score':     'COALESCE(score, 0) DESC',
+        'views':     'COALESCE(views, 0) DESC',
+        'chapters':  'COALESCE(chapters_count, 0) DESC',
+        'updated':   "COALESCE(last_updated, '1970') DESC",
+    }
+
+    query  = request.args.get('q', '').strip()
+    offset = max(0, request.args.get('offset', 0, type=int))
+    limit  = min(max(1, request.args.get('limit', _PER, type=int)), 100)
+    sort   = request.args.get('sort', 'relevance')
+    if sort not in _SORT:
+        sort = 'relevance'
+
+    if not query or len(query) < 2:
+        return jsonify({'results': [], 'total': 0, 'has_more': False})
+
+    like   = f'%{query}%'
+    starts = f'{query}%'
+
+    conn = get_db()
+    c    = conn.cursor()
+
+    c.execute('''SELECT COUNT(*) FROM manga
+                 WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
+              (like, like, like))
+    total = c.fetchone()[0]
+
+    if total == 0:
+        conn.close()
+        return jsonify({'results': [], 'total': 0, 'has_more': False})
+
+    if sort == 'relevance':
+        c.execute('''
+            SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+                   cover_url, rating, score, views, chapters_count, last_updated,
+                   CASE
+                     WHEN lower(manga_title) = lower(?)    THEN 10
+                     WHEN lower(manga_title) LIKE lower(?) THEN 5
+                     ELSE 1
+                   END AS _rel
+            FROM manga
+            WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+            ORDER BY _rel DESC, COALESCE(score, 0) DESC
+            LIMIT ? OFFSET ?
+        ''', (query, starts, like, like, like, limit, offset))
+    else:
+        order_sql = _SORT[sort]
+        c.execute(f'''
+            SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+                   cover_url, rating, score, views, chapters_count, last_updated
+            FROM manga
+            WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+            ORDER BY {order_sql}
+            LIMIT ? OFFSET ?
+        ''', (like, like, like, limit, offset))
+
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    for r in rows:
+        r.pop('_rel', None)
+
+    return jsonify({
+        'results': rows,
+        'total':    total,
+        'has_more': offset + len(rows) < total,
+    })
+
 
 @app.route('/api/search/suggestions')
 def search_suggestions():
