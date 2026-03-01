@@ -2693,7 +2693,7 @@ def run_telegram_bot():
 
     def start_bot():
         """Запуск бота в отдельном потоке с явным созданием event loop"""
-        global _bot_loop
+        global _bot_loop, telegram_app
         try:
             # Явно создаем новый event loop для этого потока
             loop = asyncio.new_event_loop()
