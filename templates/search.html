@@ -351,25 +351,67 @@
         }
     </style>
 </head>
+<style>
+/* ── Pagination ──────────────────────────────────────────── */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 36px 0 20px;
+    flex-wrap: wrap;
+}
+.pg-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    color: #ccc;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background .18s, border-color .18s, color .18s;
+    cursor: pointer;
+}
+.pg-btn:hover { background: #2a2a2a; color: #fff; border-color: #667eea; }
+.pg-btn.active { background: linear-gradient(135deg,#667eea,#764ba2); border-color: transparent; color: #fff; font-weight: 700; cursor: default; }
+.pg-btn.disabled { opacity: .35; pointer-events: none; }
+.pg-dots { color: #555; padding: 0 4px; line-height: 38px; }
+
+/* ── Search info bar ─────────────────────────────────────── */
+.search-info { margin-bottom: 24px; padding: 18px 20px; background: #1a1a1a; border-radius: 10px; }
+.search-info h1 { font-size: 1.5em; margin-bottom: 6px; color: #667eea; }
+.search-info p { color: #999; font-size: .9em; }
+.results-count { color: #667eea; font-weight: 600; }
+</style>
 <body>
 {% set g_active = 'search' %}{% include 'header.html' %}
 
     <div class="container">
         <div class="search-results">
+
+            {# ── Заголовок с итогом ── #}
             {% if query %}
             <div class="search-info">
                 <h1>Результаты поиска</h1>
                 <p>
                     По запросу <span class="search-query">"{{ query }}"</span>
-                    {% if results %}
-                    <span class="results-count">найдено {{ results|length }} манг</span>
+                    {% if total %}
+                        — <span class="results-count">{{ total }} манг</span>
+                        {% if pages > 1 %}, страница {{ page }} из {{ pages }}{% endif %}
                     {% else %}
-                    <span class="results-count">ничего не найдено</span>
+                        — <span class="results-count">ничего не найдено</span>
                     {% endif %}
                 </p>
             </div>
             {% endif %}
 
+            {# ── Сетка карточек ── #}
             {% if results %}
             <div class="manga-grid">
                 {% for manga in results %}
@@ -377,20 +419,16 @@
                     {% if manga.manga_type %}
                     <div class="manga-badge">{{ manga.manga_type | type_ru }}</div>
                     {% endif %}
-                    
-                    <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" 
+                    <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="lazy"
                          onerror="this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
-                    
                     <div class="manga-info">
                         <div class="manga-title">{{ manga.manga_title }}</div>
-                        
                         <div class="manga-meta">
                             {% if manga.manga_status %}
                             <span class="manga-status status-{{ manga.manga_status|lower }}">
                                 {{ manga.manga_status | status_ru }}
                             </span>
                             {% endif %}
-
                             {% if manga.rating %}
                             <span class="rating-badge rating-{{ manga.rating|lower }}">
                                 {{ manga.rating | rating_ru }}
@@ -401,139 +439,143 @@
                 </div>
                 {% endfor %}
             </div>
+
+            {# ── Пагинация ── #}
+            {% if pages > 1 %}
+            {% set win = 2 %}
+            <nav class="pagination" aria-label="Страницы">
+
+                {# Кнопка «Назад» #}
+                {% if page > 1 %}
+                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ page - 1 }}">&#8592;</a>
+                {% else %}
+                <span class="pg-btn disabled">&#8592;</span>
+                {% endif %}
+
+                {# Первая страница #}
+                {% if page - win > 1 %}
+                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page=1">1</a>
+                {% if page - win > 2 %}<span class="pg-dots">…</span>{% endif %}
+                {% endif %}
+
+                {# Окно страниц вокруг текущей #}
+                {% for p in range([1, page - win]|max, [pages, page + win]|min + 1) %}
+                    {% if p == page %}
+                    <span class="pg-btn active">{{ p }}</span>
+                    {% else %}
+                    <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ p }}">{{ p }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {# Последняя страница #}
+                {% if page + win < pages %}
+                {% if page + win < pages - 1 %}<span class="pg-dots">…</span>{% endif %}
+                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ pages }}">{{ pages }}</a>
+                {% endif %}
+
+                {# Кнопка «Вперёд» #}
+                {% if page < pages %}
+                <a class="pg-btn" href="/search?q={{ query|urlencode }}&page={{ page + 1 }}">&#8594;</a>
+                {% else %}
+                <span class="pg-btn disabled">&#8594;</span>
+                {% endif %}
+
+            </nav>
+            {% endif %}
+
             {% elif query %}
             <div class="empty-state">
-                <div class="empty-icon"></div>
+                <div class="empty-icon">🔍</div>
                 <h2>Ничего не найдено</h2>
                 <p>Попробуйте изменить поисковый запрос или проверьте написание.</p>
-                
-                {% if not user_id %}
-                <p>Для подписки на мангу войдите через Telegram бота:</p>
-                <a href="https://t.me/your_bot" target="_blank" class="telegram-link">
-                    Открыть Telegram бота
-                </a>
-                {% endif %}
             </div>
             {% else %}
             <div class="empty-state">
-                <div class="empty-icon"></div>
+                <div class="empty-icon">📚</div>
                 <h2>Поиск манги</h2>
                 <p>Введите название манги в поисковую строку выше</p>
-                <p>Или используйте Telegram бота для удобного поиска и подписки:</p>
-                <a href="https://t.me/your_bot" target="_blank" class="telegram-link">
-                    Открыть Telegram бота
-                </a>
             </div>
             {% endif %}
+
         </div>
     </div>
 
     <script>
-        const searchInput = document.getElementById('searchInput');
+        const searchInput = document.getElementById('searchInput') || document.querySelector('.g-search-input');
         const suggestionsBox = document.getElementById('suggestionsBox');
-        
-        // Автодополнение
-        let debounceTimer;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(fetchSuggestions, 300);
-        });
-        
-        searchInput.addEventListener('focus', function() {
-            if (this.value.length >= 2) {
-                fetchSuggestions();
-            }
-        });
-        
+
+        if (searchInput) {
+            let debounceTimer;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(fetchSuggestions, 300);
+            });
+            searchInput.addEventListener('focus', function() {
+                if (this.value.length >= 2) fetchSuggestions();
+            });
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && suggestionsBox) suggestionsBox.style.display = 'none';
+                if (e.key === 'Enter' && suggestionsBox && suggestionsBox.style.display === 'block') {
+                    const first = suggestionsBox.querySelector('.suggestion-item');
+                    if (first) { e.preventDefault(); first.click(); }
+                }
+            });
+        }
+
         document.addEventListener('click', function(e) {
-            if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+            if (!suggestionsBox) return;
+            if (searchInput && !searchInput.contains(e.target) && !suggestionsBox.contains(e.target))
                 suggestionsBox.style.display = 'none';
-            }
         });
-        
+
         async function fetchSuggestions() {
-            const query = searchInput.value.trim();
-            if (query.length < 2) {
-                suggestionsBox.style.display = 'none';
-                return;
-            }
-            
+            if (!suggestionsBox || !searchInput) return;
+            const q = searchInput.value.trim();
+            if (q.length < 2) { suggestionsBox.style.display = 'none'; return; }
             try {
-                const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
-                const suggestions = await response.json();
-                
-                if (suggestions.length > 0) {
-                    suggestionsBox.innerHTML = '';
-                    suggestions.forEach(suggestion => {
-                        const item = document.createElement('div');
-                        item.className = 'suggestion-item';
-                        item.textContent = suggestion;
-                        item.onclick = () => {
-                            searchInput.value = suggestion;
-                            suggestionsBox.style.display = 'none';
-                            searchInput.form.submit();
-                        };
-                        suggestionsBox.appendChild(item);
-                    });
+                const r    = await fetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`);
+                const list = await r.json();
+                if (list.length) {
+                    suggestionsBox.innerHTML = list.map(s =>
+                        `<div class="suggestion-item" onclick="chooseSuggestion(${JSON.stringify(s)})">${s}</div>`
+                    ).join('');
                     suggestionsBox.style.display = 'block';
                 } else {
                     suggestionsBox.style.display = 'none';
                 }
-            } catch (error) {
-                console.error('Ошибка загрузки предложений:', error);
-            }
+            } catch {}
         }
-        
-        function validateSearch() {
-            const query = searchInput.value.trim();
-            if (query.length < 2) {
-                alert('Введите минимум 2 символа для поиска');
-                return false;
-            }
-            return true;
-        }
-        
-        // Обработка клавиш
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && suggestionsBox.style.display === 'block') {
-                const firstSuggestion = suggestionsBox.querySelector('.suggestion-item');
-                if (firstSuggestion) {
-                    e.preventDefault();
-                    firstSuggestion.click();
-                }
-            }
-            
-            if (e.key === 'Escape') {
-                suggestionsBox.style.display = 'none';
-            }
-        });
 
-        // Фоновое обновление метаданных манг, видимых на экране
+        function chooseSuggestion(val) {
+            if (!searchInput) return;
+            searchInput.value = val;
+            if (suggestionsBox) suggestionsBox.style.display = 'none';
+            searchInput.form && searchInput.form.submit();
+        }
+
+        // Фоновое обновление метаданных видимых карточек
         (function() {
             const pending = new Set();
             let timer = null;
-
             function flush() {
                 if (!pending.size) return;
                 fetch('/api/manga/bulk-refresh', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ slugs: Array.from(pending) })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({slugs: Array.from(pending)})
                 }).catch(() => {});
                 pending.clear();
             }
-
             const io = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (!entry.isIntersecting) return;
-                    const slug = entry.target.dataset.slug;
+                entries.forEach(e => {
+                    if (!e.isIntersecting) return;
+                    const slug = e.target.dataset.slug;
                     if (slug) pending.add(slug);
-                    io.unobserve(entry.target);
+                    io.unobserve(e.target);
                 });
                 clearTimeout(timer);
                 timer = setTimeout(flush, 1500);
-            }, { rootMargin: '150px' });
-
+            }, {rootMargin: '150px'});
             document.querySelectorAll('[data-slug]').forEach(el => io.observe(el));
         })();
     </script>

@@ -2979,65 +2979,107 @@ def logout():
 
 @app.route('/search')
 def search():
-    query = request.args.get('q', '').strip()
+    _SEARCH_PER_PAGE = 24
+
+    query   = request.args.get('q', '').strip()
+    page    = max(1, request.args.get('page', 1, type=int))
     user_id = session.get('user_id')
 
     if not query or len(query) < 2:
         return render_template('search.html',
-                             query=query,
-                             results=[],
-                             user_id=user_id)
+                               query=query, results=[],
+                               total=0, page=1, pages=1,
+                               per_page=_SEARCH_PER_PAGE,
+                               user_id=user_id)
 
     if user_id:
         save_search_history(user_id, query)
 
-    # Результаты из API
-    api_results = search_manga_api(query, 50)
-    seen_slugs = {r['manga_slug'] for r in api_results}
+    offset = (page - 1) * _SEARCH_PER_PAGE
+    like   = f'%{query}%'
+    starts = f'{query}%'
 
-    # Дополняем из локальной БД (накопленный кеш)
-    try:
-        conn = get_db()
-        c = conn.cursor()
-        like = f'%{query}%'
-        c.execute('''SELECT manga_id, manga_slug, manga_title, manga_type,
-                            manga_status, cover_url, rating
-                     FROM manga
-                     WHERE manga_title LIKE ? OR manga_slug LIKE ?
-                     ORDER BY last_updated DESC
-                     LIMIT 100''', (like, like))
-        db_rows = c.fetchall()
-        conn.close()
-        for row in db_rows:
-            if row['manga_slug'] not in seen_slugs:
-                seen_slugs.add(row['manga_slug'])
-                api_results.append({
-                    'manga_id':    row['manga_id'],
-                    'manga_slug':  row['manga_slug'],
-                    'manga_title': row['manga_title'],
-                    'manga_type':  row['manga_type'],
-                    'manga_status': row['manga_status'],
-                    'cover_url':   row['cover_url'],
-                    'rating':      row['rating'],
-                })
-    except Exception as e:
-        logger.warning(f'search db fallback error: {e}')
+    conn = get_db()
+    c    = conn.cursor()
+
+    # Общее кол-во совпадений в БД
+    c.execute('''SELECT COUNT(*) FROM manga
+                 WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
+              (like, like, like))
+    total_db = c.fetchone()[0]
+
+    results = []
+    if total_db > 0:
+        # Выборка страницы с ранжированием
+        c.execute('''
+            SELECT manga_id, manga_slug, manga_title, manga_type,
+                   manga_status, cover_url, rating, score, original_name,
+                   CASE
+                     WHEN lower(manga_title) = lower(?)           THEN 10
+                     WHEN lower(manga_title) LIKE lower(?)        THEN 5
+                     ELSE 1
+                   END AS relevance
+            FROM manga
+            WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+            ORDER BY relevance DESC, COALESCE(score, 0) DESC
+            LIMIT ? OFFSET ?
+        ''', (query, starts, like, like, like, _SEARCH_PER_PAGE, offset))
+        results = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+
+    total = total_db
+
+    # Fallback на API только если БД пуста (первая страница)
+    if total == 0 and page == 1:
+        api_results = search_manga_api(query, 50)
+        total   = len(api_results)
+        results = api_results[:_SEARCH_PER_PAGE]
+
+    pages = max(1, (total + _SEARCH_PER_PAGE - 1) // _SEARCH_PER_PAGE)
 
     return render_template('search.html',
-                         query=query,
-                         results=api_results,
-                         user_id=user_id)
+                           query=query, results=results,
+                           total=total, page=page, pages=pages,
+                           per_page=_SEARCH_PER_PAGE,
+                           user_id=user_id)
 
 @app.route('/api/search/suggestions')
 def search_suggestions():
-    query = request.args.get('q', '').strip()
+    query   = request.args.get('q', '').strip()
     user_id = session.get('user_id')
-    
+
     if len(query) < 2:
         return jsonify([])
-    
-    suggestions = get_search_suggestions(query, 10)
-    return jsonify(suggestions)
+
+    # Сначала — тайтлы из каталога БД
+    conn = get_db()
+    c    = conn.cursor()
+    c.execute('''SELECT manga_title FROM manga
+                 WHERE manga_title LIKE ? OR original_name LIKE ?
+                 ORDER BY COALESCE(score, 0) DESC
+                 LIMIT 8''', (f'{query}%', f'{query}%'))
+    from_catalog = [row[0] for row in c.fetchall()]
+
+    # Добавляем из истории поиска (только если мало результатов)
+    from_history = []
+    if len(from_catalog) < 5:
+        c.execute('''SELECT DISTINCT query FROM search_history
+                     WHERE query LIKE ?
+                     ORDER BY created_at DESC
+                     LIMIT ?''', (f'{query}%', 8 - len(from_catalog)))
+        from_history = [row[0] for row in c.fetchall()]
+    conn.close()
+
+    # Объединяем, дедупликация с сохранением порядка
+    seen = set()
+    suggestions = []
+    for s in from_catalog + from_history:
+        if s.lower() not in seen:
+            seen.add(s.lower())
+            suggestions.append(s)
+
+    return jsonify(suggestions[:8])
 
 @app.route('/api/subscribe/<manga_id>', methods=['POST'])
 def subscribe(manga_id):
