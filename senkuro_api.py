@@ -463,6 +463,161 @@ class SenkuroAPI:
             logger.error(f"❌ Ошибка получения данных главной страницы: {e}")
             return []
 
+    # ── Полный каталог манг (пагинация) ───────────────────────────────────
+
+    FETCH_MANGAS_HASH = "2e239cbedda2c8af91bb0f86149b26889f2f800dc08ba36417cdecb91614799e"
+
+    def fetch_mangas_page(self, after=None, order_field="POPULARITY_SCORE",
+                          order_direction="DESC", exclude_hentai=True):
+        """
+        Получить одну страницу каталога манг (fetchMangas).
+
+        Args:
+            after: курсор пагинации (None — первая страница)
+            order_field: поле сортировки (POPULARITY_SCORE, SCORE, UPDATED_AT, …)
+            order_direction: ASC / DESC
+            exclude_hentai: исключить метку hentai (True по умолчанию)
+
+        Returns:
+            dict: {
+                "edges": [{"node": {...}}, ...],
+                "pageInfo": {"hasNextPage": bool, "endCursor": str|None}
+            }
+            При ошибке возвращает {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+        """
+        label_filter = {"exclude": ["hentai"], "include": []} if exclude_hentai else {"exclude": [], "include": []}
+        empty = {"edges": [], "pageInfo": {"hasNextPage": False, "endCursor": None}}
+
+        payload = {
+            "extensions": {
+                "persistedQuery": {
+                    "sha256Hash": self.FETCH_MANGAS_HASH,
+                    "version": 1
+                }
+            },
+            "operationName": "fetchMangas",
+            "variables": {
+                "after": after,
+                "bookmark":          {"exclude": [], "include": []},
+                "chapters":          {},
+                "format":            {"exclude": [], "include": []},
+                "label":             label_filter,
+                "orderDirection":    order_direction,
+                "orderField":        order_field,
+                "originCountry":     {"exclude": [], "include": []},
+                "rating":            {"exclude": [], "include": []},
+                "releasedOn":        {},
+                "search":            None,
+                "source":            {"exclude": [], "include": []},
+                "status":            {"exclude": [], "include": []},
+                "translitionStatus": {"exclude": [], "include": []},
+                "type":              {"exclude": [], "include": []},
+            }
+        }
+
+        try:
+            data = self._post(payload, timeout=15)
+            if not data:
+                logger.error("❌ fetch_mangas_page: пустой ответ от API")
+                return empty
+
+            mangas = (data.get("data") or {}).get("mangas")
+            if not mangas:
+                logger.error(f"❌ fetch_mangas_page: нет поля 'mangas' (after={after!r})")
+                return empty
+
+            edges     = mangas.get("edges") or []
+            page_info = mangas.get("pageInfo") or {}
+            logger.info(
+                f"📄 fetch_mangas_page: after={after!r} → {len(edges)} манг, "
+                f"hasNextPage={page_info.get('hasNextPage')}, "
+                f"endCursor={page_info.get('endCursor')!r}"
+            )
+            return {"edges": edges, "pageInfo": page_info}
+
+        except Exception as e:
+            logger.error(f"❌ fetch_mangas_page (after={after!r}): {e}", exc_info=True)
+            return empty
+
+    def fetch_all_mangas(self, order_field="POPULARITY_SCORE",
+                         order_direction="DESC", exclude_hentai=True,
+                         delay=0.3):
+        """
+        Генератор: итерирует по ВСЕМ страницам каталога и поочерёдно
+        отдаёт распарсенные данные каждой манги.
+
+        Использование:
+            for manga in api.fetch_all_mangas():
+                print(manga['manga_slug'], manga['manga_title'])
+
+        Args:
+            order_field:      поле сортировки
+            order_direction:  направление
+            exclude_hentai:   исключить хентай
+            delay:            пауза (сек) между запросами для защиты от бана
+
+        Yields:
+            dict с ключами:
+                manga_id, manga_slug, manga_title, original_name,
+                manga_type, manga_status, rating, score, cover_url,
+                formats, is_licensed
+        """
+        import time
+
+        after = None
+        page_num = 0
+
+        while True:
+            page_num += 1
+            result = self.fetch_mangas_page(
+                after=after,
+                order_field=order_field,
+                order_direction=order_direction,
+                exclude_hentai=exclude_hentai,
+            )
+
+            edges     = result["edges"]
+            page_info = result["pageInfo"]
+
+            for edge in edges:
+                node = (edge.get("node") or {})
+                if not node:
+                    continue
+
+                titles = node.get("titles") or []
+                ru_title = next((t["content"] for t in titles if t and t.get("lang") == "RU"), None)
+                en_title = next((t["content"] for t in titles if t and t.get("lang") == "EN"), None)
+                orig     = (node.get("originalName") or {}).get("content", "")
+
+                cover     = node.get("cover") or {}
+                cover_url = (
+                    (cover.get("original") or {}).get("url", "") or
+                    (cover.get("preview")  or {}).get("url", "")
+                )
+
+                yield {
+                    "manga_id":      node.get("id"),
+                    "manga_slug":    node.get("slug"),
+                    "manga_title":   ru_title or en_title or orig or node.get("slug", ""),
+                    "original_name": orig,
+                    "manga_type":    node.get("type"),
+                    "manga_status":  node.get("status"),
+                    "rating":        node.get("rating", "GENERAL"),
+                    "score":         node.get("score", 0) or 0,
+                    "cover_url":     cover_url,
+                    "formats":       node.get("formats") or [],
+                    "is_licensed":   0,
+                }
+
+            if not page_info.get("hasNextPage") or not page_info.get("endCursor"):
+                logger.info(f"✅ fetch_all_mangas: все страницы пройдены (всего страниц: {page_num})")
+                break
+
+            after = page_info["endCursor"]
+
+            if delay > 0:
+                time.sleep(delay)
+
     # ── Страницы главы ────────────────────────────────────────────────────
 
     def fetch_chapter_pages(self, chapter_slug):

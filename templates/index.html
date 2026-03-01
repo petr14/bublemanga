@@ -2927,5 +2927,41 @@
             setTimeout(window.observeMangaRefresh, 200);
         });
     </script>
+
+    <!-- ── Socket.IO: live-обновление блока «Последние главы» ── -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
+            integrity="sha384-2huIOVSHOlM6tFiBDmfUn4AGOG3JHcQZh3oq2YUPB7HUV0ICpAmb6TqCRqSqlkq"
+            crossorigin="anonymous"></script>
+    <script>
+    (function(){
+      var socket = io({ transports: ['websocket', 'polling'] });
+
+      /* «Новая точка» — индикатор обновления над блоком */
+      function showUpdateDot() {
+        var header = document.querySelector('#section-updates .section-header');
+        if (!header || header.querySelector('.live-dot')) return;
+        var dot = document.createElement('span');
+        dot.className = 'live-dot';
+        dot.title = 'Обновлено только что';
+        dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;'
+          + 'background:#22c55e;box-shadow:0 0 6px #22c55e;margin-left:8px;vertical-align:middle;'
+          + 'animation:livePulse 1.5s ease-in-out infinite;';
+        header.querySelector('.section-title') && header.querySelector('.section-title').appendChild(dot);
+        setTimeout(function(){ dot && dot.remove(); }, 8000);
+      }
+
+      socket.on('new_chapters', function(data) {
+        if (!data || !data.length) return;
+        renderRecent(data);
+        showUpdateDot();
+        if (window.tgHaptic) window.tgHaptic('light');
+      });
+
+      /* Добавляем CSS-анимацию один раз */
+      var style = document.createElement('style');
+      style.textContent = '@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.35}}';
+      document.head.appendChild(style);
+    })();
+    </script>
 </body>
 </html>

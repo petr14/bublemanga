@@ -1,5 +1,8 @@
 import os
 import time
+import hmac
+import hashlib
+import urllib.parse
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response, make_response
 import threading
@@ -8,7 +11,7 @@ import secrets
 import json
 import asyncio
 import re
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, WebAppInfo
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -21,6 +24,7 @@ from telegram.ext import (
 from functools import wraps
 import logging
 from flask_compress import Compress
+from flask_socketio import SocketIO
 from senkuro_api import SenkuroAPI
 
 
@@ -81,6 +85,14 @@ app.config['COMPRESS_MIMETYPES'] = [
 ]
 app.config['COMPRESS_LEVEL'] = 6
 Compress(app)
+
+socketio = SocketIO(
+    app,
+    async_mode='threading',
+    cors_allowed_origins='*',
+    logger=False,
+    engineio_logger=False,
+)
 
 _TYPE_RU = {
     'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа',
@@ -2116,6 +2128,13 @@ def check_new_chapters():
 
         logger.info(f"✅ Проверка завершена. Обработано {len(edges)} глав")
 
+        # Пушим свежие главы всем подключённым клиентам
+        try:
+            fresh = get_recent_chapters_from_api(21)
+            socketio.emit('new_chapters', fresh, namespace='/')
+        except Exception as _se:
+            logger.warning(f"⚠️ SocketIO emit error: {_se}")
+
     except Exception as e:
         logger.error(f"❌ Ошибка в check_new_chapters: {e}")
         import traceback
@@ -2343,7 +2362,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     webapp_url = f"http://91.196.34.216"
 
     keyboard = [
-        [InlineKeyboardButton("🌐 Открыть сайт", url=webapp_url)],
+        [InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
         [InlineKeyboardButton("📝 Войти на сайте", url=login_url)],
         [InlineKeyboardButton("🔍 Поиск манги", callback_data="search_manga")],
         [InlineKeyboardButton("⭐ Мои подписки", callback_data="my_subscriptions")]
@@ -2762,6 +2781,59 @@ def index():
                           subscriptions=subscriptions,
                           user_id=user_id,
                           genres=genres)
+
+
+@app.route('/api/auth/webapp', methods=['POST'])
+def api_auth_webapp():
+    """Аутентификация через Telegram WebApp initData (HMAC-SHA256)."""
+    body = request.get_json(silent=True) or {}
+    init_data_raw = (body.get('initData') or '').strip()
+    if not init_data_raw:
+        return jsonify({'error': 'no initData'}), 400
+
+    try:
+        parsed = dict(urllib.parse.parse_qsl(init_data_raw, keep_blank_values=True))
+        hash_from_tg = parsed.pop('hash', None)
+        if not hash_from_tg:
+            return jsonify({'error': 'no hash'}), 400
+
+        check_str = '\n'.join(f'{k}={v}' for k, v in sorted(parsed.items()))
+        secret = hmac.new(b'WebAppData', TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+        expected = hmac.new(secret, check_str.encode(), hashlib.sha256).hexdigest()
+
+        if not hmac.compare_digest(expected, hash_from_tg):
+            return jsonify({'error': 'invalid hash'}), 403
+    except Exception as ex:
+        logger.warning(f"⚠️ webapp auth parse error: {ex}")
+        return jsonify({'error': 'parse error'}), 400
+
+    try:
+        tg_user = json.loads(parsed.get('user', '{}'))
+    except Exception:
+        return jsonify({'error': 'bad user json'}), 400
+
+    tg_id = tg_user.get('id')
+    if not tg_id:
+        return jsonify({'error': 'no user id'}), 400
+
+    user = get_or_create_user_by_telegram(
+        tg_id,
+        tg_user.get('username'),
+        tg_user.get('first_name'),
+        tg_user.get('last_name'),
+    )
+    if not user:
+        return jsonify({'error': 'db error'}), 500
+
+    already = session.get('user_id') == user['id']
+    session['user_id'] = user['id']
+    session['username'] = (
+        user.get('telegram_username') or
+        user.get('telegram_first_name') or
+        f"User_{user['id']}"
+    )
+    session.permanent = True
+    return jsonify({'ok': True, '_already': already, 'user_id': user['id'], 'username': session['username']})
 
 
 @app.route('/api/home/recent')
@@ -5538,5 +5610,5 @@ if __name__ == "__main__":
     run_telegram_bot()
     
     print("🌐 Веб-сервер запущен на http://91.196.34.216")
-    app.run(debug=True, use_reloader=False,
-            host='0.0.0.0', port=80)
+    socketio.run(app, debug=True, use_reloader=False,
+                 host='0.0.0.0', port=80, allow_unsafe_werkzeug=True)

@@ -2,3 +2,5 @@ flask>=3.0,<4.0
 requests>=2.31,<3.0
 python-telegram-bot>=20.0,<22.0
 flask-compress>=1.14
+flask-socketio>=5.3,<6.0
+simple-websocket>=1.0,<2.0
