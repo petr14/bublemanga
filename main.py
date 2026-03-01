@@ -84,7 +84,7 @@ Compress(app)
 
 _TYPE_RU = {
     'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа',
-    'OEL': 'OEL', 'NOVEL': 'Новелла', 'ONE_SHOT': 'Короткие истории',
+    'OEL': 'Всемирная манга', 'NOVEL': 'Новелла', 'ONE_SHOT': 'Короткие истории',
     'DOUJINSHI': 'Додзинси', 'COMICS': 'Комикс',
 }
 _STATUS_RU = {
@@ -2909,23 +2909,51 @@ def logout():
 def search():
     query = request.args.get('q', '').strip()
     user_id = session.get('user_id')
-    
+
     if not query or len(query) < 2:
-        return render_template('search.html', 
+        return render_template('search.html',
                              query=query,
                              results=[],
                              user_id=user_id)
-    
-    # Сохраняем историю поиска
+
     if user_id:
         save_search_history(user_id, query)
-    
-    # Ищем мангу
-    results = search_manga_api(query, 50)
-    
+
+    # Результаты из API
+    api_results = search_manga_api(query, 50)
+    seen_slugs = {r['manga_slug'] for r in api_results}
+
+    # Дополняем из локальной БД (накопленный кеш)
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        like = f'%{query}%'
+        c.execute('''SELECT manga_id, manga_slug, manga_title, manga_type,
+                            manga_status, cover_url, rating
+                     FROM manga
+                     WHERE manga_title LIKE ? OR manga_slug LIKE ?
+                     ORDER BY last_updated DESC
+                     LIMIT 100''', (like, like))
+        db_rows = c.fetchall()
+        conn.close()
+        for row in db_rows:
+            if row['manga_slug'] not in seen_slugs:
+                seen_slugs.add(row['manga_slug'])
+                api_results.append({
+                    'manga_id':    row['manga_id'],
+                    'manga_slug':  row['manga_slug'],
+                    'manga_title': row['manga_title'],
+                    'manga_type':  row['manga_type'],
+                    'manga_status': row['manga_status'],
+                    'cover_url':   row['cover_url'],
+                    'rating':      row['rating'],
+                })
+    except Exception as e:
+        logger.warning(f'search db fallback error: {e}')
+
     return render_template('search.html',
                          query=query,
-                         results=results,
+                         results=api_results,
                          user_id=user_id)
 
 @app.route('/api/search/suggestions')
@@ -4024,7 +4052,7 @@ def webhook_cryptocloud():
 _COMMENT_QUERY = '''
     SELECT cm.id, cm.parent_id, cm.text, cm.created_at,
            u.id as user_id, u.telegram_first_name, u.telegram_username, u.is_premium,
-           p.avatar_url, s.level,
+           p.custom_name, p.avatar_url, p.custom_avatar_url, s.level,
            (SELECT si.css_value FROM shop_items si
             JOIN user_items ui ON si.id = ui.item_id
             WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'

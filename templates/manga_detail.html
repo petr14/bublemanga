@@ -28,12 +28,12 @@
             --bg-card-hover: #252525;
         }
 
+        html { overflow-x: hidden; }
         body {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
             line-height: 1.6;
-            overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
@@ -114,7 +114,8 @@
         }
 
         .btn {
-            padding: 10px 18px;
+            padding: 0 18px;
+            height: 40px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 50px;
@@ -123,9 +124,13 @@
             text-decoration: none;
             font-size: 13px;
             font-weight: 600;
+            font-family: inherit;
+            line-height: 1;
+            box-sizing: border-box;
             transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             white-space: nowrap;
         }
@@ -149,6 +154,12 @@
             background: rgba(76, 175, 80, 0.15);
             border-color: rgba(76, 175, 80, 0.3);
             color: #4caf50;
+        }
+
+        .btn-collection {
+            background: rgba(102, 126, 234, 0.12);
+            border-color: rgba(102, 126, 234, 0.3);
+            color: #818cf8;
         }
 
         /* ==================== ОСНОВНОЙ КОНТЕНТ ==================== */
@@ -340,34 +351,6 @@
         }
 
         /* ==================== СЕКЦИЯ ЧТЕНИЯ ==================== */
-        .read-section {
-            margin: 30px 0;
-            padding: 24px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-            border-radius: 16px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            text-align: center;
-        }
-
-        .read-section h3 {
-            margin-bottom: 12px;
-            color: white;
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .read-section p {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .read-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
-        }
 
         /* ==================== СЕКЦИЯ ГЛАВ ==================== */
         .chapters-section {
@@ -570,13 +553,19 @@
             }
 
 
-            .read-buttons {
-                flex-direction: row;
-                justify-content: center;
-            }
 
             .chapter-arrow {
                 display: block;
+            }
+        }
+
+        /* ==================== МОБИЛКА ==================== */
+        @media (max-width: 767px) {
+            .manga-actions { margin: 16px 0; gap: 8px; }
+            .manga-actions-row { justify-content: center; }
+            .manga-actions-row:last-child .btn {
+                flex: 1 1 100%;
+                justify-content: center;
             }
         }
 
@@ -601,7 +590,8 @@
             }
 
             .btn {
-                padding: 12px 24px;
+                padding: 0 24px;
+                height: 44px;
                 font-size: 14px;
             }
 
@@ -681,18 +671,6 @@
                 font-size: 13px;
             }
 
-            .read-section {
-                padding: 40px;
-            }
-
-            .read-section h3 {
-                font-size: 24px;
-                margin-bottom: 16px;
-            }
-
-            .read-section p {
-                font-size: 16px;
-            }
 
             .chapters-section {
                 margin: 60px 0;
@@ -1174,8 +1152,8 @@
                             </a>
 
                             {% if user_id %}
-                            <button class="btn" onclick="openCollectionPicker('{{ manga.manga_id }}')" style="background:rgba(102,126,234,0.12);border-color:rgba(102,126,234,0.3);color:#818cf8">
-                                В коллекцию
+                            <button class="btn btn-collection" onclick="openCollectionPicker('{{ manga.manga_id }}')">
+                                <span>В коллекцию</span>
                             </button>
                             {% endif %}
 
@@ -1194,7 +1172,7 @@
                             {% if user_id and reading_history %}
                             <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
                                 <span>▶</span>
-                                <span>Продолжить</span>
+                                <span>Продолжить · Гл. {{ reading_history.chapter_number }}</span>
                             </a>
                             {% endif %}
 
@@ -1230,23 +1208,6 @@
             </div>
             {% endif %}
             
-            <!-- Секция чтения -->
-            {% if reading_history %}
-            <div class="read-section">
-                <h3>Продолжить чтение</h3>
-                <p>Вы остановились на главе {{ reading_history.chapter_number }}</p>
-                <div class="read-buttons">
-                    <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
-                        <span></span>
-                        <span>Продолжить чтение</span>
-                    </a>
-                    <a href="/read/{{ manga.manga_slug }}/{{ chapters[0].chapter_slug if chapters else '' }}" class="btn">
-                        <span></span>
-                        <span>Последняя глава</span>
-                    </a>
-                </div>
-            </div>
-            {% endif %}
             
             <!-- Главы -->
             <div class="chapters-section">
@@ -1721,15 +1682,17 @@
 
             /* ── Построение DOM ── */
             function buildAvatarHTML(c) {
-                const init = (c.telegram_first_name || c.telegram_username || '?')[0].toUpperCase();
+                const name = c.custom_name || c.telegram_first_name || c.telegram_username || '?';
+                const init = name[0].toUpperCase();
+                const avatar = c.custom_avatar_url || c.avatar_url;
                 const style = c.frame_css ? ` style="${escAttr(c.frame_css)}"` : '';
-                if (c.avatar_url)
-                    return `<a href="/profile/${c.user_id}" class="comment-avatar"${style}><img src="${escAttr(c.avatar_url)}" alt="" onerror="this.style.display='none'"></a>`;
+                if (avatar)
+                    return `<a href="/profile/${c.user_id}" class="comment-avatar"${style}><img src="${escAttr(avatar)}" alt="" onerror="this.style.display='none'"></a>`;
                 return `<a href="/profile/${c.user_id}" class="comment-avatar"${style}>${init}</a>`;
             }
 
             function buildMetaHTML(c) {
-                const name = c.telegram_first_name || c.telegram_username || `#${c.user_id}`;
+                const name = c.custom_name || c.telegram_first_name || c.telegram_username || `#${c.user_id}`;
                 return `
                     <a href="/profile/${c.user_id}" class="comment-name">${escHtml(name)}</a>
                     ${c.is_premium ? '<span class="comment-premium-crown" title="Premium">👑</span>' : ''}
@@ -1756,7 +1719,6 @@
 
             // Строит wrapper = верхнеуровневый комментарий + блок ответов
             function buildCommentEl(c) {
-                const name = c.telegram_first_name || c.telegram_username || `#${c.user_id}`;
                 const isOwn = MY_USER_ID && c.user_id === MY_USER_ID;
                 const replies = c.replies || [];
 
@@ -1775,7 +1737,7 @@
                         ${MY_USER_ID ? `<div class="comment-actions">
                             <button class="btn-reply"
                                     data-parent-id="${c.id}"
-                                    data-parent-name="${escAttr(name)}"
+                                    data-parent-name="${escAttr(c.custom_name || c.telegram_first_name || c.telegram_username || `#${c.user_id}`)}"
                                     onclick="openReply(this)">↩ Ответить</button>
                         </div>` : ''}
                     </div>

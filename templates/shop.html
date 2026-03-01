@@ -33,15 +33,16 @@
     .page-wrap { padding-top:72px; }
 
     /* ── Hero ── */
-    .shop-hero { text-align:center; padding:2.8rem 1rem 1.8rem; background:linear-gradient(135deg,#08081a 0%,#0f0c2a 50%,#10091e 100%); border-bottom:1px solid var(--border); }
+    .shop-hero { text-align:center; padding:1.8rem 1rem 1.4rem; background:linear-gradient(135deg,#08081a 0%,#0f0c2a 50%,#10091e 100%); border-bottom:1px solid var(--border); }
     .shop-hero h1 { font-size:2.1rem; font-weight:800; background:var(--primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.35rem; }
     .shop-hero p { color:var(--text-2); font-size:.88rem; }
-    .balance-chip { display:inline-flex; align-items:center; gap:.4rem; background:rgba(102,126,234,.12); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.33rem .95rem; margin-top:.8rem; font-weight:700; font-size:.9rem; color:#a5b4fc; }
-    .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.4); border-radius:20px; padding:.33rem .95rem; margin-top:.55rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
+    .hero-badges { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:.5rem; margin-top:.75rem; }
+    .balance-chip { display:inline-flex; align-items:center; gap:.4rem; background:rgba(102,126,234,.12); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.9rem; color:#a5b4fc; }
+    .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
     /* ── Вкладки ── */
     .shop-tabs-wrap { position:sticky; top:60px; z-index:100; background:rgba(10,10,10,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
-    .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; }
+    .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; justify-content:center; }
     .shop-tabs::-webkit-scrollbar { display:none; }
     .shop-tab { flex-shrink:0; padding:7px 15px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:50px; color:var(--text-2); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
     .shop-tab:hover { background:rgba(255,255,255,.1); color:#fff; }
@@ -140,6 +141,8 @@
     .prem-pkg-name { font-size:1.05rem; font-weight:800; color:#a5b4fc; }
     .prem-pkg-desc { font-size:.75rem; color:var(--text-3); }
     .prem-features { display:flex; flex-direction:column; gap:.32rem; }
+    .prem-feature-main { background:linear-gradient(135deg,rgba(102,126,234,.18),rgba(118,75,162,.12)); border:1px solid rgba(102,126,234,.4); border-radius:10px; padding:.55rem .75rem; font-size:.8rem; font-weight:700; color:#c4b5fd; display:flex; align-items:center; gap:.5rem; margin-bottom:.2rem; }
+    .prem-feature-main-icon { font-size:1rem; flex-shrink:0; }
     .prem-feature { font-size:.74rem; color:var(--text-2); display:flex; align-items:center; gap:.4rem; }
     .prem-feature::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:#667eea; flex-shrink:0; }
     .prem-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(102,126,234,.1); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#a5b4fc; align-self:flex-start; }
@@ -148,7 +151,12 @@
     .btn-premium:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
     @media(max-width:600px){
-      .premium-grid { grid-template-columns:1fr; }
+      .premium-grid { grid-template-columns:1fr; gap:.75rem; }
+      .prem-pkg-card { padding:1.1rem 1rem; gap:.6rem; border-radius:14px; }
+      .prem-feature-main { font-size:.78rem; padding:.5rem .65rem; gap:.4rem; }
+      .prem-feature-main-icon { font-size:.9rem; }
+      .prem-feature { font-size:.72rem; }
+      .prem-pkg-name { font-size:.95rem; }
     }
 
     /* ── Модальное окно оплаты ── */
@@ -176,7 +184,12 @@
     .pay-note { font-size:.72rem; color:var(--text-3); text-align:center; margin-top:.85rem; line-height:1.5; }
 
     @media(max-width:600px){
-      .shop-hero h1 { font-size:1.65rem; }
+      .shop-hero { padding:1.3rem .75rem 1.1rem; }
+      .shop-hero h1 { font-size:1.5rem; margin-bottom:.25rem; }
+      .shop-hero p { font-size:.8rem; }
+      .hero-badges { gap:.4rem; margin-top:.6rem; }
+      .balance-chip { font-size:.82rem; padding:.28rem .8rem; }
+      .premium-banner { font-size:.75rem; padding:.28rem .8rem; }
       .items-grid        { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; }
       .items-grid-avatar { grid-template-columns:repeat(auto-fill,minmax(125px,1fr)); gap:.7rem; }
       .coins-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); }
@@ -361,11 +374,12 @@ const PREMIUM_PACKAGES_STATIC = [
   {id:'premium_12m', days:365, name:'1 год',    rub:1499, usd:'17.99'},
 ];
 
+const PREMIUM_MAIN_FEATURE = 'Новые главы в Telegram — сразу при выходе';
 const PREMIUM_FEATURES = [
   'Активация предметов магазина бесплатно',
+  'Доступ к эксклюзивным предметам',
   'Значок Premium на профиле',
   'Приоритет в поддержке',
-  'Доступ к эксклюзивным предметам',
 ];
 
 // ── Универсальное модальное окно оплаты ───────────────────────────────────────
@@ -509,7 +523,7 @@ function BuyPremium(){
     }),
     h('div',{className:'section-head'},'Premium подписка'),
     h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'1rem'}},
-      'Открывает эксклюзивные возможности и предметы для украшения профиля.'
+      'Получай новые главы в Telegram сразу при выходе — и открывай эксклюзивные возможности для профиля.'
     ),
     h('div',{className:'premium-grid'},
       PREMIUM_PACKAGES_STATIC.map(pkg=>
@@ -517,6 +531,10 @@ function BuyPremium(){
           pkg.popular && h('div',{className:'prem-popular-badge'},'Популярно'),
           h('div',{className:'prem-pkg-name'},pkg.name),
           h('div',{className:'prem-features'},
+            h('div',{className:'prem-feature-main'},
+              h('span',{className:'prem-feature-main-icon'},'🔔'),
+              PREMIUM_MAIN_FEATURE
+            ),
             PREMIUM_FEATURES.map((f,i)=>h('div',{key:i,className:'prem-feature'},f))
           ),
           h('div',{className:'prem-pkg-price'},'от '+pkg.rub.toLocaleString('ru-RU')+' ₽'),
@@ -609,11 +627,13 @@ function ShopPage(){
     h('div',{className:'shop-hero'},
       h('h1',null,'🛒 Магазин'),
       h('p',null,'Украшай профиль — покупай за шарики, заработанные чтением'),
-      USER_ID && h('div',{className:'balance-chip'},
-        h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
-        h('span',null,coins.toLocaleString(),' шариков')
-      ),
-      IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},' Premium активен до ',premiumExpStr)
+      (USER_ID || (IS_PREMIUM&&premiumExpStr)) && h('div',{className:'hero-badges'},
+        USER_ID && h('div',{className:'balance-chip'},
+          h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
+          h('span',null,coins.toLocaleString(),' шариков')
+        ),
+        IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'⭐ Premium активен до ',premiumExpStr)
+      )
     ),
 
     h('div',{className:'shop-tabs-wrap'},

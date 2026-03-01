@@ -115,6 +115,11 @@
       grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       gap: 1rem;
     }
+    @media (max-width: 500px) {
+      .coll-hero-content { flex-direction: column; align-items: center; text-align: center; }
+      .coll-hero-info h1 { font-size: 1.4rem; }
+      .coll-hero-meta { justify-content: center; }
+    }
     @media (min-width: 500px) { .manga-grid-coll { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
     @media (min-width: 768px) { .manga-grid-coll { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); } }
 
