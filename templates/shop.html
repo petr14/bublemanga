@@ -17,7 +17,7 @@
       --border: rgba(255,255,255,.06);
       --text: #ffffff; --text-2: #b8b8b8; --text-3: #71717a;
     }
-    html,body { font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; }
+    html,body { font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; overflow-x:hidden; }
     a { color:inherit; }
 
     /* ── Шапка ── */
@@ -132,7 +132,8 @@
     .btn-stars:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
     /* ── Premium карточки ── */
-    .premium-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; margin-top:1rem; }
+    .premium-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:1rem; margin-top:1rem; }
+    .premium-grid .prem-pkg-card { flex:0 1 240px; max-width:280px; }
     .prem-pkg-card { background:var(--card2); border:1px solid rgba(102,126,234,.2); border-radius:18px; padding:1.5rem 1.3rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .2s,transform .15s; position:relative; overflow:hidden; }
     .prem-pkg-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(102,126,234,.07),rgba(118,75,162,.04)); pointer-events:none; }
     .prem-pkg-card:hover { border-color:rgba(102,126,234,.5); transform:translateY(-2px); }
@@ -151,7 +152,8 @@
     .btn-premium:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
     @media(max-width:600px){
-      .premium-grid { grid-template-columns:1fr; gap:.75rem; }
+      .premium-grid { flex-direction:column; align-items:center; gap:.75rem; }
+      .premium-grid .prem-pkg-card { flex:none; width:100%; max-width:100%; }
       .prem-pkg-card { padding:1.1rem 1rem; gap:.6rem; border-radius:14px; }
       .prem-feature-main { font-size:.78rem; padding:.5rem .65rem; gap:.4rem; }
       .prem-feature-main-icon { font-size:.9rem; }
@@ -190,9 +192,10 @@
       .hero-badges { gap:.4rem; margin-top:.6rem; }
       .balance-chip { font-size:.82rem; padding:.28rem .8rem; }
       .premium-banner { font-size:.75rem; padding:.28rem .8rem; }
-      .items-grid        { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; }
-      .items-grid-avatar { grid-template-columns:repeat(auto-fill,minmax(125px,1fr)); gap:.7rem; }
-      .coins-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); }
+      .items-grid        { grid-template-columns:repeat(2,1fr); gap:.6rem; }
+      .items-grid-avatar { grid-template-columns:repeat(2,1fr); gap:.6rem; }
+      .coins-grid        { grid-template-columns:repeat(2,1fr); gap:.6rem; }
+      .shop-container    { padding-left:12px; padding-right:12px; }
     }
   </style>
 </head>
