@@ -5704,6 +5704,68 @@ def api_admin_quests_delete(qid):
     return jsonify({'success': True})
 
 
+# ==================== КАЛЕНДАРЬ МАНГИ ====================
+
+@app.route('/calendar')
+def calendar_page():
+    user_id = session.get('user_id')
+    return render_template('calendar.html', user_id=user_id)
+
+
+@app.route('/api/calendar/days')
+def api_calendar_days():
+    """Дни месяца, в которые выходили главы. ?year=YYYY&month=M"""
+    year  = request.args.get('year',  type=int)
+    month = request.args.get('month', type=int)
+    if not year or not month:
+        return jsonify([])
+
+    prefix = f'{year:04d}-{month:02d}'
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT DATE(created_at) AS day, COUNT(*) AS count
+               FROM chapters
+               WHERE DATE(created_at) LIKE ?
+               GROUP BY DATE(created_at)
+               ORDER BY day""",
+            (f'{prefix}%',)
+        ).fetchall()
+        return jsonify([{'day': row['day'], 'count': row['count']} for row in rows])
+    except Exception as e:
+        logger.error(f"api_calendar_days error: {e}")
+        return jsonify([])
+    finally:
+        conn.close()
+
+
+@app.route('/api/calendar/day')
+def api_calendar_day():
+    """Все главы, вышедшие в конкретный день. ?date=YYYY-MM-DD"""
+    date = request.args.get('date', '').strip()
+    if not date or len(date) != 10:
+        return jsonify([])
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT c.chapter_id, c.chapter_slug, c.chapter_number,
+                      c.chapter_volume, c.chapter_name, c.chapter_url,
+                      m.manga_title, m.cover_url, m.manga_slug, m.manga_type
+               FROM chapters c
+               JOIN manga m ON c.manga_id = m.manga_id
+               WHERE DATE(c.created_at) = ?
+               ORDER BY m.manga_title, CAST(c.chapter_number AS REAL)""",
+            (date,)
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    except Exception as e:
+        logger.error(f"api_calendar_day error: {e}")
+        return jsonify([])
+    finally:
+        conn.close()
+
+
 # ==================== ЗАПУСК ====================
 
 if __name__ == "__main__":
