@@ -64,7 +64,7 @@ CRYPTOCLOUD_SECRET_KEY = os.environ.get('CRYPTOCLOUD_SECRET_KEY', '')  # для 
 CRYPTOCLOUD_SHOP_ID    = os.environ.get('CRYPTOCLOUD_SHOP_ID', '')
 
 # Базовый URL сайта (для redirect после оплаты)
-SITE_URL = 'https://bubblemanga.myftp.org'
+SITE_URL = 'http://bubblemanga.myftp.org'
 
 app = Flask(__name__)
 
