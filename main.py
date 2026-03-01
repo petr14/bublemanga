@@ -3037,7 +3037,7 @@ def search():
 @app.route('/api/search')
 def api_search():
     """AJAX-поиск манги с сортировкой и offset-пагинацией."""
-    _PER = 24
+    _PER = 25
     _SORT = {
         'relevance': None,                            # специальная логика
         'score':     'COALESCE(score, 0) DESC',
