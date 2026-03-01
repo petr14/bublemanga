@@ -1005,6 +1005,46 @@
             .manga-grid { gap: 16px; }
         }
 
+        .manga-grid-outer {
+            position: relative;
+        }
+
+        .manga-hidden {
+            display: none !important;
+        }
+
+        .manga-expand-btn {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-60%);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.45);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            padding: 0;
+        }
+
+        .manga-expand-btn:hover {
+            transform: translateY(-60%) scale(1.12);
+            box-shadow: 0 6px 22px rgba(102, 126, 234, 0.65);
+        }
+
+        .manga-expand-btn:active {
+            transform: translateY(-60%) scale(0.93);
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -2814,9 +2854,10 @@
 
         function renderSliderSection(containerId, data, badge, tag, descr) {
             if (!data || !data.mangas || !data.mangas.length) return;
+            const INITIAL = 6;
             const mangas = data.mangas.slice(0, 14);
-            const cards = mangas.map((m) => `
-                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
+            const cards = mangas.map((m, i) => `
+                <div class="manga-card${i >= INITIAL ? ' manga-hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
                         <span class="manga-badge new">${badge}</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
@@ -2830,6 +2871,7 @@
                     </div>
                 </div>`).join('');
 
+            const hasMore = mangas.length > INITIAL;
             document.getElementById(containerId).innerHTML = `
                 <section class="section">
                     <div class="section-header">
@@ -2837,15 +2879,19 @@
                         <h2 class="section-title">${e(data.title || '')}</h2>
                         <p class="section-description">${descr}</p>
                     </div>
-                    <div class="manga-grid" id="${containerId}-grid">${cards}</div>
+                    <div class="manga-grid-outer">
+                        <div class="manga-grid" id="${containerId}-grid">${cards}</div>
+                        ${hasMore ? `<button class="manga-expand-btn" id="${containerId}-expand-btn" onclick="expandMangaGrid('${containerId}-grid','${containerId}-expand-btn')" aria-label="Показать ещё">›</button>` : ''}
+                    </div>
                 </section>`;
         }
 
         function renderPopularNew(popularNew) {
             if (!popularNew || !popularNew.mangas || !popularNew.mangas.length) return;
+            const INITIAL = 6;
             const mangas = popularNew.mangas.slice(0, 14);
-            const cards = mangas.map((m) => `
-                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
+            const cards = mangas.map((m, i) => `
+                <div class="manga-card${i >= INITIAL ? ' manga-hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
                         <span class="manga-badge hot">Горячее</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
@@ -2860,6 +2906,7 @@
                     </div>
                 </div>`).join('');
 
+            const hasMore = mangas.length > INITIAL;
             document.getElementById('section-popular-new').innerHTML = `
                 <section class="section" id="popular">
                     <div class="section-header">
@@ -2867,8 +2914,28 @@
                         <h2 class="section-title">${e(popularNew.title || 'Популярные новинки')}</h2>
                         <p class="section-description">Новые манги, набирающие популярность</p>
                     </div>
-                    <div class="manga-grid" id="popular-manga-grid">${cards}</div>
+                    <div class="manga-grid-outer">
+                        <div class="manga-grid" id="popular-manga-grid">${cards}</div>
+                        ${hasMore ? `<button class="manga-expand-btn" id="popular-expand-btn" onclick="expandMangaGrid('popular-manga-grid','popular-expand-btn')" aria-label="Показать ещё">›</button>` : ''}
+                    </div>
                 </section>`;
+        }
+
+        function expandMangaGrid(gridId, btnId) {
+            const grid = document.getElementById(gridId);
+            if (!grid) return;
+            const hidden = Array.from(grid.querySelectorAll('.manga-hidden'));
+            if (!hidden.length) return;
+            const toShow = hidden.slice(0, 3);
+            toShow.forEach(c => c.classList.remove('manga-hidden'));
+            if (hidden.length <= 3) {
+                const btn = document.getElementById(btnId);
+                if (btn) btn.style.display = 'none';
+            }
+            setTimeout(() => {
+                const first = toShow[0];
+                if (first) grid.scrollTo({ left: first.offsetLeft - 16, behavior: 'smooth' });
+            }, 50);
         }
 
         // ==================== ФОНОВОЕ ОБНОВЛЕНИЕ МЕТАДАННЫХ МАНГИ ====================
