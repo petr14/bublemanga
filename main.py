@@ -2979,7 +2979,7 @@ def logout():
 
 @app.route('/search')
 def search():
-    _PER = 24
+    _PER = 25
 
     query   = request.args.get('q', '').strip()
     user_id = session.get('user_id')
