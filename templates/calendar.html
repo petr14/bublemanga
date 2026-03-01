@@ -532,20 +532,92 @@
   }
 
   /* ── Close modal ── */
-  window.closeModal = function() {
-    document.getElementById('backdrop').classList.remove('open');
+  const backdrop = document.getElementById('backdrop');
+  const modal    = document.getElementById('modal');
+
+  function _resetModalState() {
+    modal.style.transform  = '';
+    modal.style.transition = '';
+    backdrop.style.opacity    = '';
+    backdrop.style.transition = '';
     document.body.style.overflow = '';
     selectedDate = null;
     renderGrid(curYear, curMonth);
+  }
+
+  window.closeModal = function() {
+    modal.style.transform  = '';
+    modal.style.transition = '';
+    backdrop.classList.remove('open');
+    _resetModalState();
   };
 
-  window.handleBackdropClick = function(e) {
-    if (e.target === document.getElementById('backdrop')) closeModal();
+  /* Animated dismiss (used by swipe) */
+  function dismissModal() {
+    modal.style.transition    = 'transform .28s cubic-bezier(0.4,0,0.2,1)';
+    modal.style.transform     = 'translateY(105%)';
+    backdrop.style.transition = 'opacity .28s ease';
+    backdrop.style.opacity    = '0';
+    setTimeout(() => {
+      backdrop.classList.remove('open');
+      _resetModalState();
+    }, 290);
+  }
+
+  window.handleBackdropClick = function(ev) {
+    if (ev.target === backdrop) closeModal();
   };
 
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') closeModal();
   });
+
+  /* ── Swipe-to-close (mobile only) ── */
+  (function() {
+    const THRESHOLD = 110; // px to trigger dismiss
+    let startY = 0, lastY = 0, dragging = false;
+
+    function isMobile() { return window.innerWidth < 640; }
+
+    modal.addEventListener('touchstart', function(ev) {
+      if (!isMobile()) return;
+      // Don't start drag if body is scrolled (let normal scroll happen)
+      const body = document.getElementById('modalBody');
+      if (ev.target.closest('#modalBody') && body.scrollTop > 2) return;
+      startY  = ev.touches[0].clientY;
+      lastY   = startY;
+      dragging = true;
+      modal.style.transition = 'none';
+    }, { passive: true });
+
+    modal.addEventListener('touchmove', function(ev) {
+      if (!dragging) return;
+      lastY = ev.touches[0].clientY;
+      const dy = Math.max(0, lastY - startY);
+      modal.style.transform = `translateY(${dy}px)`;
+      // Dim backdrop proportionally
+      const ratio = Math.max(0, 1 - dy / 320);
+      backdrop.style.opacity = ratio;
+      if (dy > 0) ev.preventDefault();
+    }, { passive: false });
+
+    function onEnd() {
+      if (!dragging) return;
+      dragging = false;
+      const dy = Math.max(0, lastY - startY);
+      modal.style.transition = '';
+      backdrop.style.opacity = '';
+      if (dy > THRESHOLD) {
+        dismissModal();
+      } else {
+        // Snap back
+        modal.style.transform = '';
+      }
+    }
+
+    modal.addEventListener('touchend',    onEnd);
+    modal.addEventListener('touchcancel', onEnd);
+  })();
 
   // Init
   loadDays(curYear, curMonth);
