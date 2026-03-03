@@ -1,0 +1,678 @@
+{# ═══ Персонаж-помощник (manga dialogue style) ═════════════════════════════ #}
+<style>
+/* ── Обёртка персонажа (fixed, скрыта на мобильных) ── */
+.hlp-btn-wrap {
+  position: fixed; bottom: 16px; left: 20px; z-index: 600;
+  display: inline-block;
+  animation: hlp-float 3.5s ease-in-out infinite;
+}
+.hlp-btn-wrap:hover { animation: none; }
+@keyframes hlp-float {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+@media (max-width: 700px) {
+  .hlp-btn-wrap { display: none !important; }
+  .hlp-panel    { display: none !important; }
+}
+
+/* ── Мыльный пузырь — маленький кружок ── */
+.hlp-btn {
+  display: block; position: relative;
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  border: none; padding: 0; cursor: pointer; overflow: hidden;
+  background:
+    radial-gradient(ellipse at 32% 20%, rgba(255,255,255,.50) 0%, transparent 46%),
+    radial-gradient(ellipse at 65% 78%, rgba(162,100,255,.20) 0%, transparent 42%),
+    linear-gradient(150deg, rgba(102,126,234,.22), rgba(118,75,162,.15));
+  box-shadow:
+    inset 3px 4px 12px rgba(255,255,255,.60),
+    inset -2px -3px 9px  rgba(118,75,162,.30),
+    0 0 0 2px  rgba(255,255,255,.32),
+    0 0 0 4px  rgba(102,126,234,.22),
+    0 10px 36px rgba(102,126,234,.55);
+  animation: hlp-shimmer 6s ease-in-out infinite;
+  transition: transform .2s, box-shadow .2s;
+}
+.hlp-btn:hover {
+  transform: scale(1.1);
+  box-shadow:
+    inset 3px 4px 12px rgba(255,255,255,.70),
+    inset -2px -3px 9px  rgba(118,75,162,.38),
+    0 0 0 2px rgba(255,255,255,.46),
+    0 0 0 4px rgba(102,126,234,.32),
+    0 14px 44px rgba(102,126,234,.70);
+}
+@keyframes hlp-shimmer {
+  0%,100% { filter: hue-rotate(0deg)   saturate(1);   }
+  33%      { filter: hue-rotate(28deg)  saturate(1.25); }
+  66%      { filter: hue-rotate(-20deg) saturate(1.15); }
+}
+.hlp-char-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: center top;
+  z-index: 1; pointer-events: none;
+}
+.hlp-bubble-shine {
+  position: absolute; inset: 0; border-radius: 50%; z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 34% 18%, rgba(255,255,255,.65) 0%, transparent 38%),
+    radial-gradient(ellipse at 62% 80%, rgba(200,150,255,.15) 0%, transparent 32%);
+}
+.hlp-btn-emoji {
+  position: absolute; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  font-size: 32px; z-index: 1;
+}
+.hlp-dot {
+  position: absolute; top: 2px; right: 2px; z-index: 10;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #ef4444; border: 2px solid #0a0a0a;
+  animation: hlp-pulse 1.5s ease-in-out infinite;
+}
+@keyframes hlp-pulse {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.3); opacity: .7; }
+}
+
+/* ── Панель (справа-вверху от кнопки) ── */
+.hlp-panel {
+  position: fixed; bottom: 100px; left: 20px; z-index: 610;
+  width: min(340px, calc(100vw - 48px));
+  background: #111; border: 1px solid rgba(255,255,255,.1);
+  border-radius: 20px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.7);
+  transform: translateY(12px) scale(.96);
+  opacity: 0; pointer-events: none;
+  transition: transform .25s, opacity .25s;
+}
+.hlp-panel.open { transform: none; opacity: 1; pointer-events: all; }
+
+/* Шапка панели */
+.hlp-head {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  padding: 14px 14px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.hlp-head-ava {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.35); overflow: hidden; flex-shrink: 0;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
+}
+.hlp-head-ava img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.hlp-head-info { flex: 1; min-width: 0; }
+.hlp-head-name { font-weight: 800; font-size: .92rem; color: #fff; }
+.hlp-head-sub  { font-size: .7rem; color: rgba(255,255,255,.65); margin-top: 1px; }
+.hlp-close {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,.15); border: none; color: #fff;
+  cursor: pointer; font-size: 13px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.hlp-close:hover { background: rgba(255,255,255,.28); }
+
+/* Вкладки */
+.hlp-tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,.07); }
+.hlp-tab {
+  flex: 1; padding: 10px 6px; background: none; border: none;
+  color: rgba(255,255,255,.45); font-size: .76rem; font-weight: 600;
+  cursor: pointer; transition: color .15s; font-family: inherit;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.hlp-tab.active { color: #818cf8; border-bottom-color: #818cf8; }
+
+/* Контент */
+.hlp-body {
+  padding: 12px 14px; max-height: 260px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+}
+.hlp-tab-pane { display: none; }
+.hlp-tab-pane.active { display: block; }
+
+/* Советы */
+.hlp-tip {
+  padding: 8px 0 8px 10px;
+  border-left: 2px solid rgba(102,126,234,.5);
+  margin-bottom: 8px;
+}
+.hlp-tip:last-child { margin-bottom: 0; }
+.hlp-tip-title { font-weight: 700; color: #e4e4e7; display: block; font-size: .8rem; margin-bottom: 2px; }
+.hlp-tip-body  { font-size: .76rem; color: rgba(255,255,255,.65); line-height: 1.5; }
+
+/* Кнопка тура */
+.hlp-tour-btn {
+  width: 100%; padding: 10px; margin-top: 10px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border: none; border-radius: 12px; color: #fff;
+  font-size: .82rem; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: opacity .15s;
+}
+.hlp-tour-btn:hover { opacity: .88; }
+
+/* FAQ */
+.hlp-faq-item { margin-bottom: 6px; }
+.hlp-faq-q {
+  width: 100%; text-align: left; padding: 9px 10px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px; color: rgba(255,255,255,.8); font-size: .76rem;
+  font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s;
+  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+}
+.hlp-faq-q:hover { background: rgba(255,255,255,.08); }
+.hlp-faq-q .arrow { transition: transform .2s; flex-shrink: 0; }
+.hlp-faq-q.open .arrow { transform: rotate(90deg); }
+.hlp-faq-a {
+  display: none; padding: 8px 10px;
+  font-size: .74rem; color: rgba(255,255,255,.55); line-height: 1.5;
+}
+.hlp-faq-item.open .hlp-faq-a { display: block; }
+
+/* ══════════════════════════════════════════════════
+   МАНГА-ТУР — spotlight + диалог у персонажа
+   ══════════════════════════════════════════════════ */
+.hlp-tour-overlay {
+  display: none; position: fixed; inset: 0; z-index: 900;
+}
+.hlp-tour-overlay.active { display: block; }
+
+/* Тёмная маска с вырезом */
+.hlp-tour-mask {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.80);
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% 100%, 0% 100%,
+    0% 0%,
+    var(--hx) var(--hy),
+    var(--hx) calc(var(--hy) + var(--hh)),
+    calc(var(--hx) + var(--hw)) calc(var(--hy) + var(--hh)),
+    calc(var(--hx) + var(--hw)) var(--hy),
+    var(--hx) var(--hy)
+  );
+  transition: clip-path .35s ease;
+  cursor: pointer;
+}
+/* Рамка вокруг элемента */
+.hlp-tour-ring {
+  position: fixed;
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 10px;
+  box-shadow: 0 0 0 3px rgba(102,126,234,.5), 0 0 32px rgba(102,126,234,.3);
+  pointer-events: none;
+  transition: all .35s ease;
+  animation: hlp-ring-glow 2s ease-in-out infinite;
+}
+@keyframes hlp-ring-glow {
+  0%,100% { box-shadow: 0 0 0 3px rgba(102,126,234,.5), 0 0 32px rgba(102,126,234,.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(102,126,234,.25), 0 0 56px rgba(102,126,234,.45); }
+}
+
+/* ── Контейнер манга-тура (нижний-левый угол) ── */
+.hlp-manga-bar {
+  position: fixed; bottom: 0; left: 0; z-index: 910;
+  width: 480px; max-width: 100vw;
+  height: 340px;
+  pointer-events: none;
+}
+
+/* Персонаж стоит у нижнего-левого края */
+.hlp-manga-char {
+  position: absolute; bottom: 0; left: 0;
+  width: 170px; z-index: 2;
+  filter: drop-shadow(0 -4px 20px rgba(102,126,234,.5));
+  animation: hlp-char-in .4s cubic-bezier(.34,1.36,.64,1);
+}
+@keyframes hlp-char-in {
+  from { transform: translateX(-30px) scale(.9); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.hlp-manga-char img {
+  width: 100%; height: auto; display: block;
+  max-height: 320px; object-fit: contain; object-position: bottom;
+}
+
+/* Пузырь диалога — правый-верхний угол от персонажа */
+.hlp-manga-bubble {
+  position: absolute;
+  left: 148px;   /* начинается у правого края персонажа */
+  bottom: 200px; /* поднимается выше персонажа */
+  width: min(300px, calc(100vw - 164px));
+  background: #fafaf8;
+  border: 2.5px solid #111;
+  border-radius: 18px;
+  padding: 14px 16px 12px 16px;
+  pointer-events: all;
+  box-shadow: 4px 4px 0 #111;
+  animation: hlp-bubble-in .3s cubic-bezier(.34,1.2,.64,1);
+}
+@keyframes hlp-bubble-in {
+  from { transform: scale(.93) translateY(8px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* Хвост пузыря — вниз-влево к персонажу */
+.hlp-manga-bubble::before {
+  content: ''; position: absolute;
+  bottom: -15px; left: 22px;
+  width: 0; height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 15px solid #111;
+}
+.hlp-manga-bubble::after {
+  content: ''; position: absolute;
+  bottom: -11px; left: 24px;
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid #fafaf8;
+}
+
+/* Шапка пузыря */
+.hlp-bubble-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.hlp-bubble-name {
+  background: #111; color: #fff;
+  font-size: .68rem; font-weight: 800; letter-spacing: .08em;
+  padding: 2px 10px; border-radius: 20px;
+  text-transform: uppercase; font-family: inherit;
+}
+.hlp-bubble-step { font-size: .68rem; color: #999; font-weight: 600; }
+.hlp-bubble-title {
+  font-size: .96rem; font-weight: 800; color: #111;
+  margin-bottom: 5px; font-family: inherit; line-height: 1.3;
+}
+.hlp-bubble-body {
+  font-size: .8rem; color: #333; line-height: 1.6;
+  margin-bottom: 12px; font-family: inherit;
+}
+
+/* Навигация */
+.hlp-bubble-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.hlp-bubble-skip {
+  font-size: .7rem; color: #aaa; background: none; border: none;
+  cursor: pointer; font-family: inherit; padding: 4px 2px;
+  transition: color .15s; white-space: nowrap; flex-shrink: 0;
+}
+.hlp-bubble-skip:hover { color: #555; }
+.hlp-bubble-dots { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.hlp-bdot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; transition: all .2s; }
+.hlp-bdot.cur { background: #111; width: 16px; border-radius: 3px; }
+.hlp-bubble-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.hlp-bubble-prev {
+  padding: 6px 12px; border-radius: 8px;
+  background: #f0f0ee; border: 1.5px solid #bbb; color: #555;
+  font-size: .76rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+.hlp-bubble-prev:hover { background: #e5e5e3; }
+.hlp-bubble-next {
+  padding: 6px 16px; border-radius: 8px;
+  background: #111; border: 1.5px solid #111; color: #fff;
+  font-size: .76rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+.hlp-bubble-next:hover { background: #2a2a2a; }
+
+/* Адаптив тура */
+@media (max-width: 640px) {
+  .hlp-manga-char { width: 120px; }
+  .hlp-manga-bubble { left: 108px; bottom: 160px; }
+  .hlp-bubble-title { font-size: .86rem; }
+  .hlp-bubble-body  { font-size: .74rem; margin-bottom: 8px; }
+}
+@media (max-width: 420px) {
+  .hlp-manga-char { display: none; }
+  .hlp-manga-bubble {
+    left: 10px; bottom: 10px;
+    width: calc(100vw - 20px);
+  }
+  .hlp-manga-bubble::before, .hlp-manga-bubble::after { display: none; }
+}
+</style>
+
+<!-- ── Персонаж в мыльном пузыре (скрыт на мобильных) ── -->
+<div class="hlp-btn-wrap">
+  <button class="hlp-btn" id="hlpBtn" onclick="hlpToggle()" aria-label="Помощник Мику">
+    <img class="hlp-char-img" src="/static/helper_mini.png" alt="Мику"
+         onerror="this.style.display='none';document.getElementById('hlpBtnEmoji').style.display='flex'">
+    <span class="hlp-bubble-shine" aria-hidden="true"></span>
+    <span class="hlp-btn-emoji" id="hlpBtnEmoji">?</span>
+  </button>
+  <div class="hlp-dot" id="hlpDot"></div>
+</div>
+
+<!-- ── Панель помощника ── -->
+<div class="hlp-panel" id="hlpPanel">
+  <div class="hlp-head">
+    <div class="hlp-head-ava">
+      <img src="/static/helper_mini.png" alt=""
+           onerror="this.style.display='none'">
+    </div>
+    <div class="hlp-head-info">
+      <div class="hlp-head-name">Мику — помощник</div>
+      <div class="hlp-head-sub">Всегда рядом</div>
+    </div>
+    <button class="hlp-close" onclick="hlpToggle()">&#x2715;</button>
+  </div>
+
+  <div class="hlp-tabs">
+    <button class="hlp-tab active" onclick="hlpTab(this,'tips')">Советы</button>
+    <button class="hlp-tab" onclick="hlpTab(this,'tour')">Тур</button>
+    <button class="hlp-tab" onclick="hlpTab(this,'faq')">FAQ</button>
+  </div>
+
+  <div class="hlp-body">
+    <div class="hlp-tab-pane active" id="hlp-tips">
+      <div id="hlp-tips-content"></div>
+    </div>
+    <div class="hlp-tab-pane" id="hlp-tour">
+      <div style="text-align:center;padding:12px 0 8px">
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:6px;color:#e4e4e7">Интерактивный тур</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">
+          Мику покажет все возможности страницы шаг за шагом
+        </div>
+      </div>
+      <button class="hlp-tour-btn" id="hlpTourBtn" onclick="hlpStartTour()">Начать тур</button>
+      <div id="hlpNoTour" style="display:none;text-align:center;font-size:.75rem;
+           color:rgba(255,255,255,.35);margin-top:10px">
+        Для этой страницы тур не настроен
+      </div>
+    </div>
+    <div class="hlp-tab-pane" id="hlp-faq">
+      <div id="hlp-faq-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── МАНГА-ТУР оверлей ── -->
+<div class="hlp-tour-overlay" id="hlpTourOverlay">
+  <div class="hlp-tour-mask" id="hlpTourMask" onclick="hlpEndTour()"></div>
+  <div class="hlp-tour-ring" id="hlpTourRing"></div>
+  <div class="hlp-manga-bar" id="hlpMangaBar">
+    <!-- Персонаж -->
+    <div class="hlp-manga-char">
+      <img src="/static/helper.png" alt="Мику"
+           onerror="this.style.display='none'">
+    </div>
+    <!-- Пузырь диалога (правый-верхний угол от персонажа) -->
+    <div class="hlp-manga-bubble">
+      <div class="hlp-bubble-head">
+        <span class="hlp-bubble-name">Мику</span>
+        <span class="hlp-bubble-step" id="hlpMangaStep">1 / 1</span>
+      </div>
+      <div class="hlp-bubble-title" id="hlpMangaTitle"></div>
+      <div class="hlp-bubble-body"  id="hlpMangaBody"></div>
+      <div class="hlp-bubble-nav">
+        <button class="hlp-bubble-skip" onclick="hlpEndTour()">&#x2715; Пропустить</button>
+        <div class="hlp-bubble-dots" id="hlpMangaDots"></div>
+        <div class="hlp-bubble-btns">
+          <button class="hlp-bubble-prev" id="hlpMangaPrev" onclick="hlpTourStep(-1)">&#8592;</button>
+          <button class="hlp-bubble-next" id="hlpMangaNext" onclick="hlpTourStep(1)">Далее &#8594;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const path = location.pathname;
+
+  const PAGE_DATA = {
+    '/': {
+      tips: [
+        { title: 'Свежие главы', text: 'На главной всегда самые новые обновления из твоих подписок и популярное.' },
+        { title: 'Подписки', text: 'Подпишись на мангу на её странице — получай мгновенные уведомления в Telegram (Premium) или ежедневный дайджест.' },
+        { title: 'Поиск', text: 'Ищи мангу по названию через строку поиска вверху. Есть автодополнение!' },
+        { title: 'Каталог', text: 'Не знаешь что почитать? Загляни в Каталог — там фильтры по жанрам и типам.' },
+      ],
+      tour: [
+        { sel: '.g-search-form', title: 'Поиск манги', text: 'Вводи название — сразу появятся подсказки. Нажми Enter для полного поиска.' },
+        { sel: '.g-nav-a[href="/catalog"]', title: 'Каталог', text: 'Здесь найдёшь всю мангу с фильтрами по жанру, типу и статусу.' },
+        { sel: '.g-nav-a[href="/top"]', title: 'Топ читателей', text: 'Соревнуйся с другими читателями по XP и уровню!' },
+        { sel: '.g-nav-a[href="/shop"]', title: 'Магазин', text: 'За пузырики можно купить рамки, аватары и фоны для профиля.' },
+      ],
+    },
+    '/catalog': {
+      tips: [
+        { title: 'Фильтры', text: 'Выбирай тип (Манга/Манхва/...), статус и жанры — результаты обновятся мгновенно.' },
+        { title: 'Сортировка', text: 'Сортируй по рейтингу, просмотрам, количеству глав, дате или алфавиту.' },
+        { title: 'Жанры', text: 'Можно выбрать сразу несколько жанров — выдача сузится по всем.' },
+        { title: 'Мобильные фильтры', text: 'На телефоне нажми кнопку "Фильтры" внизу экрана. Свайп вниз — закрыть.' },
+      ],
+      tour: [
+        { sel: '.sidebar', title: 'Панель фильтров', text: 'Здесь выбираешь тип манги, статус и жанры. Все фильтры работают в реальном времени.' },
+        { sel: '.sort-bar', title: 'Сортировка', text: 'Меняй порядок выдачи: по рейтингу, просмотрам, главам, дате или алфавиту.' },
+        { sel: '.manga-grid', title: 'Карточки манги', text: 'Нажми на любую карточку чтобы открыть страницу манги.' },
+        { sel: '.filter-fab', title: 'Фильтры (мобиль)', text: 'На маленьком экране фильтры открываются здесь. Свайп вниз закрывает панель.' },
+      ],
+    },
+    '/search': {
+      tips: [
+        { title: 'Как искать', text: 'Введи название на русском или японском. Минимум 2 символа.' },
+        { title: 'Сортировка', text: 'Меняй порядок результатов кнопками над карточками.' },
+        { title: 'Перейти к манге', text: 'Нажми на обложку или название — откроется страница манги.' },
+      ],
+      tour: [
+        { sel: '.sort-bar', title: 'Сортировка результатов', text: 'Выбери порядок: релевантность, рейтинг, просмотры, главы или дата.' },
+        { sel: '.manga-card', title: 'Карточка манги', text: 'Кликни чтобы открыть мангу. Значок слева — тип, справа — рейтинг.' },
+      ],
+    },
+    '/shop': {
+      tips: [
+        { title: 'Пузырики', text: 'Валюта магазина. Зарабатывай читая главы, оставляя комментарии и выполняя задания.' },
+        { title: 'Рамки', text: 'Рамки украшают аватар на профиле и в комментариях.' },
+        { title: 'Фоны', text: 'Фоны для профиля — сменяют стандартный градиент на твоей странице.' },
+        { title: 'Premium', text: 'Premium открывает загрузку своего аватара и фона, мгновенные уведомления и ещё больше.' },
+      ],
+      tour: [
+        { sel: '.filter-bar', title: 'Фильтры магазина', text: 'Переключайся между категориями: рамки, фоны, аватары.' },
+        { sel: '.items-grid', title: 'Товары', text: 'Наводи на товар чтобы увидеть превью. Нажми "Купить" или "Надеть".' },
+      ],
+    },
+    '/top': {
+      tips: [
+        { title: 'Рейтинг читателей', text: 'Топ-100 читателей по очкам опыта (XP). Читай мангу и комментируй чтобы расти!' },
+        { title: 'Уровни', text: 'За каждую прочитанную главу и комментарий начисляется XP. Уровень растёт автоматически.' },
+        { title: 'Задания', text: 'В профиле есть задания — выполняй их для бонусного XP и пузыриков.' },
+      ],
+      tour: [
+        { sel: '.podium', title: 'Пьедестал', text: 'Топ-3 читателя с особым оформлением. Попади в тройку лучших!' },
+        { sel: '.lb-row', title: 'Таблица лидеров', text: 'Нажми на имя пользователя — откроется его профиль.' },
+      ],
+    },
+    '/collections/top': {
+      tips: [
+        { title: 'Коллекции', text: 'Пользователи создают тематические подборки манги. Лайкай лучшие!' },
+        { title: 'Лайки', text: 'Кнопка лайка ставит отметку коллекции. Лайкнутые коллекции поднимаются выше.' },
+        { title: 'Свои коллекции', text: 'Создавай коллекции в своём профиле — вкладка Библиотека — Коллекции.' },
+      ],
+      tour: [
+        { sel: '.colls-grid', title: 'Сетка коллекций', text: 'Коллекции отсортированы по лайкам. #1 — самая популярная.' },
+        { sel: '.btn-like-sm', title: 'Лайк', text: 'Нажми кнопку лайка чтобы поддержать коллекцию — нужно быть авторизованным.' },
+        { sel: '.btn-open', title: 'Открыть', text: 'Кнопка "Открыть" показывает все манги в коллекции.' },
+      ],
+    },
+    '/profile': {
+      tips: [
+        { title: 'Редактирование профиля', text: 'Нажми кнопку редактирования чтобы сменить имя, аватар, рамку и фон. Аватар и фон — только для Premium.' },
+        { title: 'Библиотека', text: 'Вкладки История, Подписки и Коллекции — все твои данные в одном месте.' },
+        { title: 'Уровень и XP', text: 'XP начисляется за чтение глав, комментарии и задания. Наведи на полоску прогресса чтобы увидеть детали.' },
+        { title: 'Достижения', text: 'Достижения открываются автоматически при выполнении условий — читай больше!' },
+        { title: 'Задания', text: 'Выполняй задания для получения бонусного XP и пузыриков. Новые задания открываются с уровнем.' },
+        { title: 'Коллекции', text: 'Создавай тематические подборки манги и делись ими с друзьями. Нажми "Создать" во вкладке Коллекции.' },
+      ],
+      tour: [
+        { sel: '.profile-card', title: 'Карточка профиля', text: 'Здесь твой аватар, имя, уровень и полоска XP. Нажми кнопку редактирования чтобы всё настроить.' },
+        { sel: '.xp-bar', title: 'Полоска опыта', text: 'Показывает прогресс до следующего уровня. Наведи чтобы увидеть точные цифры.' },
+        { sel: '.lib-tabs', title: 'Библиотека', text: 'История чтения, подписки на мангу и твои коллекции — всё здесь.' },
+        { sel: '[data-lib="collections"]', title: 'Коллекции', text: 'Создавай тематические подборки и открывай их для всех. Лучшие попадают в Топ коллекций.' },
+        { sel: '#quests-container', title: 'Задания', text: 'Выполняй задания для получения XP и пузыриков. Задания открываются по мере роста уровня.' },
+        { sel: '.achievements-section', title: 'Достижения', text: 'Тут собраны все твои достижения. Открываются автоматически при выполнении условий.' },
+      ],
+    },
+  };
+
+  const FAQ_GLOBAL = [
+    { q: 'Как войти на сайт?', a: 'Нажми "Войти" в шапке и открой бот в Telegram. После авторизации страница обновится.' },
+    { q: 'Как получить пузырики?', a: 'Читай главы (+10 XP), оставляй комментарии (+5), выполняй задания в профиле. XP конвертируется в пузырики на следующем уровне.' },
+    { q: 'Что даёт Premium?', a: 'Загрузка своего аватара и фона, мгновенные уведомления со ссылкой на главу, особый значок в профиле.' },
+    { q: 'Как подписаться на мангу?', a: 'Открой страницу манги и нажми кнопку "Подписаться". После выхода новой главы придёт уведомление в Telegram.' },
+    { q: 'Как создать коллекцию?', a: 'Перейди в свой профиль — Библиотека — Коллекции — "Создать". Потом добавляй мангу кнопкой "В коллекцию" на страницах манги.' },
+    { q: 'Где найти историю чтения?', a: 'Профиль — вкладка Библиотека — История. Там все главы что ты читал.' },
+    { q: 'Почему не приходят уведомления?', a: 'Убедись что ты авторизован через бота и у тебя включены уведомления. Без Premium они приходят раз в день без ссылки.' },
+  ];
+
+  // ── Текущая страница ─────────────────────────────────────────────────────
+  function getPageKey() {
+    for (const key of Object.keys(PAGE_DATA)) {
+      if (key !== '/' && (path === key || path.startsWith(key + '/'))) return key;
+    }
+    return '/';
+  }
+  const pageKey  = getPageKey();
+  const pageData = PAGE_DATA[pageKey] || PAGE_DATA['/'];
+
+  // ── Рендер советов ───────────────────────────────────────────────────────
+  function renderTips() {
+    const el = document.getElementById('hlp-tips-content');
+    if (!el) return;
+    el.innerHTML = pageData.tips.map(t => `
+      <div class="hlp-tip">
+        <span class="hlp-tip-title">${t.title}</span>
+        <span class="hlp-tip-body">${t.text}</span>
+      </div>`).join('');
+  }
+
+  // ── Рендер FAQ ───────────────────────────────────────────────────────────
+  function renderFaq() {
+    const el = document.getElementById('hlp-faq-content');
+    if (!el) return;
+    el.innerHTML = FAQ_GLOBAL.map((f, i) => `
+      <div class="hlp-faq-item" id="faq-${i}">
+        <button class="hlp-faq-q" onclick="hlpFaqToggle(${i})">
+          <span>${f.q}</span><span class="arrow">&#x203A;</span>
+        </button>
+        <div class="hlp-faq-a">${f.a}</div>
+      </div>`).join('');
+
+    const tourBtn = document.getElementById('hlpTourBtn');
+    const noTour  = document.getElementById('hlpNoTour');
+    if (pageData.tour && pageData.tour.length) {
+      tourBtn.style.display = 'block'; noTour.style.display = 'none';
+    } else {
+      tourBtn.style.display = 'none'; noTour.style.display = 'block';
+    }
+  }
+
+  window.hlpFaqToggle = function (i) {
+    const item = document.getElementById('faq-' + i);
+    const btn  = item.querySelector('.hlp-faq-q');
+    item.classList.toggle('open');
+    btn.classList.toggle('open');
+  };
+
+  // ── Панель toggle ────────────────────────────────────────────────────────
+  window.hlpToggle = function () {
+    const panel = document.getElementById('hlpPanel');
+    const dot   = document.getElementById('hlpDot');
+    panel.classList.toggle('open');
+    if (dot) dot.style.display = 'none';
+    localStorage.setItem('hlp_seen', '1');
+  };
+
+  window.hlpTab = function (btn, pane) {
+    document.querySelectorAll('.hlp-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.hlp-tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('hlp-' + pane).classList.add('active');
+  };
+
+  // ── Манга-тур ─────────────────────────────────────────────────────────────
+  let tourSteps = [], tourIdx = 0;
+
+  window.hlpStartTour = function () {
+    if (!pageData.tour || !pageData.tour.length) return;
+    tourSteps = pageData.tour.filter(s => document.querySelector(s.sel));
+    if (!tourSteps.length) return;
+    document.getElementById('hlpPanel').classList.remove('open');
+    tourIdx = 0;
+    document.getElementById('hlpTourOverlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    hlpShowStep(0);
+  };
+
+  window.hlpEndTour = function () {
+    document.getElementById('hlpTourOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+    const mask = document.getElementById('hlpTourMask');
+    mask.style.removeProperty('--hx'); mask.style.removeProperty('--hy');
+    mask.style.removeProperty('--hw'); mask.style.removeProperty('--hh');
+    document.getElementById('hlpTourRing').style.cssText = '';
+  };
+
+  window.hlpTourStep = function (dir) {
+    const next = tourIdx + dir;
+    if (next >= tourSteps.length) { hlpEndTour(); return; }
+    if (next < 0) return;
+    tourIdx = next;
+    hlpShowStep(tourIdx);
+  };
+
+  function hlpShowStep(idx) {
+    const step = tourSteps[idx];
+    const el   = document.querySelector(step.sel);
+    if (!el) {
+      if (idx < tourSteps.length - 1) { tourIdx++; hlpShowStep(tourIdx); }
+      else hlpEndTour();
+      return;
+    }
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    setTimeout(() => {
+      const r   = el.getBoundingClientRect();
+      const pad = 8;
+      const x = r.left - pad, y = r.top - pad;
+      const w = r.width + pad * 2, h = r.height + pad * 2;
+
+      const mask = document.getElementById('hlpTourMask');
+      mask.style.setProperty('--hx', x + 'px');
+      mask.style.setProperty('--hy', y + 'px');
+      mask.style.setProperty('--hw', w + 'px');
+      mask.style.setProperty('--hh', h + 'px');
+
+      const ring = document.getElementById('hlpTourRing');
+      ring.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+
+      document.getElementById('hlpMangaStep').textContent = `${idx + 1} / ${tourSteps.length}`;
+      document.getElementById('hlpMangaTitle').textContent = step.title;
+      document.getElementById('hlpMangaBody').textContent  = step.text;
+
+      document.getElementById('hlpMangaDots').innerHTML = tourSteps.map((_, i) =>
+        `<div class="hlp-bdot${i === idx ? ' cur' : ''}"></div>`).join('');
+
+      document.getElementById('hlpMangaPrev').style.display = idx === 0 ? 'none' : '';
+      document.getElementById('hlpMangaNext').textContent =
+        idx === tourSteps.length - 1 ? 'Завершить' : 'Далее \u2192';
+    }, 300);
+  }
+
+  // ── Первый визит — dot ────────────────────────────────────────────────────
+  if (localStorage.getItem('hlp_seen')) {
+    const dot = document.getElementById('hlpDot');
+    if (dot) dot.style.display = 'none';
+  }
+
+  renderTips();
+  renderFaq();
+})();
+</script>

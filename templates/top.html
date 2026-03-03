@@ -125,6 +125,18 @@
     .lb-row:hover { background: var(--card); }
     .lb-row.me { background: rgba(102,126,234,.08); }
 
+    /* Разделитель перед строкой текущего пользователя вне топ-100 */
+    .lb-my-sep {
+      position: relative; height: 1px;
+      background: rgba(255,255,255,.07); margin: 0;
+    }
+    .lb-my-sep::before {
+      content: '· · ·';
+      position: absolute; left: 50%; transform: translateX(-50%) translateY(-50%);
+      background: var(--card2); padding: 0 10px;
+      color: rgba(255,255,255,.2); font-size: .7rem; letter-spacing: .15em;
+    }
+
     .lb-rank {
       width: 36px; text-align: center; font-weight: 700; font-size: 1rem;
       color: var(--text-3); flex-shrink: 0;
@@ -183,8 +195,9 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 const {createElement:h,Fragment} = React;
 
-const LEADERS = {{ leaders | tojson }};
-const MY_ID   = {{ user_id | tojson }};
+const LEADERS      = {{ leaders | tojson }};
+const MY_ID        = {{ user_id | tojson }};
+const MY_RANK_DATA = {{ my_rank_data | tojson }};
 
 function Av({url, size=40, fontSize='1rem'}){
   const s = {
@@ -227,7 +240,7 @@ function LbRow({u, rank}){
     h('div',{className:'lb-avatar'}, h(Av,{url:u.avatar_url,size:40})),
     h('div',{className:'lb-name'},
       name,
-      u.is_premium && h('span',{className:'lb-premium-crown',title:'Premium'},'👑'),
+      !!u.is_premium && h('span',{className:'lb-premium-crown',title:'Premium'},'👑'),
       isMe && h('span',{style:{marginLeft:'.4rem',color:'#667eea',fontSize:'.75rem'}},'(вы)')
     ),
     h('div',{className:'lb-level'}, `Lv.${u.level||1}`),
@@ -254,7 +267,11 @@ function TopPage(){
         ? h('p',{style:{textAlign:'center',color:'#71717a',padding:'2rem'}},
             'Пока никого нет. Будь первым!')
         : h('div',{className:'leaderboard'},
-            LEADERS.map((u,i)=>h(LbRow,{key:u.id,u,rank:i+1}))
+            LEADERS.map((u,i)=>h(LbRow,{key:u.id,u,rank:i+1})),
+            MY_RANK_DATA && h(Fragment,null,
+              h('div',{className:'lb-my-sep'}),
+              h(LbRow,{key:'my-pos',u:MY_RANK_DATA,rank:MY_RANK_DATA.rank})
+            )
           )
     )
   );

@@ -3828,8 +3828,7 @@ def top_page():
     """Таблица лидеров"""
     conn = get_db()
     c = conn.cursor()
-    c.execute(
-        '''SELECT u.id, u.telegram_first_name, u.telegram_username,
+    ROW_SQL = '''SELECT u.id, u.telegram_first_name, u.telegram_username,
                   u.is_premium,
                   s.xp, s.level, s.total_chapters_read,
                   COALESCE(p.custom_avatar_url, p.avatar_url) as avatar_url,
@@ -3840,22 +3839,44 @@ def top_page():
                    LIMIT 1) as frame_css
            FROM users u
            JOIN user_stats s ON u.id = s.user_id
-           LEFT JOIN user_profile p ON u.id = p.user_id
-           ORDER BY s.xp DESC
-           LIMIT 100''')
+           LEFT JOIN user_profile p ON u.id = p.user_id'''
+
+    c.execute(ROW_SQL + ' ORDER BY s.xp DESC LIMIT 100')
     rows = c.fetchall()
-    conn.close()
+
+    def make_display(r):
+        return (r.get('custom_name') or '').strip() or \
+               r.get('telegram_first_name') or \
+               r.get('telegram_username') or \
+               f"#{r['id']}"
+
     leaders = []
+    top_ids = set()
     for row in rows:
         r = dict(row)
-        r['display_name'] = (r.get('custom_name') or '').strip() or \
-                             r.get('telegram_first_name') or \
-                             r.get('telegram_username') or \
-                             f"#{r['id']}"
+        r['display_name'] = make_display(r)
         leaders.append(r)
+        top_ids.add(r['id'])
 
     user_id = session.get('user_id')
-    return render_template('top.html', leaders=leaders, user_id=user_id)
+    my_rank_data = None
+    if user_id and user_id not in top_ids:
+        # Ранг пользователя среди всех
+        c.execute('''SELECT COUNT(*) + 1 AS rank FROM user_stats
+                     WHERE xp > (SELECT xp FROM user_stats WHERE user_id = ?)''',
+                  (user_id,))
+        rank_row = c.fetchone()
+        if rank_row:
+            c.execute(ROW_SQL + ' WHERE u.id = ?', (user_id,))
+            ur = c.fetchone()
+            if ur:
+                my_data = dict(ur)
+                my_data['display_name'] = make_display(my_data)
+                my_data['rank'] = rank_row['rank']
+                my_rank_data = my_data
+
+    conn.close()
+    return render_template('top.html', leaders=leaders, user_id=user_id, my_rank_data=my_rank_data)
 
 
 @app.route('/shop')
