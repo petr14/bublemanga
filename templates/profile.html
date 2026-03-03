@@ -633,7 +633,7 @@
         <div class="modal-title"><span id="collModalTitle"> Новая коллекция</span> <button class="modal-close" onclick="closeModal('collModal');resetCollModal()">✕</button></div>
         <div class="field"><label>Название *</label><input type="text" id="collName" maxlength="100" placeholder="Например: Любимые isekai"></div>
         <div class="field"><label>Описание</label><textarea id="collDesc" maxlength="500" placeholder="Необязательно..."></textarea></div>
-        <div id="collCoverSection" style="display:none" class="field">
+        <div id="collCoverSection" class="field">
             <label>Обложка коллекции</label>
             <input type="hidden" id="collCoverCollId">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -950,7 +950,7 @@
         document.getElementById('collModalTitle').textContent = ' Новая коллекция';
         document.getElementById('collSaveBtn').textContent = 'Создать';
         const coverSection = document.getElementById('collCoverSection');
-        if (coverSection) coverSection.style.display = 'none';
+        if (coverSection) coverSection.style.display = 'block';
         const preview = document.getElementById('collCoverPreview');
         if (preview) { preview.src = ''; preview.style.display = 'none'; }
         const fileInput = document.getElementById('collCoverFile');

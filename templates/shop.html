@@ -651,14 +651,14 @@ function ShopPage(){
 
   return h(Fragment,null,
     h('div',{className:'shop-hero'},
-      h('h1',null,'🛒 Магазин'),
+      h('h1',null,'Магазин'),
       h('p',null,'Украшай профиль — покупай за шарики, заработанные чтением'),
-      (USER_ID || (IS_PREMIUM&&premiumExpStr)) && h('div',{className:'hero-badges'},
+      (USER_ID || (!!IS_PREMIUM&&premiumExpStr)) && h('div',{className:'hero-badges'},
         USER_ID && h('div',{className:'balance-chip'},
           h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
           h('span',null,coins.toLocaleString(),' шариков')
         ),
-        IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'⭐ Premium активен до ',premiumExpStr)
+        !!IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'⭐ Premium активен до ',premiumExpStr)
       )
     ),
 
@@ -684,6 +684,7 @@ function ShopPage(){
 createRoot(document.getElementById('shop-root')).render(h(ShopPage));
 </script>
 
+{%- include '_helper.html' %}
 {%- include 'footer.html' %}
 </body>
 </html>

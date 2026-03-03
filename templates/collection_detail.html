@@ -166,6 +166,73 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.success { border-color: rgba(74,222,128,.3); color: #4ade80; }
     .toast.error { border-color: rgba(239,68,68,.3); color: #ef4444; }
+
+    /* ── Edit button ── */
+    .btn-edit-coll {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .45rem 1rem; border-radius: 20px; border: 1px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.06); color: var(--text-2);
+      font-size: .82rem; font-weight: 600; cursor: pointer;
+      transition: all .2s; font-family: inherit;
+    }
+    .btn-edit-coll:hover { border-color: #818cf8; color: #818cf8; background: rgba(129,140,248,.08); }
+
+    /* ── Edit modal ── */
+    .emodal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.72);
+      z-index: 8000; display: flex; align-items: center; justify-content: center; padding: 1rem;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .emodal-overlay.open { opacity: 1; pointer-events: all; }
+    .emodal {
+      background: #18181b; border: 1px solid rgba(255,255,255,.08); border-radius: 20px;
+      padding: 1.5rem; width: 100%; max-width: 440px;
+      transform: translateY(20px); transition: transform .2s;
+    }
+    .emodal-overlay.open .emodal { transform: translateY(0); }
+    .emodal-title {
+      font-size: 1.05rem; font-weight: 700; margin-bottom: 1.2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .emodal-close {
+      background: none; border: none; color: var(--text-2); font-size: 1.1rem;
+      cursor: pointer; padding: 0; line-height: 1;
+    }
+    .emodal-close:hover { color: var(--text); }
+    .emodal label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-2); margin-bottom: .4rem; }
+    .emodal input[type="text"], .emodal textarea {
+      width: 100%; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; padding: .6rem .85rem; color: var(--text); font-family: inherit;
+      font-size: .88rem; resize: vertical; outline: none;
+    }
+    .emodal input[type="text"]:focus, .emodal textarea:focus { border-color: rgba(129,140,248,.4); }
+    .emodal .field { margin-bottom: 1rem; }
+    .emodal-cover-row {
+      display: flex; align-items: center; gap: .65rem; flex-wrap: wrap;
+    }
+    .emodal-cover-prev {
+      width: 52px; height: 74px; border-radius: 8px; object-fit: cover;
+      border: 1px solid rgba(255,255,255,.12); display: none;
+    }
+    .emodal-cover-btn {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .4rem .85rem; border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.05); color: var(--text-2); font-size: .78rem;
+      font-family: inherit; cursor: pointer;
+    }
+    .emodal-actions {
+      display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.2rem;
+    }
+    .emodal-actions .btn-cancel {
+      padding: .5rem 1.1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,.1);
+      background: none; color: var(--text-2); font-family: inherit; font-size: .88rem; cursor: pointer;
+    }
+    .emodal-actions .btn-save {
+      padding: .5rem 1.4rem; border-radius: 12px;
+      background: linear-gradient(135deg,#667eea,#764ba2); color: #fff;
+      border: none; font-family: inherit; font-size: .88rem; font-weight: 600; cursor: pointer;
+    }
+    .emodal-actions .btn-save:disabled { opacity: .5; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -212,6 +279,9 @@
             <span id="likeIcon">{% if my_like %}❤️{% else %}🤍{% endif %}</span>
             <span id="likeCount">{{ coll.likes_count }}</span>
           </button>
+          {% if is_owner %}
+          <button class="btn-edit-coll" onclick="openEditModal()">✏️ Изменить</button>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -249,6 +319,43 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Edit modal (owner only) -->
+{% if is_owner %}
+<div class="emodal-overlay" id="editModalOverlay">
+  <div class="emodal">
+    <div class="emodal-title">
+      <span>Изменить коллекцию</span>
+      <button class="emodal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="field">
+      <label>Название *</label>
+      <input type="text" id="editName" maxlength="100" value="{{ coll.name | e }}">
+    </div>
+    <div class="field">
+      <label>Описание</label>
+      <textarea id="editDesc" maxlength="500" rows="3">{{ coll.description | e if coll.description else '' }}</textarea>
+    </div>
+    <div class="field">
+      <label>Обложка</label>
+      <div class="emodal-cover-row">
+        <img class="emodal-cover-prev" id="editCoverPreview"
+             src="{{ coll.cover_url or '' }}"
+             style="{{ 'display:block' if coll.cover_url else 'display:none' }}">
+        <label class="emodal-cover-btn">
+          📷 Выбрать фото
+          <input type="file" id="editCoverFile" accept="image/*" style="display:none" onchange="previewEditCover(this)">
+        </label>
+        <span id="editCoverName" style="font-size:11px;color:var(--text-3)"></span>
+      </div>
+    </div>
+    <div class="emodal-actions">
+      <button class="btn-cancel" onclick="closeEditModal()">Отмена</button>
+      <button class="btn-save" id="editSaveBtn" onclick="saveEdit()">Сохранить</button>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="toast" id="toast"></div>
 
@@ -289,6 +396,63 @@ async function toggleLike() {
   }
   btn.disabled = false;
 }
+
+function openEditModal() {
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('editModalOverlay').classList.remove('open');
+}
+
+function previewEditCover(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  document.getElementById('editCoverName').textContent = file.name;
+  const preview = document.getElementById('editCoverPreview');
+  if (preview) {
+    const reader = new FileReader();
+    reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function saveEdit() {
+  const name = document.getElementById('editName').value.trim();
+  if (!name) { toast('Введи название', 'error'); return; }
+  const desc = document.getElementById('editDesc').value.trim();
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/collections/${COLL_ID}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, description: desc, is_public: true })
+    });
+    const d = await r.json();
+    if (!d.success) { toast(d.error || 'Ошибка', 'error'); btn.disabled = false; return; }
+
+    const fileInput = document.getElementById('editCoverFile');
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      fd.append('collection_id', COLL_ID);
+      await fetch('/upload/collection-cover', { method: 'POST', body: fd });
+    }
+
+    toast('Сохранено', 'success');
+    closeEditModal();
+    setTimeout(() => location.reload(), 800);
+  } catch(e) {
+    toast('Ошибка сети', 'error');
+  }
+  btn.disabled = false;
+}
+
+// Close on overlay click
+document.getElementById('editModalOverlay') && document.getElementById('editModalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
 </script>
 
 {%- include 'footer.html' %}
