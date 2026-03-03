@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+  <meta name="theme-color" content="#667eea"/>
+  <title>Каталог манги — BubbleManga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: #667eea;
+      --primary2: #764ba2;
+      --bg: #0a0a0a;
+      --card: #141414;
+      --card2: #1a1a1a;
+      --border: rgba(255,255,255,.07);
+      --border2: rgba(255,255,255,.12);
+      --text: #f4f4f5;
+      --text2: #a1a1aa;
+      --text3: #52525b;
+      --radius: 12px;
+    }
+    html, body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Layout ── */
+    .page-wrap { display: flex; min-height: calc(100vh - 160px); }
+    @media (max-width: 700px) { .page-wrap { min-height: calc(100vh - 100px); } }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 260px; flex-shrink: 0;
+      padding: 1.5rem 1rem 1.5rem 1.5rem;
+      border-right: 1px solid var(--border);
+      position: sticky; top: 160px; align-self: flex-start;
+      height: calc(100vh - 160px); overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+    }
+    @media (max-width: 700px) { .sidebar { top: 100px; height: calc(100vh - 100px); } }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+    @media (max-width: 860px) { .sidebar { display: none; } }
+
+    /* Mobile filter button */
+    .filter-fab {
+      display: none;
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 500;
+      padding: .75rem 1.25rem; border-radius: 28px;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff; font-size: .9rem; font-weight: 700;
+      border: none; cursor: pointer; box-shadow: 0 6px 20px rgba(102,126,234,.4);
+      display: flex; align-items: center; gap: .4rem;
+    }
+    @media (max-width: 860px) { .filter-fab { display: flex; } }
+
+    /* Mobile filter drawer */
+    .filter-drawer-overlay {
+      display: none; position: fixed; inset: 0; z-index: 800;
+      background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+    }
+    .filter-drawer-overlay.open { display: block; }
+    .filter-drawer {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 900;
+      background: #111; border-radius: 20px 20px 0 0;
+      padding: 1.5rem; max-height: 80vh; overflow-y: auto;
+      transform: translateY(100%); transition: transform .3s;
+    }
+    .filter-drawer-overlay.open .filter-drawer { transform: translateY(0); }
+    .drawer-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--border2); margin: 0 auto 1.2rem; }
+
+    /* ── Filter sections ── */
+    .filter-section { margin-bottom: 1.25rem; }
+    .filter-label {
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--text3); margin-bottom: .6rem;
+    }
+    .chip-group { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .chip {
+      padding: .3rem .75rem; border-radius: 20px; font-size: .78rem; font-weight: 500;
+      border: 1px solid var(--border2); background: var(--card); color: var(--text2);
+      cursor: pointer; transition: all .15s; user-select: none;
+    }
+    .chip:hover { border-color: var(--primary); color: var(--primary); }
+    .chip.active {
+      background: rgba(102,126,234,.18); border-color: rgba(102,126,234,.5);
+      color: var(--primary); font-weight: 600;
+    }
+    .chip.all.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      border-color: transparent; color: #fff;
+    }
+    .filter-sep { height: 1px; background: var(--border); margin: 1rem 0; }
+
+    /* Genre grid (collapsible) */
+    .genre-grid { max-height: 160px; overflow: hidden; position: relative; }
+    .genre-grid.expanded { max-height: none; }
+    .genre-grid:not(.expanded)::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+      background: linear-gradient(transparent, var(--bg));
+      pointer-events: none;
+    }
+    .show-more-genres {
+      margin-top: .5rem; font-size: .75rem; color: var(--primary); cursor: pointer;
+      background: none; border: none; font-family: inherit; padding: 0;
+    }
+    .show-more-genres:hover { text-decoration: underline; }
+
+    /* Reset button */
+    .btn-reset-filters {
+      width: 100%; padding: .55rem; border-radius: 10px; margin-top: .5rem;
+      background: none; border: 1px solid var(--border2); color: var(--text2);
+      font-size: .8rem; cursor: pointer; font-family: inherit; transition: all .15s;
+    }
+    .btn-reset-filters:hover { border-color: #ef4444; color: #ef4444; }
+
+    /* ── Main content ── */
+    .main-content { flex: 1; min-width: 0; padding: 1.5rem; }
+
+    /* Active filters bar */
+    .active-filters {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+      margin-bottom: 1rem; min-height: 0;
+    }
+    .active-filter-chip {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .25rem .65rem; border-radius: 16px;
+      background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.25);
+      color: var(--primary); font-size: .75rem; font-weight: 600;
+    }
+    .active-filter-chip button {
+      background: none; border: none; color: inherit; cursor: pointer;
+      font-size: .85rem; padding: 0; line-height: 1; opacity: .7;
+    }
+    .active-filter-chip button:hover { opacity: 1; }
+
+    /* Sort bar */
+    .sort-bar {
+      display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1.25rem;
+      align-items: center;
+    }
+    .sort-label { font-size: .8rem; color: var(--text2); margin-right: .2rem; }
+    .sort-btn {
+      padding: .35rem .85rem; border-radius: 20px; font-size: .78rem; font-weight: 500;
+      border: 1px solid var(--border2); background: var(--card); color: var(--text2);
+      cursor: pointer; transition: all .15s; white-space: nowrap; font-family: inherit;
+    }
+    .sort-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .sort-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      border-color: transparent; color: #fff; font-weight: 600;
+    }
+
+    /* Results info */
+    .results-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; font-size: .82rem; color: var(--text2);
+    }
+    .results-count { color: var(--primary); font-weight: 600; }
+
+    /* Manga grid */
+    .manga-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 1rem;
+    }
+    @media (min-width: 1200px) { .manga-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
+    @media (max-width: 500px) { .manga-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .75rem; } }
+
+    /* Card */
+    .manga-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      cursor: pointer; transition: transform .2s, border-color .2s;
+      position: relative;
+    }
+    .manga-card:hover { transform: translateY(-5px); border-color: rgba(102,126,234,.4); }
+    .manga-cover {
+      width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;
+    }
+    .manga-type-badge {
+      position: absolute; top: .45rem; left: .45rem;
+      background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.15);
+      color: #ddd; font-size: .62rem; font-weight: 700;
+      padding: .18rem .45rem; border-radius: 5px;
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .manga-info { padding: .6rem .7rem .75rem; }
+    .manga-title {
+      font-size: .8rem; font-weight: 600; color: #e4e4e7;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; min-height: 2.4em; line-height: 1.4;
+    }
+    .manga-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: .4rem; gap: .25rem;
+    }
+    .manga-status {
+      font-size: .65rem; font-weight: 600; padding: .18rem .45rem; border-radius: 5px;
+    }
+    .status-ongoing { background: rgba(74,222,128,.12); color: #4ade80; }
+    .status-finished { background: rgba(167,139,250,.12); color: #a78bfa; }
+    .status-cancelled, .status-hiatus { background: rgba(248,113,113,.12); color: #f87171; }
+    .status-announced { background: rgba(251,191,36,.1); color: #fbbf24; }
+    .manga-score { font-size: .7rem; color: #fbbf24; font-weight: 600; }
+
+    /* Load more */
+    .load-more-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      gap: .75rem; margin: 2rem 0 1rem;
+    }
+    .load-more-btn {
+      padding: .7rem 2.5rem; border-radius: 24px;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff; font-size: .88rem; font-weight: 700;
+      border: none; cursor: pointer; transition: opacity .18s, transform .18s;
+      font-family: inherit;
+    }
+    .load-more-btn:hover { opacity: .88; transform: translateY(-2px); }
+    .load-more-btn:disabled { opacity: .35; cursor: default; transform: none; }
+    .load-counter { font-size: .78rem; color: var(--text3); }
+
+    /* Spinner */
+    .spinner {
+      display: none; width: 32px; height: 32px; margin: 2rem auto;
+      border: 3px solid var(--border2); border-top-color: var(--primary);
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 4rem 1rem; color: var(--text3); }
+    .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .empty-state h2 { font-size: 1.2rem; color: var(--text2); margin-bottom: .5rem; }
+    .empty-state p { font-size: .88rem; }
+  </style>
+</head>
+<body>
+
+{% set g_active = 'catalog' %}{% include 'header.html' %}
+
+<div class="page-wrap">
+
+  <!-- ── Sidebar (desktop) ── -->
+  <aside class="sidebar" id="sidebarContent">
+    {% include '_catalog_filters.html' %}
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main-content">
+
+    <!-- Active filters -->
+    <div class="active-filters" id="activeFilters"></div>
+
+    <!-- Sort bar -->
+    <div class="sort-bar">
+      <span class="sort-label">Сортировка:</span>
+      <button class="sort-btn active" data-sort="score">Рейтинг</button>
+      <button class="sort-btn" data-sort="views">Просмотры</button>
+      <button class="sort-btn" data-sort="chapters">Кол-во глав</button>
+      <button class="sort-btn" data-sort="updated">Дата главы</button>
+      <button class="sort-btn" data-sort="title">А–Я</button>
+    </div>
+
+    <!-- Results info -->
+    <div class="results-bar">
+      <span>Найдено: <span class="results-count" id="resultsCount">...</span></span>
+    </div>
+
+    <!-- Grid -->
+    <div class="manga-grid" id="mangaGrid"></div>
+    <div class="spinner" id="spinner"></div>
+
+    <!-- Load more -->
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="load-more-btn" id="loadMoreBtn">Показать ещё</button>
+      <span class="load-counter" id="loadCounter"></span>
+    </div>
+
+    <!-- Empty -->
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="empty-state-icon">🔍</div>
+      <h2>Ничего не найдено</h2>
+      <p>Попробуй изменить фильтры</p>
+    </div>
+  </main>
+</div>
+
+<!-- Mobile filter FAB -->
+<button class="filter-fab" id="filterFab" onclick="openDrawer()">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+  Фильтры
+</button>
+
+<!-- Mobile filter drawer -->
+<div class="filter-drawer-overlay" id="filterDrawerOverlay" onclick="closeDrawer(event)">
+  <div class="filter-drawer" id="filterDrawer">
+    <div class="drawer-handle"></div>
+    {% include '_catalog_filters.html' %}
+  </div>
+</div>
+
+<script>
+const GENRES_ALL = {{ genres | tojson }};
+const PER = 28;
+
+let state = {
+  type: '',
+  status: '',
+  genres: new Set(),
+  sort: 'score',
+  offset: 0,
+  total: 0,
+  loading: false,
+};
+
+// ── Card builder ──────────────────────────────────────────
+const TYPE_RU = {MANGA:'Манга',MANHWA:'Манхва',MANHUA:'Маньхуа',OEL:'Всемирная',NOVEL:'Новелла',ONE_SHOT:'Короткие',DOUJINSHI:'Додзинси',COMICS:'Комикс'};
+const STATUS_RU = {ONGOING:'Выходит',FINISHED:'Завершена',CANCELLED:'Заброшена',HIATUS:'Пауза',ANNOUNCED:'Анонс'};
+
+function buildCard(m) {
+  const typeLabel = TYPE_RU[m.manga_type] || m.manga_type || '';
+  const statusKey = (m.manga_status || '').toLowerCase();
+  const statusLabel = STATUS_RU[m.manga_status] || '';
+  const score = m.score ? Number(m.score).toFixed(1) : '';
+  return `<div class="manga-card" onclick="location.href='/manga/${m.manga_slug}'">
+    ${typeLabel ? `<div class="manga-type-badge">${typeLabel}</div>` : ''}
+    <img src="${m.cover_url || ''}" class="manga-cover" loading="lazy"
+         onerror="this.src='https://via.placeholder.com/150x225/1a1a1a/667eea'">
+    <div class="manga-info">
+      <div class="manga-title">${esc(m.manga_title)}</div>
+      <div class="manga-meta">
+        ${statusLabel ? `<span class="manga-status status-${statusKey}">${statusLabel}</span>` : '<span></span>'}
+        ${score ? `<span class="manga-score">★ ${score}</span>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Fetch ─────────────────────────────────────────────────
+async function fetchCatalog(append = false) {
+  if (state.loading) return;
+  state.loading = true;
+
+  const grid = document.getElementById('mangaGrid');
+  const spinner = document.getElementById('spinner');
+  const empty = document.getElementById('emptyState');
+  const lmWrap = document.getElementById('loadMoreWrap');
+  const lmBtn = document.getElementById('loadMoreBtn');
+
+  spinner.style.display = 'block';
+  if (!append) {
+    grid.innerHTML = '';
+    lmWrap.style.display = 'none';
+    empty.style.display = 'none';
+  } else {
+    lmBtn.disabled = true;
+  }
+
+  const params = new URLSearchParams({
+    sort: state.sort,
+    offset: state.offset,
+    limit: PER,
+  });
+  if (state.type) params.set('type', state.type);
+  if (state.status) params.set('status', state.status);
+  if (state.genres.size) params.set('genres', [...state.genres].join(','));
+
+  try {
+    const r = await fetch('/api/catalog?' + params.toString());
+    const d = await r.json();
+
+    state.total = d.total;
+    document.getElementById('resultsCount').textContent = d.total + ' манг';
+
+    if (!append && !d.results.length) {
+      empty.style.display = 'block';
+    } else {
+      grid.insertAdjacentHTML('beforeend', d.results.map(buildCard).join(''));
+      state.offset += d.results.length;
+    }
+
+    if (d.has_more) {
+      lmWrap.style.display = 'flex';
+      lmBtn.disabled = false;
+      document.getElementById('loadCounter').textContent =
+        `Показано ${state.offset} из ${d.total}`;
+    } else {
+      lmWrap.style.display = 'none';
+    }
+  } catch(e) {
+    console.error(e);
+  }
+
+  spinner.style.display = 'none';
+  state.loading = false;
+}
+
+function reload() {
+  state.offset = 0;
+  fetchCatalog(false);
+  updateActiveFilters();
+}
+
+// ── Sort ──────────────────────────────────────────────────
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    state.sort = this.dataset.sort;
+    reload();
+  });
+});
+
+// ── Type filter ───────────────────────────────────────────
+function setType(val) {
+  state.type = val;
+  document.querySelectorAll('[data-type]').forEach(el => {
+    el.classList.toggle('active', el.dataset.type === val);
+  });
+  reload();
+}
+
+// ── Status filter ─────────────────────────────────────────
+function setStatus(val) {
+  state.status = val;
+  document.querySelectorAll('[data-status]').forEach(el => {
+    el.classList.toggle('active', el.dataset.status === val);
+  });
+  reload();
+}
+
+// ── Genre filter ──────────────────────────────────────────
+function toggleGenre(genre) {
+  if (state.genres.has(genre)) {
+    state.genres.delete(genre);
+  } else {
+    state.genres.add(genre);
+  }
+  // Sync всех копий чипа (sidebar + drawer)
+  document.querySelectorAll(`[data-genre="${CSS.escape(genre)}"]`).forEach(el => {
+    el.classList.toggle('active', state.genres.has(genre));
+  });
+  reload();
+}
+
+// ── Active filters bar ────────────────────────────────────
+const TYPE_RU_FULL = {MANGA:'Манга',MANHWA:'Манхва',MANHUA:'Маньхуа',OEL:'Всемирная манга',NOVEL:'Новелла',ONE_SHOT:'Короткие истории',DOUJINSHI:'Додзинси',COMICS:'Комикс'};
+const STATUS_RU_FULL = {ONGOING:'Выходит',FINISHED:'Завершена',CANCELLED:'Заброшена',HIATUS:'Пауза',ANNOUNCED:'Анонс'};
+
+function updateActiveFilters() {
+  const bar = document.getElementById('activeFilters');
+  const chips = [];
+  if (state.type) {
+    chips.push(`<span class="active-filter-chip">
+      ${TYPE_RU_FULL[state.type] || state.type}
+      <button onclick="setType('')" title="Убрать">✕</button>
+    </span>`);
+  }
+  if (state.status) {
+    chips.push(`<span class="active-filter-chip">
+      ${STATUS_RU_FULL[state.status] || state.status}
+      <button onclick="setStatus('')" title="Убрать">✕</button>
+    </span>`);
+  }
+  for (const g of state.genres) {
+    chips.push(`<span class="active-filter-chip">
+      ${esc(g)}
+      <button onclick="removeGenre('${esc(g)}')" title="Убрать">✕</button>
+    </span>`);
+  }
+  bar.innerHTML = chips.join('');
+}
+
+function removeGenre(genre) {
+  state.genres.delete(genre);
+  document.querySelectorAll(`[data-genre="${CSS.escape(genre)}"]`).forEach(el => el.classList.remove('active'));
+  reload();
+}
+
+function resetFilters() {
+  state.type = '';
+  state.status = '';
+  state.genres.clear();
+  document.querySelectorAll('[data-genre]').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('[data-type]').forEach(el => el.classList.toggle('active', el.dataset.type === ''));
+  document.querySelectorAll('[data-status]').forEach(el => el.classList.toggle('active', el.dataset.status === ''));
+  reload();
+}
+
+// ── Genre expand ──────────────────────────────────────────
+function toggleGenreExpand(btn) {
+  const grid = btn.previousElementSibling;
+  const expanded = grid.classList.toggle('expanded');
+  btn.textContent = expanded ? 'Свернуть ↑' : 'Показать все жанры ↓';
+}
+
+// ── Load more ─────────────────────────────────────────────
+document.getElementById('loadMoreBtn').addEventListener('click', () => fetchCatalog(true));
+
+// ── Mobile drawer ─────────────────────────────────────────
+const drawerOverlay = document.getElementById('filterDrawerOverlay');
+const drawer = document.getElementById('filterDrawer');
+
+function openDrawer() {
+  drawerOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function _dismissDrawer() {
+  drawerOverlay.classList.remove('open');
+  document.body.style.overflow = '';
+  drawer.style.transform = '';
+  drawer.style.transition = '';
+}
+function closeDrawer(e) {
+  if (e && e.target !== drawerOverlay) return;
+  _dismissDrawer();
+}
+drawer.addEventListener('click', e => e.stopPropagation());
+
+// ── Swipe-down to close ────────────────────────────────────
+(function() {
+  let startY = 0, curY = 0, dragging = false;
+  const THRESHOLD = 80; // px свайпа для закрытия
+
+  drawer.addEventListener('touchstart', function(e) {
+    // Начинать свайп только если скролл в самом верху дроера
+    if (drawer.scrollTop > 0) return;
+    startY = e.touches[0].clientY;
+    curY = startY;
+    dragging = true;
+    drawer.style.transition = 'none';
+  }, { passive: true });
+
+  drawer.addEventListener('touchmove', function(e) {
+    if (!dragging) return;
+    curY = e.touches[0].clientY;
+    const delta = curY - startY;
+    if (delta <= 0) {
+      // Свайп вверх — не двигать
+      drawer.style.transform = '';
+      return;
+    }
+    // Смещаем drawer следом за пальцем с небольшим сопротивлением
+    const resistance = delta < THRESHOLD ? 1 : 0.4;
+    drawer.style.transform = `translateY(${delta * resistance}px)`;
+  }, { passive: true });
+
+  drawer.addEventListener('touchend', function() {
+    if (!dragging) return;
+    dragging = false;
+    const delta = curY - startY;
+    if (delta >= THRESHOLD) {
+      // Достаточный свайп — закрыть с анимацией
+      drawer.style.transition = 'transform .25s ease';
+      drawer.style.transform = 'translateY(100%)';
+      setTimeout(_dismissDrawer, 250);
+    } else {
+      // Недостаточно — вернуть на место
+      drawer.style.transition = 'transform .2s ease';
+      drawer.style.transform = '';
+    }
+  });
+})();
+
+// ── Init ──────────────────────────────────────────────────
+reload();
+</script>
+</body>
+</html>

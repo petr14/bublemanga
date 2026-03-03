@@ -3146,6 +3146,89 @@ def search_suggestions():
 
     return jsonify(suggestions[:8])
 
+@app.route('/catalog')
+def catalog_page():
+    """Каталог всех манг с фильтрацией"""
+    conn = get_db()
+    c = conn.cursor()
+    # Собрать все уникальные жанры с частотой
+    c.execute('SELECT tags FROM manga WHERE tags IS NOT NULL AND tags != "[]" AND tags != ""')
+    genre_freq = {}
+    for row in c.fetchall():
+        try:
+            tags = json.loads(row[0])
+            for tag in tags:
+                tag = tag.strip()
+                if tag:
+                    genre_freq[tag] = genre_freq.get(tag, 0) + 1
+        except Exception:
+            pass
+    genres = sorted(genre_freq.keys(), key=lambda g: -genre_freq[g])
+    conn.close()
+    return render_template('catalog.html', genres=genres)
+
+
+@app.route('/api/catalog')
+def api_catalog():
+    """AJAX-каталог с фильтрацией и сортировкой"""
+    _PER = 28
+    _SORT = {
+        'score':    'COALESCE(score, 0) DESC',
+        'views':    'COALESCE(views, 0) DESC',
+        'chapters': 'COALESCE(chapters_count, 0) DESC',
+        'updated':  "COALESCE(last_updated, '1970') DESC",
+        'title':    'manga_title ASC',
+    }
+    manga_type = request.args.get('type', '').strip().upper()
+    manga_status = request.args.get('status', '').strip().upper()
+    genres_raw = request.args.get('genres', '').strip()
+    sort = request.args.get('sort', 'score')
+    offset = max(0, request.args.get('offset', 0, type=int))
+    limit = min(max(1, request.args.get('limit', _PER, type=int)), 100)
+
+    if sort not in _SORT:
+        sort = 'score'
+
+    selected_genres = [g.strip() for g in genres_raw.split(',') if g.strip()] if genres_raw else []
+
+    where = ['1=1']
+    params = []
+
+    if manga_type and manga_type in ('MANGA', 'MANHWA', 'MANHUA', 'OEL', 'NOVEL', 'ONE_SHOT', 'DOUJINSHI', 'COMICS'):
+        where.append('manga_type = ?')
+        params.append(manga_type)
+
+    if manga_status and manga_status in ('ONGOING', 'FINISHED', 'CANCELLED', 'HIATUS', 'ANNOUNCED'):
+        where.append('manga_status = ?')
+        params.append(manga_status)
+
+    for genre in selected_genres[:10]:
+        safe = genre.replace('"', '').replace('%', '').replace('_', '\\_')
+        where.append('tags LIKE ?')
+        params.append(f'%"{safe}"%')
+
+    where_sql = ' AND '.join(where)
+    order_sql = _SORT[sort]
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(f'SELECT COUNT(*) FROM manga WHERE {where_sql}', params)
+    total = c.fetchone()[0]
+
+    c.execute(
+        f'''SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+                   cover_url, rating, score, views, chapters_count, last_updated
+            FROM manga WHERE {where_sql}
+            ORDER BY {order_sql}
+            LIMIT ? OFFSET ?''',
+        params + [limit, offset]
+    )
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    return jsonify({'results': rows, 'total': total, 'has_more': offset + len(rows) < total})
+
+
 @app.route('/api/subscribe/<manga_id>', methods=['POST'])
 def subscribe(manga_id):
     user_id = session.get('user_id')

@@ -1,0 +1,52 @@
+{# ═══ Фильтры каталога (используется в sidebar и mobile drawer) ═══ #}
+
+<!-- ── Тип ── -->
+<div class="filter-section">
+  <div class="filter-label">Тип</div>
+  <div class="chip-group">
+    <span class="chip all active" data-type="" onclick="setType('')">Все</span>
+    <span class="chip" data-type="MANGA"     onclick="setType('MANGA')">Манга</span>
+    <span class="chip" data-type="MANHWA"    onclick="setType('MANHWA')">Манхва</span>
+    <span class="chip" data-type="MANHUA"    onclick="setType('MANHUA')">Маньхуа</span>
+    <span class="chip" data-type="NOVEL"     onclick="setType('NOVEL')">Новелла</span>
+    <span class="chip" data-type="COMICS"    onclick="setType('COMICS')">Комикс</span>
+    <span class="chip" data-type="ONE_SHOT"  onclick="setType('ONE_SHOT')">Короткие</span>
+    <span class="chip" data-type="DOUJINSHI" onclick="setType('DOUJINSHI')">Додзинси</span>
+    <span class="chip" data-type="OEL"       onclick="setType('OEL')">Всемирная</span>
+  </div>
+</div>
+
+<div class="filter-sep"></div>
+
+<!-- ── Статус ── -->
+<div class="filter-section">
+  <div class="filter-label">Статус</div>
+  <div class="chip-group">
+    <span class="chip all active" data-status="" onclick="setStatus('')">Все</span>
+    <span class="chip" data-status="ONGOING"   onclick="setStatus('ONGOING')">Выходит</span>
+    <span class="chip" data-status="FINISHED"  onclick="setStatus('FINISHED')">Завершена</span>
+    <span class="chip" data-status="HIATUS"    onclick="setStatus('HIATUS')">Пауза</span>
+    <span class="chip" data-status="CANCELLED" onclick="setStatus('CANCELLED')">Заброшена</span>
+    <span class="chip" data-status="ANNOUNCED" onclick="setStatus('ANNOUNCED')">Анонс</span>
+  </div>
+</div>
+
+<div class="filter-sep"></div>
+
+<!-- ── Жанры ── -->
+<div class="filter-section">
+  <div class="filter-label">Жанры</div>
+  <div class="chip-group genre-grid">
+    {% for genre in genres %}
+    <span class="chip" data-genre="{{ genre }}" onclick="toggleGenre('{{ genre | e }}')">{{ genre }}</span>
+    {% endfor %}
+  </div>
+  {% if genres|length > 12 %}
+  <button class="show-more-genres" onclick="toggleGenreExpand(this)">Показать все жанры ↓</button>
+  {% endif %}
+</div>
+
+<div class="filter-sep"></div>
+
+<!-- ── Сброс ── -->
+<button class="btn-reset-filters" onclick="resetFilters()">Сбросить фильтры</button>
