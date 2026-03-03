@@ -48,7 +48,7 @@
     /* Mobile filter button */
     .filter-fab {
       display: none;
-      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 500;
+      position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 1rem); right: 1.5rem; z-index: 500;
       padding: .75rem 1.25rem; border-radius: 28px;
       background: linear-gradient(135deg, var(--primary), var(--primary2));
       color: #fff; font-size: .9rem; font-weight: 700;
@@ -236,6 +236,57 @@
     .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
     .empty-state h2 { font-size: 1.2rem; color: var(--text2); margin-bottom: .5rem; }
     .empty-state p { font-size: .88rem; }
+
+    /* ── Quick preview popup ── */
+    .manga-preview-overlay {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(3px);
+    }
+    .manga-preview-overlay.show { display: block; }
+    .manga-preview-popup {
+      position: fixed; z-index: 601;
+      background: #18181b; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px; width: min(340px, 92vw);
+      box-shadow: 0 24px 60px rgba(0,0,0,.7);
+      overflow: hidden;
+      transform: scale(.93); opacity: 0; pointer-events: none;
+      transition: transform .2s cubic-bezier(.34,1.56,.64,1), opacity .15s;
+    }
+    .manga-preview-popup.show { transform: scale(1); opacity: 1; pointer-events: auto; }
+    .pp-cover-wrap { position: relative; }
+    .pp-cover {
+      width: 100%; aspect-ratio: 16/9; object-fit: cover;
+      object-position: top; display: block;
+    }
+    .pp-gradient {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+      background: linear-gradient(transparent, #18181b);
+    }
+    .pp-body { padding: .9rem 1rem 1rem; }
+    .pp-title {
+      font-size: .95rem; font-weight: 700; color: var(--text); margin-bottom: .35rem;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .pp-meta { display: flex; align-items: center; gap: .5rem; margin-bottom: .55rem; flex-wrap: wrap; }
+    .pp-score { font-size: .78rem; color: #fbbf24; font-weight: 700; }
+    .pp-status { font-size: .68rem; font-weight: 600; padding: .18rem .5rem; border-radius: 5px; }
+    .pp-desc {
+      font-size: .78rem; color: var(--text2); line-height: 1.5;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+      margin-bottom: .6rem;
+    }
+    .pp-genres { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .85rem; }
+    .pp-genre {
+      font-size: .68rem; font-weight: 500; padding: .18rem .55rem; border-radius: 12px;
+      background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.25); color: var(--primary);
+    }
+    .pp-read-btn {
+      display: block; width: 100%; padding: .65rem; border-radius: 12px; text-align: center;
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff; font-size: .88rem; font-weight: 700; text-decoration: none;
+      transition: opacity .15s;
+    }
+    .pp-read-btn:hover { opacity: .85; }
   </style>
 </head>
 <body>
@@ -273,8 +324,10 @@
     <!-- Grid -->
     <div class="manga-grid" id="mangaGrid"></div>
     <div class="spinner" id="spinner"></div>
+    <!-- Infinite scroll sentinel -->
+    <div id="infiniteSentinel" style="height:1px"></div>
 
-    <!-- Load more -->
+    <!-- Load more (fallback) -->
     <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
       <button class="load-more-btn" id="loadMoreBtn">Показать ещё</button>
       <span class="load-counter" id="loadCounter"></span>
@@ -294,6 +347,25 @@
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
   Фильтры
 </button>
+
+<!-- Quick preview popup -->
+<div class="manga-preview-overlay" id="ppOverlay" onclick="closePreview()"></div>
+<div class="manga-preview-popup" id="ppPopup" role="dialog" aria-modal="true">
+  <div class="pp-cover-wrap">
+    <img class="pp-cover" id="ppCover" alt="">
+    <div class="pp-gradient"></div>
+  </div>
+  <div class="pp-body">
+    <div class="pp-title" id="ppTitle"></div>
+    <div class="pp-meta">
+      <span class="pp-score" id="ppScore"></span>
+      <span class="pp-status" id="ppStatus"></span>
+    </div>
+    <div class="pp-desc" id="ppDesc"></div>
+    <div class="pp-genres" id="ppGenres"></div>
+    <a class="pp-read-btn" id="ppReadBtn">Читать</a>
+  </div>
+</div>
 
 <!-- Mobile filter drawer -->
 <div class="filter-drawer-overlay" id="filterDrawerOverlay" onclick="closeDrawer(event)">
@@ -326,7 +398,20 @@ function buildCard(m) {
   const statusKey = (m.manga_status || '').toLowerCase();
   const statusLabel = STATUS_RU[m.manga_status] || '';
   const score = m.score ? Number(m.score).toFixed(1) : '';
-  return `<div class="manga-card" onclick="location.href='/manga/${m.manga_slug}'">
+  const dataAttrs = [
+    `data-slug="${esc(m.manga_slug)}"`,
+    `data-title="${esc(m.manga_title)}"`,
+    `data-cover="${esc(m.cover_url || '')}"`,
+    `data-score="${esc(score)}"`,
+    `data-status="${esc(statusKey)}"`,
+    `data-status-label="${esc(statusLabel)}"`,
+    `data-desc="${esc((m.description || '').replace(/\n/g,' ').substring(0,160))}"`,
+    `data-tags="${esc(m.tags || '[]')}"`,
+  ].join(' ');
+  return `<div class="manga-card" ${dataAttrs}
+      onclick="location.href='/manga/${m.manga_slug}'"
+      onmouseenter="ppHoverStart(this)" onmouseleave="ppHoverCancel()"
+      ontouchstart="ppTouchStart(event,this)" ontouchend="ppTouchCancel()" ontouchmove="ppTouchCancel()">
     ${typeLabel ? `<div class="manga-type-badge">${typeLabel}</div>` : ''}
     <img src="${m.cover_url || ''}" class="manga-cover" loading="lazy"
          onerror="this.src='https://via.placeholder.com/150x225/1a1a1a/667eea'">
@@ -569,6 +654,114 @@ drawer.addEventListener('click', e => e.stopPropagation());
     }
   });
 })();
+
+// ── Quick Preview Popup ───────────────────────────────────
+const ppOverlay = document.getElementById('ppOverlay');
+const ppPopup   = document.getElementById('ppPopup');
+let ppHoverTimer = null;
+let ppTouchTimer = null;
+let ppOpen = false;
+
+const STATUS_CLASS = {ongoing:'status-ongoing',finished:'status-finished',cancelled:'status-cancelled',hiatus:'status-hiatus',announced:'status-announced'};
+
+function openPreview(card) {
+  const slug   = card.dataset.slug;
+  const title  = card.dataset.title;
+  const cover  = card.dataset.cover;
+  const score  = card.dataset.score;
+  const status = card.dataset.status;
+  const statusLabel = card.dataset.statusLabel;
+  const desc   = card.dataset.desc;
+  let tags = [];
+  try { tags = JSON.parse(card.dataset.tags || '[]'); } catch(e) {}
+
+  document.getElementById('ppCover').src = cover;
+  document.getElementById('ppTitle').textContent = title;
+
+  const scoreEl = document.getElementById('ppScore');
+  scoreEl.textContent = score ? '★ ' + score : '';
+
+  const statusEl = document.getElementById('ppStatus');
+  statusEl.textContent = statusLabel;
+  statusEl.className = 'pp-status ' + (STATUS_CLASS[status] || '');
+
+  const descEl = document.getElementById('ppDesc');
+  descEl.textContent = desc || 'Описание отсутствует';
+  descEl.style.display = desc ? '' : 'none';
+
+  const genresEl = document.getElementById('ppGenres');
+  const MAX_GENRES = 5;
+  genresEl.innerHTML = tags.slice(0, MAX_GENRES)
+    .map(g => `<span class="pp-genre">${esc(typeof g === 'string' ? g : g.name || '')}</span>`)
+    .join('');
+
+  document.getElementById('ppReadBtn').href = '/manga/' + slug;
+
+  // Position popup near card on desktop, centered on mobile
+  ppOpen = true;
+  ppOverlay.classList.add('show');
+  ppPopup.classList.add('show');
+
+  if (window.innerWidth > 700) {
+    const rect = card.getBoundingClientRect();
+    const pw = Math.min(340, window.innerWidth * 0.92);
+    let left = rect.right + 12;
+    if (left + pw > window.innerWidth - 8) left = rect.left - pw - 12;
+    left = Math.max(8, left);
+    let top = rect.top;
+    const ph = ppPopup.offsetHeight || 400;
+    if (top + ph > window.innerHeight - 8) top = window.innerHeight - ph - 8;
+    top = Math.max(8, top);
+    ppPopup.style.left = left + 'px';
+    ppPopup.style.top  = top + 'px';
+    ppPopup.style.transform = '';
+    ppPopup.style.right = '';
+  } else {
+    ppPopup.style.left = '50%';
+    ppPopup.style.top  = '50%';
+    ppPopup.style.transform = 'translate(-50%,-50%) scale(1)';
+    ppPopup.style.right = '';
+  }
+}
+
+function closePreview() {
+  ppOpen = false;
+  ppOverlay.classList.remove('show');
+  ppPopup.classList.remove('show');
+}
+
+function ppHoverStart(card) {
+  if (window.matchMedia('(hover: none)').matches) return; // touch device
+  ppHoverCancel();
+  ppHoverTimer = setTimeout(() => openPreview(card), 450);
+}
+function ppHoverCancel() {
+  clearTimeout(ppHoverTimer);
+}
+
+function ppTouchStart(e, card) {
+  ppTouchCancel();
+  ppTouchTimer = setTimeout(() => {
+    e.preventDefault();
+    if (window.tgHaptic) window.tgHaptic('medium');
+    openPreview(card);
+  }, 500);
+}
+function ppTouchCancel() {
+  clearTimeout(ppTouchTimer);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
+
+// ── Infinite Scroll ───────────────────────────────────────
+const sentinelEl = document.getElementById('infiniteSentinel');
+const infiniteObs = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting && !state.loading &&
+      document.getElementById('loadMoreWrap').style.display !== 'none') {
+    fetchCatalog(true);
+  }
+}, { rootMargin: '300px' });
+infiniteObs.observe(sentinelEl);
 
 // ── Init ──────────────────────────────────────────────────
 reload();

@@ -665,6 +665,10 @@ tr:hover td{background:var(--glass)}
           Анимированный
         </label>
       </div>
+      <div class="form-group">
+        <label class="label">Срок действия (дней, пусто = навсегда)</label>
+        <input class="input" id="sm-duration" type="number" min="1" placeholder="Например: 30 (пусто = навсегда)">
+      </div>
 
       <div style="display:flex;gap:8px;padding-top:4px">
         <button class="btn btn-primary" onclick="saveShopItem()" style="flex:1" id="sm-save-btn">Сохранить</button>
@@ -1169,6 +1173,7 @@ async function loadShop(){
       <td>
         ${it.is_upload ? '<span class="badge badge-yellow">upload</span>' : ''}
         ${it.is_animated ? '<span class="badge badge-purple">anim</span>' : ''}
+        ${it.duration_days ? `<span class="badge badge-blue">${it.duration_days}д</span>` : ''}
       </td>
       <td>
         <div style="display:flex;gap:4px">
@@ -1298,6 +1303,7 @@ async function openShopModal(id){
       $('sm-css').value = it.css_value||'';
       $('sm-upload').checked = !!it.is_upload;
       $('sm-animated').checked = !!it.is_animated;
+      $('sm-duration').value = it.duration_days || '';
       if(it.preview_url){
         $('sm-preview-url').value = it.preview_url;
         _setPreviewImg(it.preview_url);
@@ -1307,7 +1313,7 @@ async function openShopModal(id){
     $('sm-title').textContent = 'Новый товар';
     ['sm-name','sm-description','sm-css','sm-preview-url'].forEach(id=>$(id).value='');
     $('sm-type').value='avatar'; $('sm-price').value=0;
-    $('sm-upload').checked=false; $('sm-animated').checked=false;
+    $('sm-upload').checked=false; $('sm-animated').checked=false; $('sm-duration').value='';
   }
   onShopTypeChange();
   $('shop-modal').classList.add('open');
@@ -1324,6 +1330,7 @@ async function saveShopItem(){
     preview_url: $('sm-preview-url').value.trim(),
     is_upload: $('sm-upload').checked,
     is_animated: $('sm-animated').checked,
+    duration_days: parseInt($('sm-duration').value) || null,
   };
   if(!body.name){ toast('Введите название','error'); return; }
   const url = id ? `/api/admin/shop/${id}` : '/api/admin/shop';

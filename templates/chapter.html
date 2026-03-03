@@ -1182,23 +1182,44 @@
         }
 
         // ==================== ВОССТАНОВЛЕНИЕ ПРОГРЕССА ====================
-        window.addEventListener('load', () => {
+        // Восстанавливаем сразу в DOMContentLoaded, пока картинки ещё не загрузились
+        // и имеют высоту-заглушку min-height:100vh → позиция предсказуема
+        (function restoreProgress() {
             try {
-                const savedPage = localStorage.getItem(PROGRESS_KEY);
-                if (savedPage && savedPage > 1) {
+                const savedPage = parseInt(localStorage.getItem(PROGRESS_KEY), 10);
+                if (!savedPage || savedPage <= 1) return;
+                // Первые 3 картинки загружаются сразу, остальные — заглушка 100vh
+                // Скролл до нужной страницы = (savedPage - 1) * 100vh
+                document.addEventListener('DOMContentLoaded', function() {
                     const images = document.querySelectorAll('.page-image');
-                    const targetImage = images[savedPage - 1];
-                    if (targetImage) {
-                        setTimeout(() => {
-                            targetImage.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            showTooltip('Продолжаем со стр. ' + savedPage);
-                        }, 500);
+                    if (savedPage > images.length) return;
+                    // Мгновенный скролл к позиции placeholder-а
+                    const targetY = (savedPage - 1) * window.innerHeight;
+                    window.scrollTo({ top: targetY, behavior: 'instant' });
+                    showTooltip('Продолжаем со стр. ' + savedPage);
+                    // После загрузки страниц 1..savedPage уточняем позицию
+                    var loaded = 0;
+                    var needed = Math.min(savedPage, images.length);
+                    function refineScroll() {
+                        loaded++;
+                        if (loaded >= needed) {
+                            const img = images[savedPage - 1];
+                            if (img) img.scrollIntoView({ behavior: 'instant', block: 'start' });
+                        }
                     }
-                }
-            } catch (e) {
-                console.log('Не удалось восстановить прогресс:', e);
-            }
-        });
+                    for (var i = 0; i < needed; i++) {
+                        var img = images[i];
+                        if (img.dataset.src) {
+                            img.src = img.dataset.src;
+                            delete img.dataset.src;
+                            img.classList.remove('loading');
+                        }
+                        if (img.complete) { refineScroll(); }
+                        else { img.addEventListener('load', refineScroll, { once: true }); img.addEventListener('error', refineScroll, { once: true }); }
+                    }
+                }, { once: true });
+            } catch(e) {}
+        })();
 
         // ==================== ЛЕНИВАЯ ЗАГРУЗКА + СЧЁТЧИК СТРАНИЦ ====================
         document.addEventListener('DOMContentLoaded', function() {
@@ -1494,6 +1515,28 @@
             applyAllSettings();
             updateCurrentPage();
         });
+
+        // ==================== ПРЕДЗАГРУЗКА СЛЕДУЮЩЕЙ ГЛАВЫ ====================
+        if (nextChapterUrl) {
+            window.addEventListener('load', function() {
+                // Запускаем prefetch только когда текущая глава уже загружена
+                var link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = nextChapterUrl;
+                document.head.appendChild(link);
+            });
+            // Дополнительно: когда пользователь дошёл до 70% — принудительный fetch для прогрева кэша
+            var _nextPrefetched = false;
+            window.addEventListener('scroll', function _preloadOnProgress() {
+                if (_nextPrefetched) return;
+                var pct = window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight);
+                if (pct >= 0.7) {
+                    _nextPrefetched = true;
+                    window.removeEventListener('scroll', _preloadOnProgress);
+                    fetch(nextChapterUrl, { credentials: 'same-origin', priority: 'low' }).catch(function(){});
+                }
+            }, { passive: true });
+        }
     </script>
 </body>
 </html>

@@ -123,7 +123,17 @@
         .pstat-val { font-size: 18px; font-weight: 700; }
         .pstat-lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
 
-        .hero-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+        .hero-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+        .btn-follow {
+            padding: 8px 20px; border-radius: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none; color: #fff; font-size: 13px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: opacity .2s, transform .1s;
+        }
+        .btn-follow:active { transform: scale(.95); }
+        .btn-follow.following {
+            background: var(--glass2); border: 1px solid var(--border); color: var(--text2);
+        }
         .btn-edit {
             padding: 8px 18px; border-radius: 20px;
             background: var(--glass2); border: 1px solid var(--border);
@@ -448,12 +458,19 @@
                     <span class="pstat-val"><img src="/static/bubbles.svg" class="bubble-icon" alt="">{{ profile.coins }}</span>
                     <span class="pstat-lbl">Шарики</span>
                 </div>
+                <div class="pstat">
+                    <span class="pstat-val" id="followers-count">{{ profile.followers_count }}</span>
+                    <span class="pstat-lbl">Подписчиков</span>
+                </div>
             </div>
-            {% if is_own %}
             <div class="hero-actions">
+                {% if is_own %}
                 <button class="btn-edit" onclick="openEditModal('main')"> Редактировать профиль</button>
+                {% endif %}
+                {% if not is_own and user_id %}
+                <button class="btn-follow" id="followBtn" onclick="toggleFollowCurator({{ profile.user.id }})">Подписаться</button>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -479,6 +496,7 @@
         <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
         <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
         <div class="stat-card"><span class="stat-icon"><img src="/static/bubbles.svg" style="width:24px;height:24px;vertical-align:middle" alt=""></span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Шарики</span></div>
+        <div class="stat-card" style="border-color:rgba(251,146,60,.25)"><span class="stat-icon">🔥</span><span class="stat-num" style="color:#fb923c">{{ profile.reading_streak or 0 }}</span><span class="stat-name">Стрик дней{% if profile.max_streak and profile.max_streak > (profile.reading_streak or 0) %} <span style="font-size:11px;color:var(--text2)">(рекорд: {{ profile.max_streak }})</span>{% endif %}</span></div>
     </div>
 
     <div class="section-head"> Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
@@ -506,6 +524,42 @@
       <div id="qtab-active" class="quest-tab-pane active"><div class="loading-spin"><div class="spin"></div></div></div>
       <div id="qtab-done" class="quest-tab-pane"></div>
     </div>
+
+    <!-- Задания на сегодня -->
+    <div class="section-head" style="margin-bottom:12px;margin-top:24px">📅 Задания на сегодня</div>
+    <div id="daily-quests-container"><div class="loading-spin"><div class="spin"></div></div></div>
+
+    <!-- Текущий сезон -->
+    <div id="season-block" style="display:none">
+        <div class="section-head" style="margin-bottom:12px;margin-top:24px"><span id="season-icon">🌸</span> <span id="season-name">Сезон</span></div>
+        <p id="season-desc" style="font-size:13px;color:var(--text2);margin-bottom:16px"></p>
+        <div id="season-quests-container"></div>
+    </div>
+
+    <!-- Пригласить друга -->
+    <div class="section-head" style="margin-bottom:12px;margin-top:24px">🔗 Пригласить друга</div>
+    <div id="referral-block" style="background:var(--glass);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Пригласи друга — получите по 100 XP и монет!</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <code id="referral-link" style="flex:1;font-size:12px;background:var(--bg3);border-radius:8px;padding:8px 12px;border:1px solid var(--border);word-break:break-all;min-width:160px">Загрузка...</code>
+            <button onclick="copyReferral()" style="padding:8px 16px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Копировать</button>
+        </div>
+        <p id="referral-stats" style="font-size:12px;color:var(--text2);margin-top:10px"></p>
+    </div>
+
+    <!-- Настройки уведомлений -->
+    <div class="section-head" style="margin-bottom:12px;margin-top:24px">🔔 Настройки уведомлений</div>
+    <div style="background:var(--glass);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Выбери время получения ежедневного дайджеста (по Москве):</p>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <select id="digestHourSelect" style="padding:8px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);font-size:13px;font-family:inherit;cursor:pointer">
+                {% for h in range(24) %}
+                <option value="{{ h }}"{% if profile.digest_hour == h %} selected{% endif %}>{{ '%02d:00'|format(h) }}</option>
+                {% endfor %}
+            </select>
+            <button onclick="setDigestHour()" style="padding:8px 18px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Сохранить</button>
+        </div>
+    </div>
     {% endif %}
 </div>
 
@@ -515,6 +569,8 @@
         {% if is_own %}<button class="lib-btn active" data-lib="history">История</button>{% endif %}
         <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">Подписки</button>
         <button class="lib-btn" data-lib="collections">Коллекции</button>
+        {% if is_own %}<button class="lib-btn" data-lib="wishlist">🔖 Хочу прочитать</button>{% endif %}
+        {% if is_own %}<button class="lib-btn" data-lib="curators">Кураторы</button>{% endif %}
     </div>
 
     {% if is_own %}
@@ -534,6 +590,14 @@
         {% endif %}
         <div id="collsContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
+    {% if is_own %}
+    <div id="lib-wishlist" class="lib-pane">
+        <div id="wishlistContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    </div>
+    <div id="lib-curators" class="lib-pane">
+        <div id="curatorsContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- ════ MODALS ════ -->
@@ -786,6 +850,29 @@
         if (name === 'history') fetchHistory();
         else if (name === 'subscriptions') fetchSubs();
         else if (name === 'collections') fetchColls();
+        else if (name === 'wishlist') fetchWishlist();
+        else if (name === 'curators') loadCurators();
+    }
+
+    // ── Кураторы ─────────────────────────────────────────────────────────────
+    function loadCurators() {
+        fetch('/api/user/following-curators')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('curatorsContent');
+                const curators = data.curators || [];
+                if (!curators.length) { el.innerHTML = emptyState('👥', 'Нет подписок', 'Подписывайся на авторов коллекций!'); return; }
+                el.innerHTML = '<div class="manga-grid-lib">' + curators.map(c => `
+                    <div class="mcard" onclick="location.href='/profile/${c.id}'">
+                        <div class="mcard-img" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);font-size:2rem;">
+                            ${c.avatar_url ? `<img src="${esc(c.avatar_url)}" style="width:100%;height:100%;object-fit:cover" alt="">` : '👤'}
+                        </div>
+                        <div class="mcard-info">
+                            <div class="mcard-title">${esc(c.display_name)}</div>
+                            <div class="mcard-meta">${c.is_premium ? '👑 Premium' : 'Куратор'}</div>
+                        </div>
+                    </div>`).join('') + '</div>';
+            }).catch(() => { document.getElementById('curatorsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
     }
 
     // History (только своя)
@@ -1139,6 +1226,145 @@
     function emptyState(icon, title, sub='') {
         return `<div class="empty-state"><div class="empty-icon">${icon}</div><div style="font-weight:700;margin-bottom:4px">${title}</div>${sub?`<div style="font-size:13px">${sub}</div>`:''}</div>`;
     }
+
+    // ── Wishlist tab ──────────────────────────────────────────────────────────
+    function fetchWishlist() {
+        fetch('/api/user/wishlist')
+            .then(r => r.json())
+            .then(rows => {
+                const el = document.getElementById('wishlistContent');
+                if (!rows || !rows.length) { el.innerHTML = emptyState('🔖', 'Список пуст', 'Добавляй мангу кнопкой «Хочу прочитать»'); return; }
+                el.innerHTML = '<div class="manga-grid-lib">' + rows.map(m => `
+                    <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
+                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <div class="mcard-info">
+                            <div class="mcard-title">${esc(m.manga_title)}</div>
+                            <div class="mcard-meta">${typeRu(m.manga_type)}</div>
+                        </div>
+                    </div>`).join('') + '</div>';
+            }).catch(() => { document.getElementById('wishlistContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
+    }
+
+    // ── Daily Quests ──────────────────────────────────────────────────────────
+    {% if is_own %}
+    (function loadDailyQuests() {
+        fetch('/api/daily-quests')
+            .then(r => r.json())
+            .then(quests => {
+                const el = document.getElementById('daily-quests-container');
+                if (!quests || !quests.length) { el.innerHTML = '<p style="color:var(--text2);font-size:13px">Нет заданий на сегодня.</p>'; return; }
+                el.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px">' + quests.map(q => {
+                    const pct = Math.min(100, Math.round((q.progress / q.condition_value) * 100));
+                    const done = q.completed;
+                    return `<div style="background:var(--glass);border:1px solid ${done?'rgba(34,197,94,.3)':'var(--border)'};border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start">
+                        <span style="font-size:24px;flex-shrink:0">${esc(q.icon)}</span>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:700;font-size:14px;margin-bottom:3px">${esc(q.title)}</div>
+                            <div style="font-size:12px;color:var(--text2);margin-bottom:8px">${esc(q.description||'')} · ${q.xp_reward} XP</div>
+                            <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
+                                <div style="height:100%;width:${pct}%;background:${done?'#22c55e':'linear-gradient(90deg,var(--primary),var(--primary2))'};transition:width .4s"></div>
+                            </div>
+                            <div style="font-size:11px;color:var(--text2);margin-top:4px">${q.progress}/${q.condition_value}${done?' ✅':''}</div>
+                        </div>
+                    </div>`;
+                }).join('') + '</div>';
+            }).catch(() => {
+                document.getElementById('daily-quests-container').innerHTML = '<p style="color:var(--text2);font-size:13px">Ошибка загрузки заданий.</p>';
+            });
+    })();
+
+    // ── Season ────────────────────────────────────────────────────────────────
+    (function loadSeason() {
+        fetch('/api/season')
+            .then(r => r.json())
+            .then(data => {
+                if (!data) return;
+                document.getElementById('season-block').style.display = '';
+                document.getElementById('season-icon').textContent = data.icon || '🌸';
+                document.getElementById('season-name').textContent = data.name || 'Сезон';
+                document.getElementById('season-desc').textContent = data.description || '';
+                const el = document.getElementById('season-quests-container');
+                const quests = data.quests || [];
+                if (!quests.length) { el.innerHTML = '<p style="color:var(--text2);font-size:13px">Нет заданий.</p>'; return; }
+                el.innerHTML = '<div style="display:flex;flex-direction:column;gap:10px">' + quests.map(q => {
+                    const pct = Math.min(100, Math.round((q.progress / q.condition_value) * 100));
+                    const done = q.completed;
+                    return `<div style="background:var(--glass);border:1px solid ${done?'rgba(34,197,94,.3)':'var(--border)'};border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start">
+                        <span style="font-size:24px;flex-shrink:0">${esc(q.icon)}</span>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:700;font-size:14px;margin-bottom:3px">${esc(q.title)}</div>
+                            <div style="font-size:12px;color:var(--text2);margin-bottom:8px">${esc(q.description||'')} · ${q.xp_reward} XP</div>
+                            <div style="background:var(--bg3);border-radius:6px;height:6px;overflow:hidden">
+                                <div style="height:100%;width:${pct}%;background:${done?'#22c55e':'linear-gradient(90deg,#ec4899,#f97316)'};transition:width .4s"></div>
+                            </div>
+                            <div style="font-size:11px;color:var(--text2);margin-top:4px">${q.progress}/${q.condition_value}${done?' ✅':''}</div>
+                        </div>
+                    </div>`;
+                }).join('') + '</div>';
+            });
+    })();
+
+    // ── Referral ──────────────────────────────────────────────────────────────
+    (function loadReferral() {
+        fetch('/api/profile/referral')
+            .then(r => r.json())
+            .then(data => {
+                if (!data || data.error) return;
+                document.getElementById('referral-link').textContent = data.referral_url || '';
+                document.getElementById('referral-stats').textContent =
+                    `Приглашено: ${data.count} · Заработано: ${data.coins_earned} монет`;
+            }).catch(() => {});
+    })();
+
+    function copyReferral() {
+        const url = document.getElementById('referral-link').textContent;
+        if (!url) return;
+        navigator.clipboard.writeText(url).then(() => toast('Ссылка скопирована!', 'success')).catch(() => {
+            const t = document.createElement('textarea'); t.value = url;
+            document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
+            toast('Ссылка скопирована!', 'success');
+        });
+    }
+
+    function setDigestHour() {
+        const hour = parseInt(document.getElementById('digestHourSelect').value);
+        fetch('/api/settings/digest-hour', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({hour})
+        }).then(r => r.json()).then(d => {
+            if (d.ok) toast('Время дайджеста сохранено!', 'success');
+            else toast('Ошибка сохранения', 'error');
+        }).catch(() => toast('Ошибка сети', 'error'));
+    }
+    {% endif %}
+
+    // ── Follow curator ────────────────────────────────────────────────────────
+    {% if not is_own and user_id %}
+    async function initFollowBtn() {
+        try {
+            const r = await fetch('/api/users/{{ profile.user.id }}/followers');
+            const d = await r.json();
+            const btn = document.getElementById('followBtn');
+            if (!btn) return;
+            if (d.following) { btn.textContent = 'Отписаться'; btn.classList.add('following'); }
+            else { btn.textContent = 'Подписаться'; btn.classList.remove('following'); }
+            document.getElementById('followers-count').textContent = d.followers_count;
+        } catch(e) {}
+    }
+    async function toggleFollowCurator(id) {
+        try {
+            const r = await fetch(`/api/users/${id}/follow-curator`, {method:'POST'});
+            const d = await r.json();
+            const btn = document.getElementById('followBtn');
+            if (d.following) { btn.textContent = 'Отписаться'; btn.classList.add('following'); }
+            else { btn.textContent = 'Подписаться'; btn.classList.remove('following'); }
+            document.getElementById('followers-count').textContent = d.followers_count;
+        } catch(e) { toast('Ошибка', 'error'); }
+    }
+    initFollowBtn();
+    {% endif %}
 </script>
 
 {%- include 'footer.html' %}

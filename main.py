@@ -601,6 +601,238 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # ── Новые миграции: геймификация + социальные функции ─────────────────────
+
+    # Стрик чтения
+    for _sql in [
+        'ALTER TABLE user_stats ADD COLUMN reading_streak INTEGER DEFAULT 0',
+        'ALTER TABLE user_stats ADD COLUMN max_streak INTEGER DEFAULT 0',
+        'ALTER TABLE user_stats ADD COLUMN last_read_date TEXT DEFAULT NULL',
+        'ALTER TABLE users ADD COLUMN referral_code TEXT',
+    ]:
+        try:
+            c.execute(_sql)
+            conn.commit()
+        except Exception:
+            pass
+
+    # UNIQUE индекс на referral_code
+    try:
+        c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)')
+        conn.commit()
+    except Exception:
+        pass
+
+    # Ежедневные задания (шаблоны)
+    c.execute('''CREATE TABLE IF NOT EXISTS daily_quests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT,
+        icon TEXT DEFAULT '📅',
+        condition_type TEXT NOT NULL,
+        condition_value INTEGER NOT NULL,
+        xp_reward INTEGER DEFAULT 0,
+        coins_reward INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1
+    )''')
+
+    # Прогресс пользователя по дневным заданиям
+    c.execute('''CREATE TABLE IF NOT EXISTS user_daily_quests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        quest_id INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        progress INTEGER DEFAULT 0,
+        completed_at TEXT DEFAULT NULL,
+        UNIQUE(user_id, quest_id, date),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+
+    # Сезонные ивенты
+    c.execute('''CREATE TABLE IF NOT EXISTS seasons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        icon TEXT DEFAULT '🌸',
+        banner_url TEXT,
+        starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1
+    )''')
+
+    # Задания сезона
+    c.execute('''CREATE TABLE IF NOT EXISTS season_quests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        season_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        icon TEXT DEFAULT '✨',
+        condition_type TEXT NOT NULL,
+        condition_value INTEGER NOT NULL,
+        xp_reward INTEGER DEFAULT 0,
+        coins_reward INTEGER DEFAULT 0,
+        item_reward_id INTEGER DEFAULT NULL,
+        FOREIGN KEY (season_id) REFERENCES seasons(id)
+    )''')
+
+    # Прогресс пользователя по сезонным заданиям
+    c.execute('''CREATE TABLE IF NOT EXISTS user_season_quests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        season_quest_id INTEGER NOT NULL,
+        progress INTEGER DEFAULT 0,
+        completed_at TEXT DEFAULT NULL,
+        UNIQUE(user_id, season_quest_id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+
+    # Лайки на комментарии
+    c.execute('''CREATE TABLE IF NOT EXISTS comment_likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        comment_id INTEGER NOT NULL,
+        UNIQUE(user_id, comment_id),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (comment_id) REFERENCES comments(id)
+    )''')
+
+    # Список "Хочу прочитать"
+    c.execute('''CREATE TABLE IF NOT EXISTS reading_wishlist (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        manga_id TEXT NOT NULL,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, manga_id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+
+    # Рефералы
+    c.execute('''CREATE TABLE IF NOT EXISTS referrals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        referrer_id INTEGER NOT NULL,
+        referred_id INTEGER NOT NULL UNIQUE,
+        rewarded INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (referrer_id) REFERENCES users(id),
+        FOREIGN KEY (referred_id) REFERENCES users(id)
+    )''')
+
+    # Трофеи "Коллекция недели"
+    c.execute('''CREATE TABLE IF NOT EXISTS collection_trophies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        collection_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        iso_week TEXT NOT NULL,
+        likes_count INTEGER NOT NULL,
+        awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(iso_week)
+    )''')
+
+    # Новые индексы
+    c.execute('CREATE INDEX IF NOT EXISTS idx_user_daily_quests ON user_daily_quests(user_id, date)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_user_season_quests ON user_season_quests(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_wishlist_user ON reading_wishlist(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_collection_trophies_week ON collection_trophies(iso_week)')
+
+    # Seed: ежедневные задания
+    DAILY_QUESTS_SEED = [
+        ('Читатель дня',   'Прочитай 3 главы сегодня',          '📖', 'chapters_today',  3,  50,  20),
+        ('Комментатор',    'Оставь 1 комментарий сегодня',      '💬', 'comments_today',  1,  30,  10),
+        ('Исследователь',  'Открой 2 разные манги сегодня',     '🔍', 'manga_today',     2,  30,  10),
+    ]
+    c.executemany(
+        '''INSERT OR IGNORE INTO daily_quests
+           (title, description, icon, condition_type, condition_value, xp_reward, coins_reward)
+           VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        DAILY_QUESTS_SEED
+    )
+
+    # Seed: начальный сезон Spring 2026
+    c.execute('''INSERT OR IGNORE INTO seasons (id, name, description, icon, starts_at, ends_at, is_active)
+                 VALUES (1, 'Весна 2026', 'Сезон цветения — читай, комментируй и побеждай!',
+                         '🌸', '2026-03-01', '2026-04-30', 1)''')
+
+    # Эксклюзивный предмет сезона
+    c.execute('''INSERT OR IGNORE INTO shop_items (id, name, description, type, preview_url, css_value, price, is_upload)
+                 VALUES (100, 'Рамка «Весна»', 'Сезонная рамка Spring 2026',
+                         'frame', NULL,
+                         'border: 3px solid #ec4899; box-shadow: 0 0 14px #f9a8d4;',
+                         0, 0)''')
+
+    # Задания сезона
+    SEASON_QUESTS_SEED = [
+        (1, 'Весенний читатель',    'Прочитай 50 глав за сезон',    '📚', 'chapters_read',   50,  200, 100, None),
+        (1, 'Болтун сезона',        'Оставь 10 комментариев',       '💬', 'comments_posted', 10,  150, 50,  None),
+        (1, 'Коллекционер весны',   'Прочитай 100 глав за сезон',   '🌸', 'chapters_read',   100, 500, 200, 100),
+    ]
+    for sq in SEASON_QUESTS_SEED:
+        c.execute('''INSERT OR IGNORE INTO season_quests
+                     (season_id, title, description, icon, condition_type, condition_value,
+                      xp_reward, coins_reward, item_reward_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', sq)
+
+    # ── Уведомления на сайте ──────────────────────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS site_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT,
+        url TEXT,
+        ref_id TEXT,
+        is_read INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_site_notifications ON site_notifications(user_id, is_read)')
+
+    # Предпочитаемый час дайджеста (МСК)
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN digest_hour INTEGER DEFAULT 22')
+        conn.commit()
+    except Exception:
+        pass
+
+    # ── Новые миграции: монетизация ───────────────────────────────────────────
+    for _sql in [
+        'ALTER TABLE shop_items ADD COLUMN duration_days INTEGER DEFAULT NULL',
+        'ALTER TABLE user_items ADD COLUMN expires_at TIMESTAMP DEFAULT NULL',
+    ]:
+        try:
+            c.execute(_sql)
+            conn.commit()
+        except Exception:
+            pass
+
+    # Подарочный Premium
+    c.execute('''CREATE TABLE IF NOT EXISTS premium_gifts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        recipient_id INTEGER NOT NULL,
+        days INTEGER NOT NULL,
+        stars_paid INTEGER NOT NULL,
+        payment_id TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sender_id) REFERENCES users(id),
+        FOREIGN KEY (recipient_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_premium_gifts_recipient ON premium_gifts(recipient_id)')
+
+    # Подписка на кураторов
+    c.execute('''CREATE TABLE IF NOT EXISTS curator_follows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER NOT NULL,
+        author_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(follower_id, author_id),
+        FOREIGN KEY (follower_id) REFERENCES users(id),
+        FOREIGN KEY (author_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows ON curator_follows(author_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows_follower ON curator_follows(follower_id)')
+
     conn.commit()
     conn.close()
     print("✅ База данных инициализирована")
@@ -611,6 +843,25 @@ def get_db():
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
     return conn
+
+
+def create_site_notification(user_id, notif_type, title, body=None, url=None, ref_id=None, conn=None):
+    """Создать уведомление на сайте. Если conn передан — не коммитит и не закрывает."""
+    _close = conn is None
+    if conn is None:
+        conn = get_db()
+    try:
+        conn.execute(
+            'INSERT INTO site_notifications (user_id, type, title, body, url, ref_id) VALUES (?,?,?,?,?,?)',
+            (user_id, notif_type, title, body, url, ref_id)
+        )
+        if _close:
+            conn.commit()
+    except Exception as _e:
+        logger.warning(f"create_site_notification error: {_e}")
+    finally:
+        if _close:
+            conn.close()
 
 # ── Контекст-процессор: данные пользователя для хедера ──────────────────────
 @app.context_processor
@@ -744,6 +995,12 @@ def award_xp(user_id, amount, reason, ref_id=None):
 
     conn.commit()
 
+    # Уведомление о новом уровне
+    if new_level > old_level:
+        create_site_notification(user_id, 'level_up', f'Уровень {new_level}!',
+                                 f'Поздравляем с {new_level} уровнем!',
+                                 f'/profile/{user_id}', conn=conn)
+
     # Проверяем ачивки и квесты
     new_achievements = check_achievements(user_id, conn)
     check_quests(user_id, conn)
@@ -817,6 +1074,9 @@ def check_achievements(user_id, conn=None):
                     (ach['xp_reward'], ach['xp_reward'], user_id)
                 )
             unlocked.append(dict(ach))
+            create_site_notification(user_id, 'achievement', f'Достижение: {ach["name"]}',
+                                     ach.get('description'),
+                                     f'/profile/{user_id}', conn=conn)
 
     conn.commit()
     if close:
@@ -899,6 +1159,9 @@ def check_quests(user_id, conn=None):
                     (user_id, f'quest:{q["id"]}', str(q['id']), q['xp_reward'])
                 )
             just_completed.append(dict(q))
+            create_site_notification(user_id, 'quest', f'Задание выполнено: {q["title"]}',
+                                     f'+{q["xp_reward"]} XP',
+                                     f'/profile/{user_id}', conn=conn)
 
     conn.commit()
     if close:
@@ -968,6 +1231,21 @@ def get_user_full_profile(user_id):
     )
     history = [dict(row) for row in c.fetchall()]
 
+    # Вишлист
+    c.execute(
+        '''SELECT m.manga_id, m.manga_slug, m.manga_title, m.cover_url, m.manga_type, m.manga_status, rw.added_at
+           FROM reading_wishlist rw
+           JOIN manga m ON rw.manga_id = m.manga_id
+           WHERE rw.user_id = ?
+           ORDER BY rw.added_at DESC''',
+        (user_id,)
+    )
+    wishlist = [dict(row) for row in c.fetchall()]
+
+    # Количество подписчиков (как куратора)
+    c.execute('SELECT COUNT(*) FROM curator_follows WHERE author_id=?', (user_id,))
+    followers_count = c.fetchone()[0]
+
     conn.close()
 
     xp = stats['xp'] if stats else 0
@@ -978,16 +1256,21 @@ def get_user_full_profile(user_id):
     xp_needed = xp_next_level - xp_current_level
     progress_pct = min(100, int(xp_progress / max(1, xp_needed) * 100))
 
+    stats_dict = dict(stats) if stats else {}
     return {
         'user': dict(user),
-        'stats': dict(stats) if stats else {},
+        'stats': stats_dict,
         'profile': dict(profile) if profile else {},
         'achievements': achievements,
         'items': items,
         'history': history,
+        'wishlist': wishlist,
         'level': level,
         'xp': xp,
-        'coins': stats['coins'] if stats else 0,
+        'coins': stats_dict.get('coins', 0),
+        'reading_streak': stats_dict.get('reading_streak', 0),
+        'max_streak': stats_dict.get('max_streak', 0),
+        'digest_hour': dict(user).get('digest_hour', 22),
         'xp_progress_pct': progress_pct,
         'xp_for_next': xp_needed - xp_progress,
         'display_name': (
@@ -995,8 +1278,285 @@ def get_user_full_profile(user_id):
             dict(user).get('telegram_first_name') or
             dict(user).get('telegram_username') or
             f"Пользователь #{user_id}"
-        )
+        ),
+        'followers_count': followers_count,
     }
+
+# ==================== ГЕЙМИФИКАЦИЯ: СТРИК / DAILY QUESTS / СЕЗОН ====================
+
+from datetime import date as _date
+
+def update_reading_streak(user_id, conn):
+    """Обновить стрик чтения пользователя. Вызывать при каждом прочтении главы."""
+    today = _date.today().isoformat()
+    row = conn.execute(
+        'SELECT reading_streak, max_streak, last_read_date FROM user_stats WHERE user_id=?',
+        (user_id,)
+    ).fetchone()
+    if not row:
+        return
+    last = row['last_read_date']
+    if last == today:
+        return  # уже читал сегодня — стрик не меняем
+    yesterday = (_date.today() - timedelta(1)).isoformat()
+    new_streak = (row['reading_streak'] + 1) if last == yesterday else 1
+    new_max = max(row['max_streak'] or 0, new_streak)
+    conn.execute(
+        'UPDATE user_stats SET reading_streak=?, max_streak=?, last_read_date=? WHERE user_id=?',
+        (new_streak, new_max, today, user_id)
+    )
+    conn.commit()
+    # Бонус XP за 7- и 30-дневный стрик (вызываем award_xp отдельно, без рекурсии)
+    if new_streak in (7, 30):
+        bonus = 50 if new_streak == 7 else 200
+        conn.execute(
+            'UPDATE user_stats SET xp=xp+?, coins=coins+? WHERE user_id=?',
+            (bonus, bonus, user_id)
+        )
+        conn.execute(
+            'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+            (user_id, f'streak_{new_streak}', None, bonus)
+        )
+        conn.commit()
+
+
+def get_or_create_daily_quests(user_id, conn):
+    """Создать записи user_daily_quests на сегодня для всех активных дневных заданий."""
+    today = _date.today().isoformat()
+    quests = conn.execute('SELECT id FROM daily_quests WHERE is_active=1').fetchall()
+    for q in quests:
+        conn.execute(
+            'INSERT OR IGNORE INTO user_daily_quests (user_id, quest_id, date) VALUES (?, ?, ?)',
+            (user_id, q['id'], today)
+        )
+    conn.commit()
+
+
+def update_daily_quest_progress(user_id, condition_type, conn):
+    """Инкрементировать прогресс дневных заданий по condition_type. Выдать награду при выполнении."""
+    today = _date.today().isoformat()
+    get_or_create_daily_quests(user_id, conn)
+    rows = conn.execute(
+        '''SELECT udq.id, udq.progress, udq.completed_at, dq.condition_value, dq.xp_reward, dq.coins_reward
+           FROM user_daily_quests udq
+           JOIN daily_quests dq ON udq.quest_id = dq.id
+           WHERE udq.user_id=? AND udq.date=? AND dq.condition_type=? AND dq.is_active=1''',
+        (user_id, today, condition_type)
+    ).fetchall()
+    for row in rows:
+        if row['completed_at']:
+            continue
+        new_progress = row['progress'] + 1
+        if new_progress >= row['condition_value']:
+            conn.execute(
+                'UPDATE user_daily_quests SET progress=?, completed_at=? WHERE id=?',
+                (row['condition_value'], today, row['id'])
+            )
+            if row['xp_reward'] > 0 or row['coins_reward'] > 0:
+                conn.execute(
+                    'UPDATE user_stats SET xp=xp+?, coins=coins+? WHERE user_id=?',
+                    (row['xp_reward'], row['coins_reward'], user_id)
+                )
+                conn.execute(
+                    'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+                    (user_id, f'daily_quest:{row["id"]}', str(row['id']), row['xp_reward'])
+                )
+        else:
+            conn.execute('UPDATE user_daily_quests SET progress=? WHERE id=?', (new_progress, row['id']))
+    conn.commit()
+
+
+def get_active_season(conn):
+    """Вернуть активный сезон или None."""
+    now_iso = datetime.utcnow().isoformat()
+    return conn.execute(
+        'SELECT * FROM seasons WHERE is_active=1 AND ends_at >= ? ORDER BY id DESC LIMIT 1',
+        (now_iso[:10],)
+    ).fetchone()
+
+
+def update_season_quest_progress(user_id, condition_type, amount, conn):
+    """Обновить накопительный прогресс по квестам активного сезона."""
+    season = get_active_season(conn)
+    if not season:
+        return
+    quests = conn.execute(
+        'SELECT * FROM season_quests WHERE season_id=? AND condition_type=?',
+        (season['id'], condition_type)
+    ).fetchall()
+    for q in quests:
+        conn.execute(
+            'INSERT OR IGNORE INTO user_season_quests (user_id, season_quest_id) VALUES (?, ?)',
+            (user_id, q['id'])
+        )
+        row = conn.execute(
+            'SELECT id, progress, completed_at FROM user_season_quests WHERE user_id=? AND season_quest_id=?',
+            (user_id, q['id'])
+        ).fetchone()
+        if row['completed_at']:
+            continue
+        new_progress = row['progress'] + amount
+        if new_progress >= q['condition_value']:
+            conn.execute(
+                'UPDATE user_season_quests SET progress=?, completed_at=? WHERE id=?',
+                (q['condition_value'], datetime.utcnow().isoformat(), row['id'])
+            )
+            if q['xp_reward'] > 0 or q['coins_reward'] > 0:
+                conn.execute(
+                    'UPDATE user_stats SET xp=xp+?, coins=coins+? WHERE user_id=?',
+                    (q['xp_reward'], q['coins_reward'], user_id)
+                )
+                conn.execute(
+                    'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+                    (user_id, f'season_quest:{q["id"]}', str(q['id']), q['xp_reward'])
+                )
+            # Выдать предметную награду
+            if q['item_reward_id']:
+                conn.execute(
+                    'INSERT OR IGNORE INTO user_items (user_id, item_id) VALUES (?, ?)',
+                    (user_id, q['item_reward_id'])
+                )
+        else:
+            conn.execute(
+                'UPDATE user_season_quests SET progress=? WHERE id=?',
+                (new_progress, row['id'])
+            )
+    conn.commit()
+
+
+def award_weekly_collection_trophy():
+    """Выдать трофей коллекции недели. Вызывается по понедельникам из background_checker."""
+    try:
+        conn = get_db()
+        # ISO-неделя
+        from datetime import date as _d
+        today = _d.today()
+        iso_week = f"{today.isocalendar()[0]}-W{today.isocalendar()[1]:02d}"
+        # Уже выдавали на этой неделе?
+        if conn.execute('SELECT 1 FROM collection_trophies WHERE iso_week=?', (iso_week,)).fetchone():
+            conn.close()
+            return
+        # Коллекция с максимальным числом лайков
+        row = conn.execute(
+            '''SELECT cl.collection_id, COUNT(*) as cnt, c.user_id
+               FROM collection_likes cl
+               JOIN collections c ON cl.collection_id = c.id
+               GROUP BY cl.collection_id
+               ORDER BY cnt DESC LIMIT 1'''
+        ).fetchone()
+        if not row:
+            conn.close()
+            return
+        conn.execute(
+            'INSERT OR IGNORE INTO collection_trophies (collection_id, user_id, iso_week, likes_count) VALUES (?,?,?,?)',
+            (row['collection_id'], row['user_id'], iso_week, row['cnt'])
+        )
+        conn.execute(
+            'UPDATE user_stats SET xp=xp+500, coins=coins+300 WHERE user_id=?',
+            (row['user_id'],)
+        )
+        conn.execute(
+            'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+            (row['user_id'], 'weekly_trophy', iso_week, 500)
+        )
+        conn.commit()
+        logger.info(f"🏆 Трофей коллекции недели {iso_week} выдан user_id={row['user_id']}")
+        conn.close()
+    except Exception as e:
+        logger.error(f"award_weekly_collection_trophy error: {e}")
+
+
+# ==================== ПОХОЖАЯ МАНГА ====================
+
+def get_similar_manga(manga_id, user_id, limit=3):
+    """Найти похожие манги по пересечению тегов (JSON-колонка). Исключает прочитанные."""
+    import json as _json2
+    conn = get_db()
+    try:
+        src = conn.execute('SELECT tags FROM manga WHERE manga_id = ?', (manga_id,)).fetchone()
+        if not src:
+            return []
+        try:
+            src_set = set(_json2.loads(src['tags'] or '[]'))
+        except Exception:
+            return []
+        if not src_set:
+            return []
+
+        # Манги, которые пользователь уже читал или подписан
+        read_ids = {r['manga_id'] for r in conn.execute(
+            '''SELECT DISTINCT manga_id FROM chapters_read WHERE user_id = ?
+               UNION SELECT manga_id FROM subscriptions WHERE user_id = ?''',
+            (user_id, user_id)
+        ).fetchall()}
+        read_ids.add(manga_id)
+
+        rows = conn.execute(
+            'SELECT manga_id, manga_title, manga_slug, cover_url, tags FROM manga WHERE manga_id != ?',
+            (manga_id,)
+        ).fetchall()
+
+        scored = []
+        for row in rows:
+            if row['manga_id'] in read_ids:
+                continue
+            try:
+                other_tags = set(_json2.loads(row['tags'] or '[]'))
+            except Exception:
+                other_tags = set()
+            overlap = len(src_set & other_tags)
+            if overlap > 0:
+                scored.append((overlap, row))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [
+            {'manga_id': r['manga_id'], 'title': r['manga_title'],
+             'slug': r['manga_slug'], 'cover': r['cover_url']}
+            for _, r in scored[:limit]
+        ]
+    finally:
+        conn.close()
+
+
+def _suggest_similar_manga(user_id, manga_id, manga_title):
+    """Отправить пользователю рекомендации похожих манг через Telegram + site notification."""
+    similar = get_similar_manga(manga_id, user_id, limit=3)
+    if not similar:
+        return
+
+    # Сайт-уведомление
+    body = 'Пока жди: ' + ', '.join(s['title'] for s in similar)
+    create_site_notification(user_id, 'similar_manga',
+                             f'Похожие на "{manga_title}"', body, '/catalog')
+
+    # Telegram уведомление
+    conn = get_db()
+    row = conn.execute('SELECT telegram_id, notifications_enabled FROM users WHERE id=?', (user_id,)).fetchone()
+    conn.close()
+    if not row or not row['telegram_id'] or row['notifications_enabled'] == 0:
+        return
+
+    lines = [f'📖 Ты дочитал всё доступное в <b>{manga_title}</b>!\n']
+    lines.append('Пока ждёшь новых глав, попробуй похожее:\n')
+    for s in similar:
+        url = f"{SITE_URL}/manga/{s['slug']}"
+        lines.append(f"• <a href='{url}'>{s['title']}</a>")
+    message = '\n'.join(lines)
+
+    async def _send():
+        global telegram_app
+        if telegram_app:
+            try:
+                await telegram_app.bot.send_message(
+                    chat_id=row['telegram_id'], text=message,
+                    parse_mode='HTML', disable_web_page_preview=True
+                )
+            except Exception as e:
+                logger.warning(f"_suggest_similar_manga tg error: {e}")
+
+    if _bot_loop and _bot_loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), _bot_loop)
+
 
 # ==================== ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ СПОТЛАЙТОВ ====================
 
@@ -1408,10 +1968,11 @@ def get_or_create_user_by_telegram(telegram_id, username=None, first_name=None, 
     
     # Создаем нового пользователя
     login_token = secrets.token_urlsafe(32)
-    c.execute('''INSERT INTO users 
-                 (telegram_id, telegram_username, telegram_first_name, telegram_last_name, login_token) 
-                 VALUES (?, ?, ?, ?, ?)''',
-              (telegram_id, username, first_name, last_name, login_token))
+    referral_code = secrets.token_urlsafe(6).upper()
+    c.execute('''INSERT INTO users
+                 (telegram_id, telegram_username, telegram_first_name, telegram_last_name, login_token, referral_code)
+                 VALUES (?, ?, ?, ?, ?, ?)''',
+              (telegram_id, username, first_name, last_name, login_token, referral_code))
     conn.commit()
     
     user_id = c.lastrowid
@@ -2053,6 +2614,10 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
         uid = sub['user_id']
         if sub['notifications_enabled'] == 0:
             continue
+        # Уведомление на сайте для всех подписчиков
+        create_site_notification(uid, 'new_chapter', f'Новая глава: {manga_title}',
+                                 f'Глава {chapter_number}' if chapter_number else None,
+                                 chapter_url, ref_id=str(chapter_id))
         if sub['is_premium']:
             # Премиум: мгновенное уведомление со ссылкой на чтение
             coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
@@ -2156,8 +2721,8 @@ def _revoke_premium_loans(c, user_id):
     c.execute('DELETE FROM user_items WHERE user_id = ? AND is_premium_loan = 1', (user_id,))
 
 
-async def send_daily_digest():
-    """Отправить ежедневный дайджест новых глав непремиум-пользователям"""
+async def send_daily_digest(hour=22):
+    """Отправить ежедневный дайджест новых глав непремиум-пользователям (для заданного часа MSK)"""
     global telegram_app
     if not telegram_app:
         return
@@ -2165,14 +2730,15 @@ async def send_daily_digest():
     try:
         conn = get_db()
         c = conn.cursor()
-        # Пользователи с очередью и не получавшие дайджест сегодня
+        # Пользователи с очередью, не получавшие дайджест сегодня, и чей preferred час совпадает
         c.execute(
             '''SELECT DISTINCT nq.user_id, u.telegram_id
                FROM notification_queue nq
                JOIN users u ON nq.user_id = u.id
                WHERE (u.last_digest_date IS NULL OR u.last_digest_date < ?)
+                 AND COALESCE(u.digest_hour, 22) = ?
                  AND u.is_active = 1 AND u.notifications_enabled = 1''',
-            (today,)
+            (today, hour)
         )
         users = c.fetchall()
         conn.close()
@@ -2231,19 +2797,19 @@ def background_checker():
     """Фоновый процесс проверки"""
     logger.info("🤖 Фоновый мониторинг запущен!")
     check_new_chapters()
-    _last_digest_day = None
+    _last_digest_hour_key = None  # "YYYY-MM-DD-HH"
 
     while True:
         try:
             time.sleep(60)  # Проверка каждую минуту
             check_new_chapters()
 
-            # Ежедневный дайджест в 22:00 по Москве (UTC+3)
+            # Ежедневный дайджест: запускаем каждый час для пользователей с matching digest_hour
             now_msk = datetime.utcnow() + timedelta(hours=3)
-            msk_date = now_msk.strftime('%Y-%m-%d')
-            if now_msk.hour >= 22 and _last_digest_day != msk_date:
-                _last_digest_day = msk_date
-                coro = send_daily_digest()
+            hour_key = now_msk.strftime('%Y-%m-%d-%H')
+            if _last_digest_hour_key != hour_key:
+                _last_digest_hour_key = hour_key
+                coro = send_daily_digest(hour=now_msk.hour)
                 if _bot_loop and _bot_loop.is_running():
                     asyncio.run_coroutine_threadsafe(coro, _bot_loop)
                 else:
@@ -2251,6 +2817,10 @@ def background_checker():
                         asyncio.run(coro)
                     except Exception:
                         pass
+
+            # Трофей коллекции недели — по понедельникам в полночь
+            if datetime.utcnow().weekday() == 0 and datetime.utcnow().hour == 0:
+                award_weekly_collection_trophy()
 
             # Проверяем истёкшие Premium подписки
             try:
@@ -2271,6 +2841,37 @@ def background_checker():
                 conn_bg.close()
             except Exception as e_prem:
                 logger.error(f"❌ Ошибка проверки Premium: {e_prem}")
+
+            # Удаляем истёкшие временные предметы
+            try:
+                conn_tmp = get_db()
+                now_iso = datetime.utcnow().isoformat()
+                exp_rows = conn_tmp.execute(
+                    '''SELECT ui.id, ui.user_id, ui.item_id, si.type, si.name
+                       FROM user_items ui JOIN shop_items si ON ui.item_id = si.id
+                       WHERE ui.expires_at IS NOT NULL AND ui.expires_at < ?''',
+                    (now_iso,)
+                ).fetchall()
+                col_map = {'frame': 'frame_item_id', 'badge': 'badge_item_id', 'title': 'title_item_id'}
+                for row in exp_rows:
+                    col = col_map.get(row['type'])
+                    if col:
+                        conn_tmp.execute(
+                            f'UPDATE user_profile SET {col}=NULL WHERE user_id=? AND {col}=?',
+                            (row['user_id'], row['item_id'])
+                        )
+                    conn_tmp.execute('DELETE FROM user_items WHERE id=?', (row['id'],))
+                if exp_rows:
+                    conn_tmp.commit()
+                conn_tmp.close()
+                for row in exp_rows:
+                    create_site_notification(
+                        row['user_id'], 'item_expired',
+                        f'Предмет истёк: {row["name"]}',
+                        'Временный предмет удалён из инвентаря', '/shop'
+                    )
+            except Exception as e_tmp:
+                logger.error(f"❌ Ошибка очистки временных предметов: {e_tmp}")
         except Exception as e:
             logger.error(f"❌ Ошибка в background_checker: {e}")
             time.sleep(60)
@@ -2358,6 +2959,34 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await buy_command(update, context)
         return
 
+    # ?start=<referral_code> — реферальная программа
+    if context.args and len(context.args[0]) >= 8:
+        ref_code = context.args[0].upper()
+        try:
+            ref_conn = get_db()
+            referrer = ref_conn.execute('SELECT id FROM users WHERE referral_code=?', (ref_code,)).fetchone()
+            if referrer and referrer['id'] != user['id']:
+                existing = ref_conn.execute(
+                    'SELECT id FROM referrals WHERE referred_id=?', (user['id'],)
+                ).fetchone()
+                if not existing:
+                    ref_conn.execute(
+                        'INSERT OR IGNORE INTO referrals (referrer_id, referred_id, rewarded) VALUES (?,?,1)',
+                        (referrer['id'], user['id'])
+                    )
+                    ref_conn.execute(
+                        'UPDATE user_stats SET xp=xp+100, coins=coins+100 WHERE user_id=?',
+                        (referrer['id'],)
+                    )
+                    ref_conn.execute(
+                        'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?,?,?,?)',
+                        (referrer['id'], 'referral', str(user['id']), 100)
+                    )
+                    ref_conn.commit()
+            ref_conn.close()
+        except Exception as _re:
+            logger.warning(f"Referral processing error: {_re}")
+
     login_url = f"{SITE_URL}/login/{user['login_token']}"
     webapp_url = SITE_URL
 
@@ -2391,6 +3020,31 @@ async def search_manga_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def handle_search_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка сообщения для поиска"""
+    text = update.message.text or ''
+
+    # Ввод получателя для подарка
+    if context.user_data.get('waiting_for_gift_username'):
+        context.user_data['waiting_for_gift_username'] = False
+        username = text.lstrip('@').strip()
+        if not username:
+            await update.message.reply_text("❌ Укажите username получателя")
+            return
+        recipient_id, recipient_name = await _resolve_recipient(username)
+        if not recipient_id:
+            await update.message.reply_text(f"❌ Пользователь @{username} не найден на BubbleManga")
+            return
+        keyboard = [
+            [InlineKeyboardButton("🎁 1 месяц — 50 ⭐", callback_data=f"gift_pkg:{username}:30")],
+            [InlineKeyboardButton("🎁 3 месяца — 130 ⭐", callback_data=f"gift_pkg:{username}:90")],
+            [InlineKeyboardButton("🎁 1 год — 450 ⭐", callback_data=f"gift_pkg:{username}:365")],
+        ]
+        await update.message.reply_text(
+            f"🎁 Подарить Premium пользователю *{recipient_name}*\n\nВыберите период:",
+            parse_mode='MarkdownV2',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
     if not context.user_data.get('waiting_for_search'):
         return
     
@@ -2608,11 +3262,172 @@ async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.pre_checkout_query.answer(ok=True)
 
 
+async def _handle_gift_premium_payment(update, payment, payload, payment_id):
+    """Обрабатывает платёж подарочного Premium. Payload: gift_premium:{rid}:{days}:{sid}"""
+    try:
+        _, recipient_id_str, days_str, sender_id_str = payload.split(':', 3)
+        recipient_id = int(recipient_id_str)
+        days = int(days_str)
+        sender_id = int(sender_id_str)
+    except (ValueError, TypeError):
+        await update.message.reply_text("❌ Ошибка формата подарка.")
+        return
+
+    # Idempotency
+    conn = get_db()
+    c = conn.cursor()
+    existing = c.execute('SELECT id FROM premium_gifts WHERE payment_id=?', (payment_id,)).fetchone()
+    conn.close()
+    if existing:
+        await update.message.reply_text("✅ Подарок уже был обработан.")
+        return
+
+    # Записываем подарок
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        'INSERT OR IGNORE INTO premium_gifts (sender_id, recipient_id, days, stars_paid, payment_id) VALUES (?,?,?,?,?)',
+        (sender_id, recipient_id, days, payment.total_amount, payment_id)
+    )
+    conn.commit()
+    conn.close()
+
+    # Определяем package_id по дням
+    pkg_map = {30: 'premium_1m', 90: 'premium_3m', 365: 'premium_12m'}
+    pkg_id = pkg_map.get(days, 'premium_1m')
+    label_map = {30: '1 месяц', 90: '3 месяца', 365: '1 год'}
+    label = label_map.get(days, f'{days} дней')
+
+    # Выдаём Premium получателю
+    _grant_premium(recipient_id, pkg_id, f'gift_{payment_id}', 'stars_gift')
+
+    # XP отправителю
+    award_xp(sender_id, 50, 'gift_premium', ref_id=payment_id)
+
+    # Уведомление получателю на сайте
+    create_site_notification(
+        recipient_id, 'gift_premium',
+        'Вам подарили Premium!',
+        f'на {label}', '/shop'
+    )
+
+    # Telegram уведомление получателю
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        rec_row = c.execute('SELECT telegram_id FROM users WHERE id=?', (recipient_id,)).fetchone()
+        conn.close()
+        if rec_row and rec_row['telegram_id'] and _bot_loop and _bot_loop.is_running():
+            async def _notify():
+                try:
+                    await context.bot.send_message(
+                        chat_id=rec_row['telegram_id'],
+                        text=f"🎁 Вам подарили Premium на {label}!\nПриятного чтения на BubbleManga!"
+                    )
+                except Exception:
+                    pass
+            asyncio.run_coroutine_threadsafe(_notify(), _bot_loop)
+    except Exception:
+        pass
+
+    await update.message.reply_text(f"🎁 Подарок отправлен! Premium на {label} зачислен получателю.")
+
+
+async def _resolve_recipient(username):
+    """Ищет пользователя по telegram_username. Возвращает (user_id, display_name) или (None, None)."""
+    conn = get_db()
+    c = conn.cursor()
+    uname = username.lstrip('@')
+    row = c.execute(
+        'SELECT id, telegram_first_name, telegram_username FROM users WHERE telegram_username=?', (uname,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None, None
+    display = row['telegram_first_name'] or row['telegram_username'] or f'ID {row["id"]}'
+    return row['id'], display
+
+
+async def _send_gift_invoice(msg_or_query, context, sender_id, recipient_id, recipient_name, days):
+    """Отправляет Stars invoice для подарочного Premium."""
+    label_map = {30: '1 месяц', 90: '3 месяца', 365: '1 год'}
+    stars_map = {30: 50, 90: 130, 365: 450}
+    label = label_map.get(days, f'{days} дней')
+    stars = stars_map.get(days, 50)
+    payload = f'gift_premium:{recipient_id}:{days}:{sender_id}'
+    chat_id = msg_or_query.chat_id if hasattr(msg_or_query, 'chat_id') else msg_or_query.message.chat_id
+    await context.bot.send_invoice(
+        chat_id=chat_id,
+        title=f'Premium на {label} для {recipient_name}',
+        description=f'Подарок Premium BubbleManga на {label}',
+        payload=payload,
+        currency='XTR',
+        provider_token='',
+        prices=[LabeledPrice(label=f'Premium {label}', amount=stars)],
+    )
+
+
+async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /gift [@username] [30|90|365]"""
+    telegram_id = update.effective_user.id
+    conn = get_db()
+    c = conn.cursor()
+    sender_row = c.execute('SELECT id FROM users WHERE telegram_id=?', (telegram_id,)).fetchone()
+    conn.close()
+    if not sender_row:
+        await update.message.reply_text("❌ Сначала войдите на сайт BubbleManga через /start")
+        return
+    sender_id = sender_row['id']
+
+    args = context.args or []
+
+    if not args:
+        context.user_data['waiting_for_gift_username'] = True
+        await update.message.reply_text(
+            "🎁 *Подарить Premium*\n\nВведите @username получателя:",
+            parse_mode='MarkdownV2'
+        )
+        return
+
+    username = args[0].lstrip('@')
+    recipient_id, recipient_name = await _resolve_recipient(username)
+    if not recipient_id:
+        await update.message.reply_text(f"❌ Пользователь @{username} не найден на BubbleManga")
+        return
+
+    if len(args) >= 2:
+        try:
+            days = int(args[1])
+            if days not in (30, 90, 365):
+                raise ValueError
+        except ValueError:
+            await update.message.reply_text("❌ Укажите период: 30, 90 или 365 дней")
+            return
+        await _send_gift_invoice(update.message, context, sender_id, recipient_id, recipient_name, days)
+    else:
+        # Показать кнопки выбора периода
+        keyboard = [
+            [InlineKeyboardButton(f"🎁 1 месяц — 50 ⭐", callback_data=f"gift_pkg:{username}:30")],
+            [InlineKeyboardButton(f"🎁 3 месяца — 130 ⭐", callback_data=f"gift_pkg:{username}:90")],
+            [InlineKeyboardButton(f"🎁 1 год — 450 ⭐", callback_data=f"gift_pkg:{username}:365")],
+        ]
+        await update.message.reply_text(
+            f"🎁 Подарить Premium пользователю *{recipient_name}*\n\nВыберите период:",
+            parse_mode='MarkdownV2',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
 async def successful_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начисляет монеты после успешной оплаты Stars"""
     payment = update.message.successful_payment
     payload = payment.invoice_payload  # format: "{package_id}:{user_id}"
     payment_id = payment.telegram_payment_charge_id
+
+    # Подарочный Premium обрабатываем отдельно
+    if payload.startswith('gift_premium:'):
+        await _handle_gift_premium_payment(update, payment, payload, payment_id)
+        return
 
     try:
         package_id, user_id_str = payload.rsplit(':', 1)
@@ -2685,6 +3500,27 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             provider_token="",
             prices=[LabeledPrice(label=pkg['label'], amount=pkg['stars'])],
         )
+    elif query.data.startswith("gift_pkg:"):
+        _, username, days_str = query.data.split(":", 2)
+        try:
+            days = int(days_str)
+        except ValueError:
+            await query.answer("Ошибка", show_alert=True)
+            return
+        telegram_id = query.from_user.id
+        conn = get_db()
+        c = conn.cursor()
+        sender_row = c.execute('SELECT id FROM users WHERE telegram_id=?', (telegram_id,)).fetchone()
+        conn.close()
+        if not sender_row:
+            await query.answer("Сначала войдите на сайт BubbleManga", show_alert=True)
+            return
+        sender_id = sender_row['id']
+        recipient_id, recipient_name = await _resolve_recipient(username)
+        if not recipient_id:
+            await query.answer(f"Пользователь @{username} не найден", show_alert=True)
+            return
+        await _send_gift_invoice(query.message, context, sender_id, recipient_id, recipient_name, days)
 
 
 def run_telegram_bot():
@@ -2708,6 +3544,7 @@ def run_telegram_bot():
             telegram_app.add_handler(CommandHandler("search", search_manga_command))
             telegram_app.add_handler(CommandHandler("premium", premium_command))
             telegram_app.add_handler(CommandHandler("buy", buy_command))
+            telegram_app.add_handler(CommandHandler("gift", gift_command))
 
             # Callback кнопки
             telegram_app.add_handler(CallbackQueryHandler(handle_callback))
@@ -3217,7 +4054,8 @@ def api_catalog():
 
     c.execute(
         f'''SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
-                   cover_url, rating, score, views, chapters_count, last_updated
+                   cover_url, rating, score, views, chapters_count, last_updated,
+                   SUBSTR(description, 1, 160) AS description, tags
             FROM manga WHERE {where_sql}
             ORDER BY {order_sql}
             LIMIT ? OFFSET ?''',
@@ -3369,7 +4207,14 @@ def read_chapter(manga_slug, chapter_slug):
         pages_count = len(chapter_dict.get('pages', []))
         xp_amount = 10 + pages_count
         award_xp(user_id, xp_amount, 'chapter_read', ref_id=chapter_dict['chapter_id'])
-    
+
+        # Стрик чтения
+        update_reading_streak(user_id, conn)
+        # Дневные задания
+        update_daily_quest_progress(user_id, 'chapters_today', conn)
+        # Сезонные задания
+        update_season_quest_progress(user_id, 'chapters_read', 1, conn)
+
     # Предыдущая и следующая главы
     manga_id_nav = chapter_dict['manga_id']
     chapter_num_nav = chapter_dict['chapter_number']
@@ -3390,6 +4235,15 @@ def read_chapter(manga_slug, chapter_slug):
     next_chapter = dict(next_ch) if next_ch else None
 
     conn.close()
+
+    # Если пользователь дочитал последнюю доступную главу — предложить похожую мангу
+    if user_id and next_chapter is None:
+        import threading as _th
+        _th.Thread(
+            target=_suggest_similar_manga,
+            args=(user_id, chapter_dict['manga_id'], chapter_dict.get('manga_title', manga_slug)),
+            daemon=True
+        ).start()
 
     subscribed = False
     if user_id:
@@ -3757,6 +4611,13 @@ def manga_detail(manga_slug):
     user_id = session.get('user_id')
     if user_id and manga_id:
         subscribed = is_subscribed(user_id, manga_id)
+        # Дневное задание "открой 2 разные манги"
+        try:
+            _conn_dq = get_db()
+            update_daily_quest_progress(user_id, 'manga_today', _conn_dq)
+            _conn_dq.close()
+        except Exception:
+            pass
 
     # Проверяем историю чтения
     reading_history = None
@@ -3776,6 +4637,15 @@ def manga_detail(manga_slug):
         if history:
             reading_history = dict(history)
 
+    # Вишлист
+    in_wishlist = False
+    if user_id and manga_id:
+        conn2 = get_db()
+        in_wishlist = bool(conn2.execute(
+            'SELECT 1 FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+        ).fetchone())
+        conn2.close()
+
     logger.info(
         f"📄 Рендер {manga_slug}: {len(chapters)} глав показано, "
         f"{total_in_db} в БД, {expected_chapters} ожидается"
@@ -3787,6 +4657,7 @@ def manga_detail(manga_slug):
                            subscribed=subscribed,
                            reading_history=reading_history,
                            is_loading_more=is_loading_more,
+                           in_wishlist=in_wishlist,
                            user_id=user_id)
 
 # ==================== ПРОФИЛИ / ТОП / МАГАЗИН ====================
@@ -3898,14 +4769,17 @@ def shop_page():
     coins = 0
     is_premium = 0
     premium_expires_at = None
+    temp_expires = {}
     if user_id:
-        c.execute('SELECT item_id, is_equipped, is_premium_loan FROM user_items WHERE user_id = ?', (user_id,))
+        c.execute('SELECT item_id, is_equipped, is_premium_loan, expires_at FROM user_items WHERE user_id = ?', (user_id,))
         for row in c.fetchall():
             owned_ids.add(row['item_id'])
             if row['is_premium_loan']:
                 loaned_ids.add(row['item_id'])
             if row['is_equipped']:
                 equipped[row['item_id']] = True
+            if row['expires_at']:
+                temp_expires[row['item_id']] = row['expires_at']
         c.execute('SELECT coins FROM user_stats WHERE user_id = ?', (user_id,))
         r = c.fetchone()
         coins = r['coins'] if r else 0
@@ -3925,7 +4799,8 @@ def shop_page():
                            coins=coins,
                            user_id=user_id,
                            is_premium=is_premium,
-                           premium_expires_at=premium_expires_at)
+                           premium_expires_at=premium_expires_at,
+                           temp_expires=temp_expires)
 
 
 @app.route('/api/shop/buy/<int:item_id>', methods=['POST'])
@@ -3945,12 +4820,18 @@ def shop_buy(item_id):
         conn.close()
         return jsonify({'error': 'Товар не найден'}), 404
 
-    # Уже куплен навсегда?
-    c.execute('SELECT id, is_premium_loan FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
+    # Уже куплен?
+    c.execute('SELECT id, is_premium_loan, expires_at FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
     existing = c.fetchone()
-    if existing and not existing['is_premium_loan']:
+    now_iso = datetime.utcnow().isoformat()
+    # Постоянный — блокируем
+    if existing and not existing['is_premium_loan'] and not existing['expires_at']:
         conn.close()
         return jsonify({'error': 'Уже куплено навсегда'}), 400
+    # Временный истёк — удалить старую запись
+    if existing and existing['expires_at'] and existing['expires_at'] < now_iso:
+        c.execute('DELETE FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
+        existing = None
 
     # Проверяем монеты
     c.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
@@ -3962,13 +4843,17 @@ def shop_buy(item_id):
         conn.close()
         return jsonify({'error': 'Недостаточно монет'}), 400
 
-    # Если был loan — удалить его (переход к постоянному владению)
-    if existing and existing['is_premium_loan']:
+    # Если был loan или temp — удалить (переход к постоянному)
+    if existing:
         c.execute('DELETE FROM user_items WHERE user_id = ? AND item_id = ?', (user_id, item_id))
 
     # Списываем монеты и добавляем товар
     c.execute('UPDATE user_stats SET coins = coins - ? WHERE user_id = ?', (item['price'], user_id))
-    c.execute('INSERT INTO user_items (user_id, item_id) VALUES (?, ?)', (user_id, item_id))
+    if item['duration_days']:
+        exp = (datetime.utcnow() + timedelta(days=item['duration_days'])).isoformat()
+        c.execute('INSERT INTO user_items (user_id, item_id, expires_at) VALUES (?, ?, ?)', (user_id, item_id, exp))
+    else:
+        c.execute('INSERT INTO user_items (user_id, item_id) VALUES (?, ?)', (user_id, item_id))
     conn.commit()
 
     c.execute('SELECT coins FROM user_stats WHERE user_id = ?', (user_id,))
@@ -4276,6 +5161,68 @@ def shop_create_premium_payment():
     return jsonify({'error': 'Неизвестный способ оплаты'}), 400
 
 
+@app.route('/api/shop/gift-premium', methods=['POST'])
+def shop_gift_premium():
+    """Создаёт Stars invoice для подарочного Premium. {recipient_id, days} → {url}"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    data = request.get_json(silent=True) or {}
+    recipient_id = data.get('recipient_id')
+    days = data.get('days')
+
+    if not recipient_id or not days:
+        return jsonify({'error': 'recipient_id и days обязательны'}), 400
+    try:
+        recipient_id = int(recipient_id)
+        days = int(days)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Неверные параметры'}), 400
+    if days not in (30, 90, 365):
+        return jsonify({'error': 'days должен быть 30, 90 или 365'}), 400
+    if recipient_id == user_id:
+        return jsonify({'error': 'Нельзя подарить самому себе'}), 400
+
+    # Проверяем получателя
+    conn = get_db()
+    c = conn.cursor()
+    rec = c.execute('SELECT id, telegram_first_name, telegram_username FROM users WHERE id=?', (recipient_id,)).fetchone()
+    conn.close()
+    if not rec:
+        return jsonify({'error': 'Получатель не найден'}), 404
+
+    label_map = {30: '1 месяц', 90: '3 месяца', 365: '1 год'}
+    stars_map = {30: 50, 90: 130, 365: 450}
+    label = label_map[days]
+    stars = stars_map[days]
+    recipient_name = rec['telegram_first_name'] or rec['telegram_username'] or f'ID {recipient_id}'
+    payload = f'gift_premium:{recipient_id}:{days}:{user_id}'
+
+    try:
+        bot = telegram_app.bot if telegram_app else None
+        if not bot:
+            return jsonify({'error': 'Бот недоступен'}), 503
+        if _bot_loop and _bot_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(
+                bot.create_invoice_link(
+                    title=f'Premium на {label} для {recipient_name}',
+                    description=f'Подарок Premium BubbleManga на {label}',
+                    payload=payload,
+                    currency='XTR',
+                    provider_token='',
+                    prices=[LabeledPrice(label=f'Premium {label}', amount=stars)],
+                ),
+                _bot_loop
+            )
+            url = future.result(timeout=10)
+            return jsonify({'url': url})
+        else:
+            return jsonify({'error': 'Бот не запущен'}), 503
+    except Exception as e:
+        return jsonify({'error': f'Ошибка создания инвойса: {e}'}), 500
+
+
 @app.route('/webhook/yookassa', methods=['POST'])
 def webhook_yookassa():
     """Вебхук от ЮКасса — зачисляет монеты или активирует Premium после успешной оплаты."""
@@ -4330,6 +5277,155 @@ def webhook_cryptocloud():
     return '', 200
 
 
+# ==================== WISHLIST ====================
+
+@app.route('/api/wishlist/<manga_id>', methods=['POST'])
+def toggle_wishlist(manga_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    existing = conn.execute(
+        'SELECT id FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+    ).fetchone()
+    if existing:
+        conn.execute('DELETE FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id))
+        in_wishlist = False
+    else:
+        conn.execute('INSERT OR IGNORE INTO reading_wishlist (user_id, manga_id) VALUES (?,?)', (user_id, manga_id))
+        in_wishlist = True
+    conn.commit()
+    conn.close()
+    return jsonify({'in_wishlist': in_wishlist})
+
+
+@app.route('/api/user/wishlist')
+def api_user_wishlist():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT m.manga_id, m.manga_slug, m.manga_title, m.cover_url, m.manga_type,
+                  m.manga_status, rw.added_at
+           FROM reading_wishlist rw
+           JOIN manga m ON rw.manga_id = m.manga_id
+           WHERE rw.user_id=?
+           ORDER BY rw.added_at DESC''',
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+# ==================== COMMENT LIKES ====================
+
+@app.route('/api/comments/<int:comment_id>/like', methods=['POST'])
+def toggle_comment_like(comment_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    existing = conn.execute(
+        'SELECT id FROM comment_likes WHERE user_id=? AND comment_id=?', (user_id, comment_id)
+    ).fetchone()
+    if existing:
+        conn.execute('DELETE FROM comment_likes WHERE user_id=? AND comment_id=?', (user_id, comment_id))
+        liked = False
+    else:
+        conn.execute('INSERT OR IGNORE INTO comment_likes (user_id, comment_id) VALUES (?,?)', (user_id, comment_id))
+        liked = True
+    conn.commit()
+    likes_count = conn.execute(
+        'SELECT COUNT(*) FROM comment_likes WHERE comment_id=?', (comment_id,)
+    ).fetchone()[0]
+    conn.close()
+    return jsonify({'liked': liked, 'likes_count': likes_count})
+
+
+# ==================== REFERRAL ====================
+
+@app.route('/api/profile/referral')
+def api_referral():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    user = conn.execute('SELECT referral_code FROM users WHERE id=?', (user_id,)).fetchone()
+    code = user['referral_code'] if user else None
+    if not code:
+        code = secrets.token_urlsafe(6).upper()
+        conn.execute('UPDATE users SET referral_code=? WHERE id=?', (code, user_id))
+        conn.commit()
+    count = conn.execute('SELECT COUNT(*) FROM referrals WHERE referrer_id=?', (user_id,)).fetchone()[0]
+    rewarded = conn.execute(
+        'SELECT SUM(100) as total FROM referrals WHERE referrer_id=? AND rewarded=1', (user_id,)
+    ).fetchone()
+    coins_earned = rewarded[0] or 0
+    conn.close()
+    referral_url = f"https://t.me/bubblemanga_bot?start={code}"
+    return jsonify({'code': code, 'referral_url': referral_url, 'count': count, 'coins_earned': coins_earned})
+
+
+# ==================== DAILY QUESTS / SEASON API ====================
+
+@app.route('/api/daily-quests')
+def api_daily_quests():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    today = _date.today().isoformat()
+    conn = get_db()
+    get_or_create_daily_quests(user_id, conn)
+    rows = conn.execute(
+        '''SELECT dq.id, dq.title, dq.description, dq.icon, dq.condition_value,
+                  dq.xp_reward, dq.coins_reward,
+                  udq.progress, udq.completed_at
+           FROM daily_quests dq
+           LEFT JOIN user_daily_quests udq ON dq.id = udq.quest_id
+               AND udq.user_id=? AND udq.date=?
+           WHERE dq.is_active=1''',
+        (user_id, today)
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d['progress'] = d['progress'] or 0
+        d['completed'] = bool(d['completed_at'])
+        result.append(d)
+    return jsonify(result)
+
+
+@app.route('/api/season')
+def api_season():
+    user_id = session.get('user_id')
+    conn = get_db()
+    season = get_active_season(conn)
+    if not season:
+        conn.close()
+        return jsonify(None)
+    season_dict = dict(season)
+    quests = conn.execute('SELECT * FROM season_quests WHERE season_id=?', (season['id'],)).fetchall()
+    result_quests = []
+    for q in quests:
+        qd = dict(q)
+        if user_id:
+            row = conn.execute(
+                'SELECT progress, completed_at FROM user_season_quests WHERE user_id=? AND season_quest_id=?',
+                (user_id, q['id'])
+            ).fetchone()
+            qd['progress'] = row['progress'] if row else 0
+            qd['completed'] = bool(row['completed_at']) if row else False
+        else:
+            qd['progress'] = 0
+            qd['completed'] = False
+        result_quests.append(qd)
+    conn.close()
+    season_dict['quests'] = result_quests
+    return jsonify(season_dict)
+
+
 # ==================== КОММЕНТАРИИ ====================
 
 _COMMENT_QUERY = '''
@@ -4339,7 +5435,8 @@ _COMMENT_QUERY = '''
            (SELECT si.css_value FROM shop_items si
             JOIN user_items ui ON si.id = ui.item_id
             WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
-            LIMIT 1) as frame_css
+            LIMIT 1) as frame_css,
+           (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = cm.id) as likes_count
     FROM comments cm
     JOIN users u ON cm.user_id = u.id
     LEFT JOIN user_profile p ON u.id = p.user_id
@@ -4351,12 +5448,16 @@ _COMMENT_QUERY = '''
 def get_comments(manga_slug):
     offset = max(0, int(request.args.get('offset', 0)))
     limit  = min(50, max(1, int(request.args.get('limit', 20))))
+    sort   = request.args.get('sort', 'new')  # 'new' | 'top'
+    viewer_id = session.get('user_id')
     conn = get_db()
     c = conn.cursor()
 
+    order_clause = 'ORDER BY likes_count DESC, cm.created_at DESC' if sort == 'top' else 'ORDER BY cm.created_at DESC'
+
     # Верхнеуровневые комментарии (без ответов)
     c.execute(
-        _COMMENT_QUERY + 'WHERE cm.manga_slug = ? AND cm.parent_id IS NULL ORDER BY cm.created_at DESC LIMIT ? OFFSET ?',
+        _COMMENT_QUERY + f'WHERE cm.manga_slug = ? AND cm.parent_id IS NULL {order_clause} LIMIT ? OFFSET ?',
         (manga_slug, limit, offset)
     )
     top_comments = [dict(r) for r in c.fetchall()]
@@ -4369,6 +5470,20 @@ def get_comments(manga_slug):
     c.execute('SELECT COUNT(*) FROM comments WHERE manga_slug = ?', (manga_slug,))
     total_all = c.fetchone()[0]
 
+    # liked_by_me для верхнеуровневых
+    if viewer_id and top_comments:
+        liked_set = {
+            r[0] for r in c.execute(
+                f'SELECT comment_id FROM comment_likes WHERE user_id=? AND comment_id IN ({",".join("?"*len(top_comments))})',
+                (viewer_id, *[cmt['id'] for cmt in top_comments])
+            ).fetchall()
+        }
+        for cmt in top_comments:
+            cmt['liked_by_me'] = cmt['id'] in liked_set
+    else:
+        for cmt in top_comments:
+            cmt['liked_by_me'] = False
+
     # Загрузить ответы для этих комментариев одним запросом
     if top_comments:
         parent_ids = [cmt['id'] for cmt in top_comments]
@@ -4378,6 +5493,18 @@ def get_comments(manga_slug):
             parent_ids
         )
         replies = [dict(r) for r in c.fetchall()]
+        if viewer_id and replies:
+            liked_replies = {
+                r[0] for r in c.execute(
+                    f'SELECT comment_id FROM comment_likes WHERE user_id=? AND comment_id IN ({",".join("?"*len(replies))})',
+                    (viewer_id, *[r['id'] for r in replies])
+                ).fetchall()
+            }
+            for r in replies:
+                r['liked_by_me'] = r['id'] in liked_replies
+        else:
+            for r in replies:
+                r['liked_by_me'] = False
         reply_map = {}
         for r in replies:
             reply_map.setdefault(r['parent_id'], []).append(r)
@@ -4424,6 +5551,8 @@ def post_comment(manga_slug):
     comment_id = c.lastrowid
     conn.commit()
     check_quests(user_id, conn)
+    update_daily_quest_progress(user_id, 'comments_today', conn)
+    update_season_quest_progress(user_id, 'comments_posted', 1, conn)
     c.execute(_COMMENT_QUERY + 'WHERE cm.id = ?', (comment_id,))
     comment = dict(c.fetchone())
     conn.close()
@@ -4809,6 +5938,72 @@ def api_user_collections():
     return jsonify(rows)
 
 
+@app.route('/api/users/<int:author_id>/follow-curator', methods=['POST'])
+def api_follow_curator(author_id):
+    """Toggle подписки на куратора"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    if user_id == author_id:
+        return jsonify({'error': 'Нельзя подписаться на себя'}), 400
+    conn = get_db()
+    c = conn.cursor()
+    existing = c.execute('SELECT id FROM curator_follows WHERE follower_id=? AND author_id=?',
+                         (user_id, author_id)).fetchone()
+    if existing:
+        c.execute('DELETE FROM curator_follows WHERE follower_id=? AND author_id=?', (user_id, author_id))
+        following = False
+    else:
+        c.execute('INSERT OR IGNORE INTO curator_follows (follower_id, author_id) VALUES (?,?)',
+                  (user_id, author_id))
+        following = True
+    conn.commit()
+    cnt = c.execute('SELECT COUNT(*) FROM curator_follows WHERE author_id=?', (author_id,)).fetchone()[0]
+    conn.close()
+    return jsonify({'following': following, 'followers_count': cnt})
+
+
+@app.route('/api/users/<int:author_id>/followers')
+def api_curator_followers(author_id):
+    """Число подписчиков куратора и статус текущего пользователя"""
+    user_id = session.get('user_id')
+    conn = get_db()
+    c = conn.cursor()
+    cnt = c.execute('SELECT COUNT(*) FROM curator_follows WHERE author_id=?', (author_id,)).fetchone()[0]
+    following = False
+    if user_id:
+        following = bool(c.execute('SELECT id FROM curator_follows WHERE follower_id=? AND author_id=?',
+                                   (user_id, author_id)).fetchone())
+    conn.close()
+    return jsonify({'followers_count': cnt, 'following': following})
+
+
+@app.route('/api/user/following-curators')
+def api_following_curators():
+    """Список кураторов, на которых подписан текущий пользователь"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'curators': []})
+    conn = get_db()
+    c = conn.cursor()
+    rows = c.execute(
+        '''SELECT u.id, u.telegram_first_name, u.telegram_username, u.is_premium,
+                  up.custom_name, up.custom_avatar_url
+           FROM curator_follows cf
+           JOIN users u ON cf.author_id = u.id
+           LEFT JOIN user_profile up ON u.id = up.user_id
+           WHERE cf.follower_id = ?
+           ORDER BY cf.created_at DESC''',
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        display = (r['custom_name'] or '').strip() or r['telegram_first_name'] or r['telegram_username'] or f'Пользователь #{r["id"]}'
+        result.append({'id': r['id'], 'display_name': display, 'avatar_url': r['custom_avatar_url'], 'is_premium': r['is_premium']})
+    return jsonify({'curators': result})
+
+
 @app.route('/api/collections', methods=['POST'])
 def api_create_collection():
     """Создать коллекцию"""
@@ -4829,7 +6024,22 @@ def api_create_collection():
     )
     conn.commit()
     new_id = c.lastrowid
+    # Определяем имя автора
+    c.execute('SELECT telegram_first_name, telegram_username FROM users WHERE id=?', (user_id,))
+    _author = c.fetchone()
+    author_name = (
+        (_author['telegram_first_name'] or _author['telegram_username'] or f'Пользователь #{user_id}')
+        if _author else f'Пользователь #{user_id}'
+    )
+    # Уведомляем подписчиков-кураторов
+    followers = c.execute('SELECT follower_id FROM curator_follows WHERE author_id=?', (user_id,)).fetchall()
     conn.close()
+    for f in followers:
+        create_site_notification(
+            f['follower_id'], 'new_collection',
+            f'{author_name} создал(а) коллекцию',
+            name, f'/collection/{new_id}'
+        )
     return jsonify({'success': True, 'id': new_id, 'name': name, 'items_count': 0})
 
 
@@ -5493,7 +6703,7 @@ def api_admin_shop_create():
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        'INSERT INTO shop_items (name, description, type, preview_url, css_value, price, is_upload, is_animated) VALUES (?,?,?,?,?,?,?,?)',
+        'INSERT INTO shop_items (name, description, type, preview_url, css_value, price, is_upload, is_animated, duration_days) VALUES (?,?,?,?,?,?,?,?,?)',
         (
             name,
             (data.get('description') or '').strip(),
@@ -5503,6 +6713,7 @@ def api_admin_shop_create():
             int(data.get('price', 0)),
             int(bool(data.get('is_upload', False))),
             int(bool(data.get('is_animated', False))),
+            int(data['duration_days']) if data.get('duration_days') else None,
         )
     )
     conn.commit()
@@ -5523,7 +6734,7 @@ def api_admin_shop_update(item_id):
         return jsonify({'error': 'Товар не найден'}), 404
     c.execute(
         '''UPDATE shop_items SET name=?, description=?, type=?, preview_url=?,
-           css_value=?, price=?, is_upload=?, is_animated=? WHERE id=?''',
+           css_value=?, price=?, is_upload=?, is_animated=?, duration_days=? WHERE id=?''',
         (
             (data.get('name') or '').strip(),
             (data.get('description') or '').strip(),
@@ -5533,6 +6744,7 @@ def api_admin_shop_update(item_id):
             int(data.get('price', 0)),
             int(bool(data.get('is_upload', False))),
             int(bool(data.get('is_animated', False))),
+            int(data['duration_days']) if data.get('duration_days') else None,
             item_id,
         )
     )
@@ -5868,6 +7080,128 @@ def api_calendar_day():
         return jsonify([])
     finally:
         conn.close()
+
+
+# ==================== ADMIN: СЕЗОНЫ ====================
+
+@app.route('/admin/api/seasons', methods=['POST'])
+@admin_required
+def admin_create_season():
+    data = request.json or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'name required'}), 400
+    conn = get_db()
+    conn.execute(
+        'INSERT INTO seasons (name, description, icon, banner_url, starts_at, ends_at, is_active) VALUES (?,?,?,?,?,?,1)',
+        (name, data.get('description',''), data.get('icon','🌸'), data.get('banner_url'), data.get('starts_at',''), data.get('ends_at',''))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/admin/api/seasons/<int:season_id>/quests', methods=['POST'])
+@admin_required
+def admin_create_season_quest(season_id):
+    data = request.json or {}
+    conn = get_db()
+    conn.execute(
+        '''INSERT INTO season_quests (season_id, title, description, icon, condition_type, condition_value,
+           xp_reward, coins_reward, item_reward_id) VALUES (?,?,?,?,?,?,?,?,?)''',
+        (season_id, data.get('title',''), data.get('description',''), data.get('icon','✨'),
+         data.get('condition_type','chapters_read'), int(data.get('condition_value',1)),
+         int(data.get('xp_reward',0)), int(data.get('coins_reward',0)),
+         data.get('item_reward_id'))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/admin/api/seasons/<int:season_id>', methods=['DELETE'])
+@admin_required
+def admin_deactivate_season(season_id):
+    conn = get_db()
+    conn.execute('UPDATE seasons SET is_active=0 WHERE id=?', (season_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/admin/api/seasons')
+@admin_required
+def admin_list_seasons():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM seasons ORDER BY id DESC').fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+# ==================== УВЕДОМЛЕНИЯ НА САЙТЕ ====================
+
+@app.route('/api/notifications')
+def api_notifications():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT id, type, title, body, url, ref_id, is_read, created_at
+           FROM site_notifications
+           WHERE user_id = ?
+           ORDER BY created_at DESC LIMIT 50''',
+        (user_id,)
+    ).fetchall()
+    unread = conn.execute(
+        'SELECT COUNT(*) as cnt FROM site_notifications WHERE user_id = ? AND is_read = 0',
+        (user_id,)
+    ).fetchone()['cnt']
+    conn.close()
+    return jsonify({'notifications': [dict(r) for r in rows], 'unread': unread})
+
+
+@app.route('/api/notifications/read-all', methods=['POST'])
+def api_notifications_read_all():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    conn.execute('UPDATE site_notifications SET is_read = 1 WHERE user_id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/notifications/<int:notif_id>/read', methods=['POST'])
+def api_notification_read(notif_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    conn.execute(
+        'UPDATE site_notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+        (notif_id, user_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/settings/digest-hour', methods=['POST'])
+def api_set_digest_hour():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    data = request.get_json(silent=True) or {}
+    hour = data.get('hour')
+    if hour is None or not isinstance(hour, int) or not (0 <= hour <= 23):
+        return jsonify({'error': 'invalid_hour'}), 400
+    conn = get_db()
+    conn.execute('UPDATE users SET digest_hour = ? WHERE id = ?', (hour, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True, 'hour': hour})
 
 
 # ==================== ЗАПУСК ====================

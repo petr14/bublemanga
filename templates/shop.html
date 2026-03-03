@@ -88,6 +88,8 @@
     .anim-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#f59e0b,#ef4444); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:.3px; z-index:2; }
     .item-badge-equipped { position:absolute; top:.32rem; right:.32rem; background:#667eea; border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:700; color:#fff; z-index:2; }
     .loan-badge { position:absolute; bottom:.32rem; left:.32rem; background:linear-gradient(135deg,#f59e0b,#d97706); border-radius:20px; padding:.1rem .42rem; font-size:.57rem; font-weight:700; color:#fff; z-index:2; }
+    .temp-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#06b6d4,#0891b2); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; z-index:2; }
+    .item-countdown { font-size:.62rem; color:#94a3b8; margin-top:.15rem; }
 
     .item-body { padding:.7rem .8rem; flex:1; display:flex; flex-direction:column; gap:.28rem; }
     .item-name { font-weight:700; font-size:.83rem; color:#f4f4f5; line-height:1.3; }
@@ -161,6 +163,19 @@
       .prem-feature { font-size:.72rem; }
       .prem-pkg-name { font-size:.95rem; }
     }
+
+    /* ── Подарочный Premium ── */
+    .gift-section { background:var(--card2); border:1px solid rgba(245,158,11,.2); border-radius:18px; padding:1.3rem 1.2rem; margin-top:1.5rem; }
+    .gift-section-title { font-size:.92rem; font-weight:800; color:#fcd34d; margin-bottom:.9rem; display:flex; align-items:center; gap:.4rem; }
+    .gift-row { display:flex; gap:.7rem; flex-wrap:wrap; align-items:flex-end; }
+    .gift-field { display:flex; flex-direction:column; gap:.3rem; flex:1; min-width:120px; }
+    .gift-field label { font-size:.72rem; color:var(--text-3); font-weight:600; text-transform:uppercase; letter-spacing:.3px; }
+    .gift-input { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:.45rem .75rem; color:#fff; font-size:.83rem; font-family:inherit; outline:none; }
+    .gift-input:focus { border-color:rgba(102,126,234,.5); }
+    .gift-select { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:.45rem .75rem; color:#fff; font-size:.83rem; font-family:inherit; outline:none; appearance:none; cursor:pointer; }
+    .btn-gift { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; padding:.46rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; white-space:nowrap; transition:opacity .2s,transform .1s; }
+    .btn-gift:active { transform:scale(.95); }
+    .btn-gift:disabled { opacity:.45; cursor:not-allowed; }
 
     /* ── Модальное окно оплаты ── */
     .pay-overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:5000; display:flex; align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(8px); animation:pmFadeIn .15s; }
@@ -247,6 +262,7 @@ const INIT_COINS      = {{ coins | tojson }};
 const IS_PREMIUM      = {{ is_premium | tojson }};
 const PREMIUM_EXPIRES = {{ premium_expires_at | tojson }};
 const LOANED_IDS      = new Set({{ loaned_ids | tojson }});
+const TEMP_EXPIRES    = {{ temp_expires | tojson }};
 
 const TABS = [
   {id:'all',        label:' Все'},
@@ -333,10 +349,24 @@ function ItemPreview({item}){
 }
 
 // ── Карточка ─────────────────────────────────────────────────────────────────
+function fmtCountdown(isoStr){
+  if(!isoStr) return null;
+  try{
+    const ds = isoStr.includes('+')||isoStr.endsWith('Z') ? isoStr : isoStr+'Z';
+    const ms = new Date(ds) - Date.now();
+    if(ms <= 0) return 'Истёк';
+    const days = Math.floor(ms/86400000);
+    const hours = Math.floor((ms%86400000)/3600000);
+    if(days > 0) return `Осталось: ${days}д ${hours}ч`;
+    return `Осталось: ${hours}ч`;
+  }catch(e){ return null; }
+}
+
 function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
   const owned    = OWNED_IDS.has(item.id);
   const loaned   = LOANED_IDS.has(item.id);
   const equipped = !!(eqMap[item.id]);
+  const countdown = TEMP_EXPIRES[item.id] ? fmtCountdown(TEMP_EXPIRES[item.id]) : null;
   const canAfford = coins >= item.price;
 
   let cls = 'item-card';
@@ -365,10 +395,12 @@ function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
   return h('div',{className:cls},
     equipped && h('div',{className:'item-badge-equipped'},'✓ Надето'),
     loaned   && h('div',{className:'loan-badge'},' Premium'),
+    !owned && item.duration_days && h('div',{className:'temp-badge'},`⏱ ${item.duration_days}д`),
     h(ItemPreview,{item}),
     h('div',{className:'item-body'},
       h('div',{className:'item-name'},item.name),
-      item.description && h('div',{className:'item-desc'},item.description)
+      item.description && h('div',{className:'item-desc'},item.description),
+      countdown && h('div',{className:'item-countdown'},countdown)
     ),
     h('div',{className:'item-footer'},
       h('div',{className:`item-price${item.price===0?' free':''}`},
@@ -521,6 +553,52 @@ function BuyCoins(){
 }
 
 // ── Premium подписка ──────────────────────────────────────────────────────────
+function GiftPremium(){
+  const [recipientId, setRecipientId] = useState('');
+  const [days, setDays] = useState('30');
+  const [loading, setLoading] = useState(false);
+
+  const send = useCallback(async ()=>{
+    if(!recipientId.trim()){ toast('Введите ID получателя','err'); return; }
+    setLoading(true);
+    try{
+      const r = await fetch('/api/shop/gift-premium',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({recipient_id: parseInt(recipientId), days: parseInt(days)})
+      });
+      const j = await r.json();
+      if(!r.ok){ toast(j.error||'Ошибка','err'); return; }
+      window.open(j.url, '_blank');
+    } finally { setLoading(false); }
+  },[recipientId, days]);
+
+  return h('div',{className:'gift-section'},
+    h('div',{className:'gift-section-title'},'🎁 Подарить Premium другу'),
+    h('p',{style:{fontSize:'.78rem',color:'var(--text-3)',marginBottom:'.9rem',lineHeight:1.5}},
+      'Введите ID пользователя BubbleManga (из адреса его профиля) и выберите период.'
+    ),
+    h('div',{className:'gift-row'},
+      h('div',{className:'gift-field'},
+        h('label',null,'ID получателя'),
+        h('input',{className:'gift-input', type:'number', min:'1', placeholder:'например: 42',
+                   value:recipientId, onChange:e=>setRecipientId(e.target.value)})
+      ),
+      h('div',{className:'gift-field', style:{maxWidth:140}},
+        h('label',null,'Период'),
+        h('select',{className:'gift-select', value:days, onChange:e=>setDays(e.target.value)},
+          h('option',{value:'30'},'1 месяц — 50 ⭐'),
+          h('option',{value:'90'},'3 месяца — 130 ⭐'),
+          h('option',{value:'365'},'1 год — 450 ⭐')
+        )
+      ),
+      h('button',{className:'btn-gift', disabled:loading, onClick:send},
+        loading ? '...' : '🎁 Подарить'
+      )
+    )
+  );
+}
+
 function BuyPremium(){
   const [modal, setModal] = useState(null);
 
@@ -571,7 +649,8 @@ function BuyPremium(){
           }, IS_PREMIUM ? 'Продлить' : 'Купить')
         )
       )
-    )
+    ),
+    USER_ID && h(GiftPremium,null)
   );
 }
 

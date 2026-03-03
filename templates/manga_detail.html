@@ -1155,6 +1155,10 @@
                             <button class="btn btn-collection" onclick="openCollectionPicker('{{ manga.manga_id }}')">
                                 <span>В коллекцию</span>
                             </button>
+                            <button id="wishlistBtn" class="btn {% if in_wishlist %}btn-subscribe subscribed{% endif %}"
+                                    onclick="toggleWishlist('{{ manga.manga_id }}')">
+                                <span>{% if in_wishlist %}🔖 В списке{% else %}🔖 Хочу прочитать{% endif %}</span>
+                            </button>
                             {% endif %}
 
                             <a href="/search?q={{ manga.manga_title|urlencode }}" class="btn">
@@ -1277,7 +1281,10 @@
             <div class="comments-section" id="comments">
                 <div class="section-header">
                     <h2 class="section-title">💬 Комментарии</h2>
-                    <span class="comments-count" id="comments-count"></span>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span class="comments-count" id="comments-count"></span>
+                        <button id="sort-top-btn" onclick="toggleCommentSort()" style="background:var(--bg-card);border:1px solid rgba(255,255,255,.12);color:#b8b8b8;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;transition:all .2s">🔥 По популярности</button>
+                    </div>
                 </div>
 
                 {% if user_id %}
@@ -1365,6 +1372,22 @@
             }
         }
         
+        // ==================== WISHLIST ====================
+        async function toggleWishlist(mangaId) {
+            const btn = document.getElementById('wishlistBtn');
+            if (btn) btn.disabled = true;
+            try {
+                const r = await fetch(`/api/wishlist/${mangaId}`, {method:'POST'});
+                const d = await r.json();
+                if (btn) {
+                    btn.innerHTML = `<span>${d.in_wishlist ? '🔖 В списке' : '🔖 Хочу прочитать'}</span>`;
+                    if (d.in_wishlist) btn.classList.add('btn-subscribe','subscribed');
+                    else btn.classList.remove('btn-subscribe','subscribed');
+                    btn.disabled = false;
+                }
+            } catch(e) { if (btn) btn.disabled = false; }
+        }
+
         // ==================== АВТОПРОКРУТКА К ПОСЛЕДНЕЙ ПРОЧИТАННОЙ ГЛАВЕ ====================
         window.addEventListener('DOMContentLoaded', function() {
             const readChapter = document.querySelector('.chapter-read');
@@ -1734,12 +1757,18 @@
                     <div class="comment-body">
                         <div class="comment-header">${buildMetaHTML(c)}</div>
                         <div class="comment-text">${escHtml(c.text)}</div>
-                        ${MY_USER_ID ? `<div class="comment-actions">
-                            <button class="btn-reply"
+                        <div class="comment-actions">
+                            ${MY_USER_ID ? `<button class="btn-reply"
                                     data-parent-id="${c.id}"
                                     data-parent-name="${escAttr(c.custom_name || c.telegram_first_name || c.telegram_username || `#${c.user_id}`)}"
-                                    onclick="openReply(this)">↩ Ответить</button>
-                        </div>` : ''}
+                                    onclick="openReply(this)">↩ Ответить</button>` : ''}
+                            <button class="btn-like-comment${c.liked_by_me ? ' liked' : ''}"
+                                    id="like-btn-${c.id}"
+                                    onclick="likeComment(${c.id}, this)"
+                                    style="background:none;border:none;color:${c.liked_by_me?'#ec4899':'#666'};cursor:pointer;font-size:13px;padding:2px 6px;border-radius:8px;transition:color .2s">
+                                ♥ <span id="like-count-${c.id}">${c.likes_count || 0}</span>
+                            </button>
+                        </div>
                     </div>
                     <button class="btn-comment-delete${isOwn ? ' visible' : ''}"
                             onclick="deleteComment(${c.id})" title="Удалить">✕</button>`;
@@ -1778,6 +1807,25 @@
                 return div;
             }
 
+            let commentSort = 'new';
+            window.toggleCommentSort = function() {
+                commentSort = commentSort === 'new' ? 'top' : 'new';
+                const btn = document.getElementById('sort-top-btn');
+                if (btn) btn.style.color = commentSort === 'top' ? '#ec4899' : '#b8b8b8';
+                offset = 0;
+                document.getElementById('comments-list').innerHTML = '';
+                loadComments();
+            };
+
+            window.likeComment = async function(id, el) {
+                const r = await fetch(`/api/comments/${id}/like`, {method:'POST'});
+                if (!r.ok) return;
+                const d = await r.json();
+                const countEl = document.getElementById(`like-count-${id}`);
+                if (countEl) countEl.textContent = d.likes_count;
+                el.style.color = d.liked ? '#ec4899' : '#666';
+            };
+
             /* ── Загрузка ── */
             window.loadComments = async function() {
                 if (loading) return;
@@ -1785,7 +1833,7 @@
                 const btn = document.querySelector('#comments-load-more button');
                 if (btn) btn.disabled = true;
                 try {
-                    const r = await fetch(`/api/manga/${MANGA_SLUG}/comments?offset=${offset}&limit=${LIMIT}`);
+                    const r = await fetch(`/api/manga/${MANGA_SLUG}/comments?offset=${offset}&limit=${LIMIT}&sort=${commentSort}`);
                     const data = await r.json();
                     total = data.total;
                     updateCount();
