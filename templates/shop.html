@@ -575,7 +575,7 @@ function GiftPremium(){
   },[recipientId, days]);
 
   return h('div',{className:'gift-section'},
-    h('div',{className:'gift-section-title'},'🎁 Подарить Premium другу'),
+    h('div',{className:'gift-section-title'},'Подарить Premium другу'),
     h('p',{style:{fontSize:'.78rem',color:'var(--text-3)',marginBottom:'.9rem',lineHeight:1.5}},
       'Введите ID пользователя BubbleManga (из адреса его профиля) и выберите период.'
     ),
@@ -594,7 +594,7 @@ function GiftPremium(){
         )
       ),
       h('button',{className:'btn-gift', disabled:loading, onClick:send},
-        loading ? '...' : '🎁 Подарить'
+        loading ? '...' : 'Подарить'
       )
     )
   );
