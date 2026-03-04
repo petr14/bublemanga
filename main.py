@@ -2990,8 +2990,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     login_url = f"{SITE_URL}/login/{user['login_token']}"
     webapp_url = SITE_URL
 
+    open_btn = (
+        InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=webapp_url))
+        if webapp_url.startswith("https://")
+        else InlineKeyboardButton("📱 Открыть приложение", url=webapp_url)
+    )
     keyboard = [
-        [InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=webapp_url))],
+        [open_btn],
         [InlineKeyboardButton("📝 Войти на сайте", url=login_url)],
         [InlineKeyboardButton("🔍 Поиск манги", callback_data="search_manga")],
         [InlineKeyboardButton("⭐ Мои подписки", callback_data="my_subscriptions")]

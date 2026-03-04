@@ -435,11 +435,11 @@
         { title: 'Каталог', text: 'Не знаешь что почитать? Загляни в Каталог — там фильтры по жанрам и типам.' },
       ],
       tour: [
-        { sel: '.g-search-form',         title: 'Поиск манги',    text: 'Вводи название — сразу появятся подсказки. Нажми Enter для полного поиска.' },
-        { sel: '.manga-grid',            title: 'Карусель манги', text: 'Популярные и новые тайтлы. На мобильном свайпай влево-вправо чтобы листать.' },
-        { sel: '.g-nav-a[href="/catalog"]', title: 'Каталог',     text: 'Весь список манги с фильтрами по жанру, типу и статусу.' },
-        { sel: '.g-nav-a[href="/top"]',  title: 'Топ читателей', text: 'Соревнуйся с другими по XP и уровню — попади в топ-100!' },
-        { sel: '.g-nav-a[href="/shop"]', title: 'Магазин',        text: 'За шарики покупай рамки, аватары и фоны для профиля.' },
+        { sel: '.hero',              title: 'Добро пожаловать!',  text: 'Главная страница BubbleManga. Здесь найдёшь популярное, свежие обновления и свои подписки.' },
+        { sel: '.g-search-form',     title: 'Поиск манги',        text: 'Вводи название — сразу появятся подсказки. Нажми Enter для полного поиска.' },
+        { sel: '#section-trending',  title: 'Горячие тайтлы',    text: 'Самые популярные манги прямо сейчас. Переключай вкладки: сегодня, неделя, месяц.' },
+        { sel: '#section-updates',   title: 'Свежие обновления',  text: 'Список последних вышедших глав от всех авторов. Обновляется несколько раз в день.' },
+        { sel: '#subscriptions',     title: 'Мои подписки',       text: 'Манга на которую ты подписан — здесь всегда под рукой. Подпишись на странице манги.' },
       ],
     },
     '/catalog': {
@@ -722,9 +722,13 @@
       return;
     }
 
-    // Снимаем блокировку скролла → мгновенно скроллим → восстанавливаем после layout
-    document.body.style.overflow = '';
-    el.scrollIntoView({ behavior: 'instant', block: 'center' });
+    // Скроллим только если элемент вне вьюпорта
+    const rPre = el.getBoundingClientRect();
+    const needScroll = rPre.bottom < 0 || rPre.top > window.innerHeight || rPre.height === 0;
+    if (needScroll) {
+      document.body.style.overflow = '';
+      el.scrollIntoView({ behavior: 'instant', block: 'center' });
+    }
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
