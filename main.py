@@ -1093,7 +1093,7 @@ def check_achievements(user_id, conn=None):
                 )
             unlocked.append(dict(ach))
             create_site_notification(user_id, 'achievement', f'Достижение: {ach["name"]}',
-                                     ach.get('description'),
+                                     ach['description'],
                                      f'/profile/{user_id}', conn=conn)
 
     conn.commit()
