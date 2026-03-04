@@ -280,6 +280,7 @@
         .mcard { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform .2s, border-color .2s; position: relative; }
         .mcard:hover { transform: translateY(-4px); border-color: var(--primary); }
         .mcard-img { width: 100%; aspect-ratio: 2/3; object-fit: cover; background: var(--bg3); display: block; }
+        .friends-grid .mcard-img { aspect-ratio: 1/1; }
         .mcard-info { padding: 8px 10px 10px; }
         .mcard-title { font-size: 12px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
         .mcard-meta { font-size: 10px; color: var(--text2); }
@@ -468,7 +469,7 @@
                 <button class="btn-edit" onclick="openEditModal('main')"> Редактировать профиль</button>
                 {% endif %}
                 {% if not is_own and user_id %}
-                <button class="btn-follow" id="followBtn" onclick="toggleFollowCurator({{ profile.user.id }})">Подписаться</button>
+                <button class="btn-follow" id="followBtn" onclick="toggleFollowCurator({{ profile.user.id }})">Добавить в друзья</button>
                 {% endif %}
             </div>
         </div>
@@ -550,7 +551,7 @@
         <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">Подписки</button>
         <button class="lib-btn" data-lib="collections">Коллекции</button>
         {% if is_own %}<button class="lib-btn" data-lib="wishlist">🔖 Хочу прочитать</button>{% endif %}
-        {% if is_own %}<button class="lib-btn" data-lib="curators">Кураторы</button>{% endif %}
+        {% if is_own %}<button class="lib-btn" data-lib="curators">Друзья</button>{% endif %}
     </div>
 
     {% if is_own %}
@@ -865,15 +866,15 @@
             .then(data => {
                 const el = document.getElementById('curatorsContent');
                 const curators = data.curators || [];
-                if (!curators.length) { el.innerHTML = emptyState('👥', 'Нет подписок', 'Подписывайся на авторов коллекций!'); return; }
-                el.innerHTML = '<div class="manga-grid-lib">' + curators.map(c => `
+                if (!curators.length) { el.innerHTML = emptyState('👥', 'Нет друзей', 'Добавляй друзей на их страницах профиля!'); return; }
+                el.innerHTML = '<div class="manga-grid-lib friends-grid">' + curators.map(c => `
                     <div class="mcard" onclick="location.href='/profile/${c.id}'">
                         <div class="mcard-img" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);font-size:2rem;">
                             ${c.avatar_url ? `<img src="${esc(c.avatar_url)}" style="width:100%;height:100%;object-fit:cover" alt="">` : '👤'}
                         </div>
                         <div class="mcard-info">
                             <div class="mcard-title">${esc(c.display_name)}</div>
-                            <div class="mcard-meta">${c.is_premium ? '👑 Premium' : 'Куратор'}</div>
+                            <div class="mcard-meta">${c.is_premium ? '👑 Premium' : '👤 Друг'}</div>
                         </div>
                     </div>`).join('') + '</div>';
             }).catch(() => { document.getElementById('curatorsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
@@ -1352,8 +1353,8 @@
             const d = await r.json();
             const btn = document.getElementById('followBtn');
             if (!btn) return;
-            if (d.following) { btn.textContent = 'Отписаться'; btn.classList.add('following'); }
-            else { btn.textContent = 'Подписаться'; btn.classList.remove('following'); }
+            if (d.following) { btn.textContent = 'Удалить из друзей'; btn.classList.add('following'); }
+            else { btn.textContent = 'Добавить в друзья'; btn.classList.remove('following'); }
             document.getElementById('followers-count').textContent = d.followers_count;
         } catch(e) {}
     }
@@ -1362,8 +1363,8 @@
             const r = await fetch(`/api/users/${id}/follow-curator`, {method:'POST'});
             const d = await r.json();
             const btn = document.getElementById('followBtn');
-            if (d.following) { btn.textContent = 'Отписаться'; btn.classList.add('following'); }
-            else { btn.textContent = 'Подписаться'; btn.classList.remove('following'); }
+            if (d.following) { btn.textContent = 'Удалить из друзей'; btn.classList.add('following'); }
+            else { btn.textContent = 'Добавить в друзья'; btn.classList.remove('following'); }
             document.getElementById('followers-count').textContent = d.followers_count;
         } catch(e) { toast('Ошибка', 'error'); }
     }
