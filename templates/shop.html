@@ -580,12 +580,12 @@ function GiftPremium(){
       'Введите ID пользователя BubbleManga (из адреса его профиля) и выберите период.'
     ),
     h('div',{className:'gift-row'},
-      h('div',{className:'gift-field'},
-        h('label',null,'ID получателя'),
-        h('input',{className:'gift-input', type:'number', min:'1', placeholder:'например: 42',
+      h('div',{className:'gift-field', style:{maxWidth:100, flexShrink:0, flexGrow:0}},
+        h('label',null,'ID'),
+        h('input',{className:'gift-input', type:'number', min:'1', placeholder:'42',
                    value:recipientId, onChange:e=>setRecipientId(e.target.value)})
       ),
-      h('div',{className:'gift-field', style:{maxWidth:140}},
+      h('div',{className:'gift-field'},
         h('label',null,'Период'),
         h('select',{className:'gift-select', value:days, onChange:e=>setDays(e.target.value)},
           h('option',{value:'30'},'1 месяц — 50 ⭐'),

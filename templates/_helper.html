@@ -294,30 +294,30 @@
 
 /* Навигация */
 .hlp-bubble-nav {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; row-gap: 8px;
 }
 .hlp-bubble-skip {
-  font-size: .7rem; color: #aaa; background: none; border: none;
+  font-size: .68rem; color: #aaa; background: none; border: none;
   cursor: pointer; font-family: inherit; padding: 4px 2px;
   transition: color .15s; white-space: nowrap; flex-shrink: 0;
 }
 .hlp-bubble-skip:hover { color: #555; }
-.hlp-bubble-dots { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.hlp-bubble-dots { display: flex; gap: 4px; align-items: center; flex: 1; justify-content: center; min-width: 32px; }
 .hlp-bdot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; transition: all .2s; }
 .hlp-bdot.cur { background: #111; width: 16px; border-radius: 3px; }
-.hlp-bubble-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.hlp-bubble-btns { display: flex; gap: 5px; flex-shrink: 0; margin-left: auto; }
 .hlp-bubble-prev {
-  padding: 6px 12px; border-radius: 8px;
+  padding: 5px 10px; border-radius: 8px;
   background: #f0f0ee; border: 1.5px solid #bbb; color: #555;
-  font-size: .76rem; font-weight: 700; cursor: pointer; font-family: inherit;
-  transition: background .15s;
+  font-size: .73rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: background .15s; white-space: nowrap;
 }
 .hlp-bubble-prev:hover { background: #e5e5e3; }
 .hlp-bubble-next {
-  padding: 6px 16px; border-radius: 8px;
+  padding: 5px 13px; border-radius: 8px;
   background: #111; border: 1.5px solid #111; color: #fff;
-  font-size: .76rem; font-weight: 700; cursor: pointer; font-family: inherit;
-  transition: background .15s;
+  font-size: .73rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: background .15s; white-space: nowrap;
 }
 .hlp-bubble-next:hover { background: #2a2a2a; }
 
