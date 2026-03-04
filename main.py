@@ -4213,27 +4213,9 @@ def read_chapter(manga_slug, chapter_slug):
                      (user_id, chapter_id, manga_id)
                      VALUES (?, ?, ?)''',
                   (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
-
-        # Увеличиваем счётчик прочитанных глав
-        c.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
-        c.execute(
-            'UPDATE user_stats SET total_chapters_read = total_chapters_read + 1,'
-            ' total_pages_read = total_pages_read + ? WHERE user_id = ?',
-            (len(chapter_dict.get('pages', [])), user_id)
-        )
         conn.commit()
-
-        # Начисляем XP: +10 за главу + 1 за каждую страницу
-        pages_count = len(chapter_dict.get('pages', []))
-        xp_amount = 10 + pages_count
-        award_xp(user_id, xp_amount, 'chapter_read', ref_id=chapter_dict['chapter_id'])
-
-        # Стрик чтения
-        update_reading_streak(user_id, conn)
-        # Дневные задания
-        update_daily_quest_progress(user_id, 'chapters_today', conn)
-        # Сезонные задания
-        update_season_quest_progress(user_id, 'chapters_read', 1, conn)
+        # XP / счётчики / стрик — только при реальном прочтении (80%+),
+        # обрабатываются в POST /api/chapter/<slug>/complete
 
     # Предыдущая и следующая главы
     manga_id_nav = chapter_dict['manga_id']
@@ -4470,6 +4452,106 @@ def api_read_chapters(manga_slug):
     chapter_ids = [r['chapter_id'] for r in c.fetchall()]
     conn.close()
     return jsonify(chapter_ids)
+
+
+def _calc_chapter_reward(pages_count: int) -> tuple[int, int]:
+    """Вернуть (xp, coins) за прочитанную главу в зависимости от длины."""
+    if pages_count <= 5:
+        return 5, 0
+    elif pages_count <= 15:
+        return 15, 1
+    elif pages_count <= 30:
+        return 25, 2
+    elif pages_count <= 50:
+        return 40, 3
+    else:
+        return 60, 5
+
+
+@app.route('/api/chapter/<chapter_slug>/complete', methods=['POST'])
+def api_chapter_complete(chapter_slug):
+    """
+    Вызывается клиентом когда пользователь прочитал ≥80% страниц главы.
+    Начисляет XP/монеты, обновляет стрик и задания.
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'ok': False, 'error': 'not_auth'}), 401
+
+    pages_count = request.json.get('pages_count', 0) if request.is_json else 0
+    pages_count = max(0, int(pages_count))
+
+    xp_amount, coins_amount = _calc_chapter_reward(pages_count)
+
+    conn = get_db()
+    try:
+        # Антиспам: не начислять повторно за одну главу в течение 1 часа
+        dup = conn.execute(
+            'SELECT id FROM xp_log WHERE user_id=? AND ref_id=? AND reason="chapter_complete"'
+            ' AND created_at > datetime("now", "-1 hour")',
+            (user_id, chapter_slug)
+        ).fetchone()
+        if dup:
+            return jsonify({'ok': False, 'error': 'already_rewarded'}), 200
+
+        # Счётчики
+        conn.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
+        conn.execute(
+            'UPDATE user_stats SET total_chapters_read = total_chapters_read + 1,'
+            ' total_pages_read = total_pages_read + ? WHERE user_id = ?',
+            (pages_count, user_id)
+        )
+
+        # XP + монеты
+        conn.execute(
+            'UPDATE user_stats SET xp = xp + ?, coins = coins + ? WHERE user_id = ?',
+            (xp_amount, coins_amount, user_id)
+        )
+        conn.execute(
+            'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+            (user_id, 'chapter_complete', chapter_slug, xp_amount)
+        )
+        conn.commit()
+
+        # Стрик чтения
+        update_reading_streak(user_id, conn)
+        # Дневные задания
+        update_daily_quest_progress(user_id, 'chapters_today', conn)
+        # Сезонные задания
+        update_season_quest_progress(user_id, 'chapters_read', 1, conn)
+
+        # Уровень и ачивки
+        row = conn.execute('SELECT xp, level FROM user_stats WHERE user_id=?', (user_id,)).fetchone()
+        new_xp = row['xp'] if row else xp_amount
+        new_level = get_level_from_xp(new_xp)
+        old_level = row['level'] if row else 1
+        leveled_up = new_level > old_level
+        if leveled_up:
+            conn.execute('UPDATE user_stats SET level=? WHERE user_id=?', (new_level, user_id))
+            conn.commit()
+            create_site_notification(user_id, 'level_up', f'Уровень {new_level}!',
+                                     f'Поздравляем с {new_level} уровнем!',
+                                     f'/profile/{user_id}', conn=conn)
+        new_achievements = check_achievements(user_id, conn)
+
+        # Инвалидируем кеш
+        with _stats_cache_lock:
+            _stats_cache.pop(user_id, None)
+
+        return jsonify({
+            'ok': True,
+            'xp': xp_amount,
+            'coins': coins_amount,
+            'total_xp': new_xp,
+            'level': new_level,
+            'leveled_up': leveled_up,
+            'achievements': [a['name'] for a in new_achievements],
+        })
+    except Exception as e:
+        logger.error(f'chapter_complete error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
 
 
 @app.route('/api/manga/<manga_slug>/similar')

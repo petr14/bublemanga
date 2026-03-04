@@ -986,6 +986,7 @@
         // Все значения из Jinja2 экранируются через | tojson — защита от XSS и SyntaxError
         const totalPages      = {{ chapter.pages|length }};
         const mangaSlug       = {{ chapter.manga_slug | tojson }};
+        const chapterSlug     = {{ chapter.chapter_slug | tojson }};
         const chapterNumber   = {{ chapter.chapter_number | tojson }};
 
         const prevChapterUrl  = {% if prev_chapter %}{{ ('/read/' + chapter.manga_slug + '/' + prev_chapter.chapter_slug) | tojson }}{% else %}null{% endif %};
@@ -1266,12 +1267,57 @@
         });
 
         // ==================== ЗАВЕРШЕНИЕ ГЛАВЫ ====================
-        window.addEventListener('scroll', () => {
-            const pct = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
-            if (pct > 95 && currentPage === totalPages) {
-                // Место для логики по завершению главы
+        let chapterCompleted = false;
+        let maxPageSeen = 0;
+        const COMPLETE_THRESHOLD = Math.max(1, Math.ceil(totalPages * 0.8));
+
+        function onPageSeen(pageNum) {
+            if (pageNum > maxPageSeen) {
+                maxPageSeen = pageNum;
+                if (!chapterCompleted && maxPageSeen >= COMPLETE_THRESHOLD) {
+                    chapterCompleted = true;
+                    _sendChapterComplete();
+                }
             }
-        }, { passive: true });
+        }
+
+        async function _sendChapterComplete() {
+            try {
+                const r = await fetch('/api/chapter/' + chapterSlug + '/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pages_count: totalPages })
+                });
+                if (!r.ok) return;
+                const d = await r.json();
+                if (d.ok && d.xp > 0) {
+                    _showXpToast(d.xp, d.coins, d.leveled_up, d.achievements);
+                }
+            } catch(e) {}
+        }
+
+        function _showXpToast(xp, coins, leveledUp, achievements) {
+            const el = document.getElementById('xpToast');
+            let html = '<span class="xpt-icon">✨</span>';
+            html += '<span class="xpt-text">Глава прочитана!</span>';
+            html += '<span class="xpt-reward">+' + xp + ' XP';
+            if (coins > 0) html += ' &nbsp;+' + coins + ' <span class="xpt-coin">🪙</span>';
+            html += '</span>';
+            if (leveledUp) html += '<span class="xpt-level">🎉 Новый уровень!</span>';
+            if (achievements && achievements.length) {
+                html += '<span class="xpt-ach">🏆 ' + achievements[0] + '</span>';
+            }
+            el.innerHTML = html;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 4000);
+        }
+
+        // Хук на updateCurrentPage — отслеживаем максимально просмотренную страницу
+        const _origUpdateCurrentPage = updateCurrentPage;
+        updateCurrentPage = function() {
+            _origUpdateCurrentPage();
+            onPageSeen(currentPage);
+        };
 
         // ==================== ЖЕСТЫ ДЛЯ МОБИЛЬНЫХ ====================
         let touchStartY = 0;
@@ -1540,3 +1586,23 @@
     </script>
 </body>
 </html>
+<!-- XP toast -->
+<div id="xpToast" style="
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:linear-gradient(135deg,#4c1d95,#7c3aed);
+    color:#fff; border-radius:16px; padding:12px 20px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    box-shadow:0 8px 32px rgba(124,58,237,.5);
+    opacity:0; pointer-events:none;
+    transition:opacity .3s ease, transform .3s ease;
+    z-index:9999; font-family:inherit; font-size:.9rem; max-width:90vw;
+"></div>
+<style>
+#xpToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.xpt-icon  { font-size:1.2rem; }
+.xpt-text  { font-weight:600; }
+.xpt-reward{ background:rgba(255,255,255,.15); border-radius:8px; padding:2px 8px; font-weight:700; font-size:.85rem; }
+.xpt-coin  { font-size:.85rem; }
+.xpt-level { color:#fde68a; font-weight:700; font-size:.8rem; }
+.xpt-ach   { color:#a5f3fc; font-size:.78rem; }
+</style>
