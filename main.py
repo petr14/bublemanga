@@ -136,9 +136,11 @@ _stats_cache_lock = threading.Lock()
 
 def init_db():
     """Инициализация базы данных"""
-    conn = sqlite3.connect('manga.db', timeout=30)
+    conn = sqlite3.connect('manga.db', timeout=30, check_same_thread=False)
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA busy_timeout=10000')
+    conn.execute('PRAGMA cache_size=-32000')
     c = conn.cursor()
     
     # Таблица Манги
@@ -855,6 +857,9 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA busy_timeout=10000')
+    conn.execute('PRAGMA cache_size=-32000')
+    conn.execute('PRAGMA wal_autocheckpoint=1000')
     return conn
 
 
@@ -4587,40 +4592,39 @@ def manga_detail(manga_slug):
     manga_db = c.fetchone()
     conn.close()
 
-    # Проверяем свежесть данных
-    need_api_update = force_refresh
-    if manga_db and not force_refresh:
-        # Если описание отсутствует — данные неполные, обновляем
-        if not (manga_db['description'] or '').strip():
-            need_api_update = True
-            logger.info(f"Описание отсутствует для {manga_slug}, обновляем через API...")
+    # Если манга не в БД вообще — нужен синхронный API-запрос
+    if not manga_db:
+        logger.info(f"📄 Манга {manga_slug} не в БД, загружаем через API")
+        manga_details = get_manga_details_api(manga_slug)
+        if not manga_details:
+            return "Манга не найдена", 404
+        manga_data = manga_details
+    else:
+        manga_data = dict(manga_db)
+        # Принудительное обновление по ?refresh=true
+        if force_refresh:
+            logger.info(f"🔄 Принудительное обновление {manga_slug}")
+            threading.Thread(
+                target=get_manga_details_api, args=(manga_slug,), daemon=True
+            ).start()
+        # Если описание пустое — обновляем в фоне, не блокируем рендер
+        elif not (manga_db['description'] or '').strip():
+            logger.info(f"📝 Описание пустое у {manga_slug}, обновляем в фоне")
+            threading.Thread(
+                target=get_manga_details_api, args=(manga_slug,), daemon=True
+            ).start()
+        # Редкое плановое обновление — раз в 7 дней
         else:
             last_updated = manga_db['last_updated']
             if last_updated:
                 try:
-                    if datetime.now() - datetime.fromisoformat(last_updated) > timedelta(hours=1):
-                        need_api_update = True
-                        logger.info(f"Данные устарели для {manga_slug}, обновляем...")
+                    if datetime.now() - datetime.fromisoformat(last_updated) > timedelta(days=7):
+                        threading.Thread(
+                            target=get_manga_details_api, args=(manga_slug,), daemon=True
+                        ).start()
+                        logger.info(f"🔄 Плановое фоновое обновление {manga_slug}")
                 except Exception:
-                    need_api_update = True
-    elif not manga_db:
-        need_api_update = True
-
-    # Обновляем только метаданные манги через API (быстро, без глав)
-    if need_api_update:
-        logger.info(f"📄 Обновление метаданных через API для {manga_slug}")
-        manga_details = get_manga_details_api(manga_slug)
-        if not manga_details:
-            if manga_db:
-                logger.warning(f"⚠️ API не ответил, используем данные из БД")
-                manga_data = dict(manga_db)
-            else:
-                return "Манга не найдена", 404
-        else:
-            manga_data = manga_details
-    else:
-        logger.info(f"📦 Используем закешированные данные для {manga_slug}")
-        manga_data = dict(manga_db)
+                    pass
 
     # Десериализуем JSON-поля если они пришли из БД (строки)
     import json as _json
@@ -4639,6 +4643,8 @@ def manga_detail(manga_slug):
     # Берём только первые 50 глав для начального рендера (#15)
     chapters = []
     total_in_db = 0
+    first_chapter = None
+    last_chapter = None
     if manga_id:
         conn = get_db()
         c = conn.cursor()
@@ -4654,6 +4660,19 @@ def manga_detail(manga_slug):
         chapters = [dict(row) for row in c.fetchall()]
         c.execute('SELECT COUNT(*) as cnt FROM chapters WHERE manga_id = ?', (manga_id,))
         total_in_db = c.fetchone()['cnt']
+        # Самая первая и самая последняя глава для кнопок
+        row = c.execute(
+            '''SELECT chapter_slug, chapter_number FROM chapters WHERE manga_id = ?
+               ORDER BY CAST(chapter_number AS FLOAT) ASC LIMIT 1''', (manga_id,)
+        ).fetchone()
+        if row:
+            first_chapter = dict(row)
+        row = c.execute(
+            '''SELECT chapter_slug, chapter_number FROM chapters WHERE manga_id = ?
+               ORDER BY CAST(chapter_number AS FLOAT) DESC LIMIT 1''', (manga_id,)
+        ).fetchone()
+        if row:
+            last_chapter = dict(row)
         conn.close()
 
     # Запускаем фоновую загрузку глав если они неполные (#14)
@@ -4717,6 +4736,8 @@ def manga_detail(manga_slug):
     return render_template('manga_detail.html',
                            manga=manga_data,
                            chapters=chapters,
+                           first_chapter=first_chapter,
+                           last_chapter=last_chapter,
                            subscribed=subscribed,
                            reading_history=reading_history,
                            is_loading_more=is_loading_more,

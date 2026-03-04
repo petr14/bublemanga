@@ -51,6 +51,8 @@ def open_db(path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(path, timeout=30, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=10000")
+    conn.execute("PRAGMA cache_size=-32000")
     conn.row_factory = sqlite3.Row
     return conn
 
