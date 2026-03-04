@@ -981,6 +981,46 @@
     <!-- Кнопка управления автопрокруткой -->
     <div class="autoscroll-fab" id="autoscrollFab" onclick="toggleAutoScroll()"></div>
 
+    <!-- ==================== УВЕДОМЛЕНИЯ (телефонный стиль) ==================== -->
+    <div id="notifStack" style="
+        position:fixed; top:calc(env(safe-area-inset-top,0px) + 8px); left:0; right:0;
+        display:flex; flex-direction:column; gap:8px; padding:0 12px;
+        z-index:10001; pointer-events:none; align-items:stretch;
+    "></div>
+    <style>
+        .notif-card {
+            background: rgba(15,8,40,.95);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(139,92,246,.35);
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(-110%) scale(.95);
+            opacity: 0;
+            transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+            pointer-events: auto;
+            cursor: default;
+            box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(139,92,246,.1);
+        }
+        .notif-card.show {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        .notif-card.hide {
+            transform: translateY(-20px) scale(.95);
+            opacity: 0;
+            transition: transform .3s ease, opacity .25s;
+        }
+        .notif-ico  { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
+        .notif-body { flex: 1; min-width: 0; }
+        .notif-title { font-weight: 700; font-size: .85rem; color: #e9d5ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .notif-sub   { font-size: .78rem; color: #a78bfa; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .notif-badge { font-size: .78rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; flex-shrink: 0; }
+    </style>
+
     <script>
         // ==================== БЕЗОПАСНЫЕ ДАННЫЕ ИЗ ШАБЛОНА ====================
         // Все значения из Jinja2 экранируются через | tojson — защита от XSS и SyntaxError
@@ -1064,6 +1104,7 @@
                 currentPageSpan.textContent = page;
                 saveReadingProgress(page);
             }
+            checkCompletion(page);
         }
 
         // ==================== ПРОГРЕСС-БАР ====================
@@ -1266,18 +1307,53 @@
             }
         });
 
+        // ==================== УВЕДОМЛЕНИЯ ====================
+        const _notifStack = document.getElementById('notifStack');
+        let   _notifQueue = [];
+        let   _notifBusy  = false;
+
+        function showNotif(icon, title, sub, badgeText, badgeColor) {
+            _notifQueue.push({ icon, title, sub, badgeText, badgeColor });
+            if (!_notifBusy) _nextNotif();
+        }
+
+        function _nextNotif() {
+            if (!_notifQueue.length) { _notifBusy = false; return; }
+            _notifBusy = true;
+            const n = _notifQueue.shift();
+            const card = document.createElement('div');
+            card.className = 'notif-card';
+            card.innerHTML =
+                '<span class="notif-ico">' + n.icon + '</span>' +
+                '<div class="notif-body">' +
+                    '<div class="notif-title">' + n.title + '</div>' +
+                    (n.sub ? '<div class="notif-sub">' + n.sub + '</div>' : '') +
+                '</div>' +
+                (n.badgeText ? '<span class="notif-badge" style="background:' + (n.badgeColor||'rgba(139,92,246,.3)') + ';color:#e9d5ff">' + n.badgeText + '</span>' : '');
+            _notifStack.appendChild(card);
+            requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('show')));
+
+            const dismiss = () => {
+                card.classList.add('hide');
+                card.addEventListener('transitionend', () => {
+                    card.remove();
+                    setTimeout(_nextNotif, 150);
+                }, { once: true });
+            };
+            const timer = setTimeout(dismiss, 4000);
+            card.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
+        }
+
         // ==================== ЗАВЕРШЕНИЕ ГЛАВЫ ====================
         let chapterCompleted = false;
         let maxPageSeen = 0;
         const COMPLETE_THRESHOLD = Math.max(1, Math.ceil(totalPages * 0.8));
 
-        function onPageSeen(pageNum) {
-            if (pageNum > maxPageSeen) {
-                maxPageSeen = pageNum;
-                if (!chapterCompleted && maxPageSeen >= COMPLETE_THRESHOLD) {
-                    chapterCompleted = true;
-                    _sendChapterComplete();
-                }
+        function checkCompletion(pageNum) {
+            if (pageNum > maxPageSeen) maxPageSeen = pageNum;
+            if (!chapterCompleted && maxPageSeen >= COMPLETE_THRESHOLD) {
+                chapterCompleted = true;
+                _sendChapterComplete();
             }
         }
 
@@ -1290,34 +1366,26 @@
                 });
                 if (!r.ok) return;
                 const d = await r.json();
-                if (d.ok && d.xp > 0) {
-                    _showXpToast(d.xp, d.coins, d.leveled_up, d.achievements);
+                if (!d.ok) return;
+
+                // Уведомление об XP
+                if (d.xp > 0) {
+                    let sub = '+' + d.xp + ' XP';
+                    if (d.coins > 0) sub += '  •  +' + d.coins + ' 🪙';
+                    showNotif('📖', 'Глава прочитана!', sub, '+' + d.xp + ' XP', 'rgba(124,58,237,.5)');
+                }
+                // Уведомление о новом уровне
+                if (d.leveled_up) {
+                    setTimeout(() => showNotif('🎉', 'Новый уровень ' + d.level + '!', 'Продолжай читать!', 'Lvl ' + d.level, 'rgba(234,179,8,.4)'), 600);
+                }
+                // Уведомления об ачивках
+                if (d.achievements && d.achievements.length) {
+                    d.achievements.forEach((name, i) => {
+                        setTimeout(() => showNotif('🏆', 'Достижение разблокировано', name, '🏆', 'rgba(251,146,60,.35)'), 1200 + i * 700);
+                    });
                 }
             } catch(e) {}
         }
-
-        function _showXpToast(xp, coins, leveledUp, achievements) {
-            const el = document.getElementById('xpToast');
-            let html = '<span class="xpt-icon">✨</span>';
-            html += '<span class="xpt-text">Глава прочитана!</span>';
-            html += '<span class="xpt-reward">+' + xp + ' XP';
-            if (coins > 0) html += ' &nbsp;+' + coins + ' <span class="xpt-coin">🪙</span>';
-            html += '</span>';
-            if (leveledUp) html += '<span class="xpt-level">🎉 Новый уровень!</span>';
-            if (achievements && achievements.length) {
-                html += '<span class="xpt-ach">🏆 ' + achievements[0] + '</span>';
-            }
-            el.innerHTML = html;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 4000);
-        }
-
-        // Хук на updateCurrentPage — отслеживаем максимально просмотренную страницу
-        const _origUpdateCurrentPage = updateCurrentPage;
-        updateCurrentPage = function() {
-            _origUpdateCurrentPage();
-            onPageSeen(currentPage);
-        };
 
         // ==================== ЖЕСТЫ ДЛЯ МОБИЛЬНЫХ ====================
         let touchStartY = 0;
@@ -1586,23 +1654,3 @@
     </script>
 </body>
 </html>
-<!-- XP toast -->
-<div id="xpToast" style="
-    position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
-    background:linear-gradient(135deg,#4c1d95,#7c3aed);
-    color:#fff; border-radius:16px; padding:12px 20px;
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    box-shadow:0 8px 32px rgba(124,58,237,.5);
-    opacity:0; pointer-events:none;
-    transition:opacity .3s ease, transform .3s ease;
-    z-index:9999; font-family:inherit; font-size:.9rem; max-width:90vw;
-"></div>
-<style>
-#xpToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-.xpt-icon  { font-size:1.2rem; }
-.xpt-text  { font-weight:600; }
-.xpt-reward{ background:rgba(255,255,255,.15); border-radius:8px; padding:2px 8px; font-weight:700; font-size:.85rem; }
-.xpt-coin  { font-size:.85rem; }
-.xpt-level { color:#fde68a; font-weight:700; font-size:.8rem; }
-.xpt-ach   { color:#a5f3fc; font-size:.78rem; }
-</style>

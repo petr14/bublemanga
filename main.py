@@ -1542,11 +1542,6 @@ def _suggest_similar_manga(user_id, manga_id, manga_title):
     if not similar:
         return
 
-    # Сайт-уведомление
-    body = 'Пока жди: ' + ', '.join(s['title'] for s in similar)
-    create_site_notification(user_id, 'similar_manga',
-                             f'Похожие на "{manga_title}"', body, '/catalog')
-
     # Telegram уведомление
     conn = get_db()
     row = conn.execute('SELECT telegram_id, notifications_enabled FROM users WHERE id=?', (user_id,)).fetchone()
