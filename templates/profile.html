@@ -479,6 +479,7 @@
 <div class="tabs-bar">
     <button class="tab-btn active" data-tab="profile"> Профиль</button>
     <button class="tab-btn" data-tab="library"> Библиотека</button>
+    {% if is_own %}<button class="tab-btn" data-tab="quests"> Задания</button>{% endif %}
 </div>
 
 <!-- ПРОФИЛЬ -->
@@ -515,27 +516,6 @@
     {% endif %}
 
     {% if is_own %}
-    <div class="section-head" style="margin-bottom:12px"> Задания</div>
-    <div id="quests-container">
-      <div class="quests-tabs">
-        <button class="quest-tab-btn active" onclick="switchQuestTab('active',this)">Активные</button>
-        <button class="quest-tab-btn" onclick="switchQuestTab('done',this)">Выполненные</button>
-      </div>
-      <div id="qtab-active" class="quest-tab-pane active"><div class="loading-spin"><div class="spin"></div></div></div>
-      <div id="qtab-done" class="quest-tab-pane"></div>
-    </div>
-
-    <!-- Задания на сегодня -->
-    <div class="section-head" style="margin-bottom:12px;margin-top:24px">📅 Задания на сегодня</div>
-    <div id="daily-quests-container"><div class="loading-spin"><div class="spin"></div></div></div>
-
-    <!-- Текущий сезон -->
-    <div id="season-block" style="display:none">
-        <div class="section-head" style="margin-bottom:12px;margin-top:24px"><span id="season-icon">🌸</span> <span id="season-name">Сезон</span></div>
-        <p id="season-desc" style="font-size:13px;color:var(--text2);margin-bottom:16px"></p>
-        <div id="season-quests-container"></div>
-    </div>
-
     <!-- Пригласить друга -->
     <div class="section-head" style="margin-bottom:12px;margin-top:24px">🔗 Пригласить друга</div>
     <div id="referral-block" style="background:var(--glass);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
@@ -599,6 +579,30 @@
     </div>
     {% endif %}
 </div>
+
+<!-- ЗАДАНИЯ -->
+{% if is_own %}
+<div id="tab-quests" class="tab-pane">
+    <div class="section-head" style="margin-bottom:12px"> Задания</div>
+    <div id="quests-container">
+      <div class="quests-tabs">
+        <button class="quest-tab-btn active" onclick="switchQuestTab('active',this)">Активные</button>
+        <button class="quest-tab-btn" onclick="switchQuestTab('done',this)">Выполненные</button>
+      </div>
+      <div id="qtab-active" class="quest-tab-pane active"><div class="loading-spin"><div class="spin"></div></div></div>
+      <div id="qtab-done" class="quest-tab-pane"></div>
+    </div>
+
+    <div class="section-head" style="margin-bottom:12px;margin-top:24px">📅 Задания на сегодня</div>
+    <div id="daily-quests-container"><div class="loading-spin"><div class="spin"></div></div></div>
+
+    <div id="season-block" style="display:none">
+        <div class="section-head" style="margin-bottom:12px;margin-top:24px"><span id="season-icon">🌸</span> <span id="season-name">Сезон</span></div>
+        <p id="season-desc" style="font-size:13px;color:var(--text2);margin-bottom:16px"></p>
+        <div id="season-quests-container"></div>
+    </div>
+</div>
+{% endif %}
 
 <!-- ════ MODALS ════ -->
 {% if is_own %}
