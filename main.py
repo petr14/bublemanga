@@ -139,7 +139,7 @@ def init_db():
     conn = sqlite3.connect('manga.db', timeout=30, check_same_thread=False)
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
-    conn.execute('PRAGMA busy_timeout=10000')
+    conn.execute('PRAGMA busy_timeout=30000')
     conn.execute('PRAGMA cache_size=-32000')
     c = conn.cursor()
     
@@ -857,7 +857,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
-    conn.execute('PRAGMA busy_timeout=10000')
+    conn.execute('PRAGMA busy_timeout=30000')
     conn.execute('PRAGMA cache_size=-32000')
     conn.execute('PRAGMA wal_autocheckpoint=1000')
     return conn
@@ -2212,30 +2212,28 @@ def save_chapters_to_db(chapters, manga_id):
     """Сохранить главы в БД с улучшенной обработкой"""
     if not chapters:
         return
-    
+
+    BATCH_SIZE = 50  # коммитить каждые N глав чтобы не держать write-lock долго
+
     conn = get_db()
     c = conn.cursor()
-    
+
     try:
         saved_count = 0
         updated_count = 0
         errors = 0
-        
-        for chapter in chapters:
+
+        for i, chapter in enumerate(chapters):
             try:
-                # Проверяем, существует ли глава
-                c.execute('SELECT chapter_id, chapter_number FROM chapters WHERE chapter_id = ?', 
+                c.execute('SELECT chapter_id, chapter_number FROM chapters WHERE chapter_id = ?',
                          (chapter['chapter_id'],))
                 existing = c.fetchone()
-                
+
                 if not existing:
-                    # Создаем URL для чтения
                     chapter_url = f"/read/{chapter['manga_slug']}/{chapter['chapter_slug']}"
-                    
-                    # Сохраняем новую главу
-                    c.execute('''INSERT INTO chapters 
+                    c.execute('''INSERT INTO chapters
                                 (manga_id, chapter_id, chapter_slug, chapter_number,
-                                 chapter_volume, chapter_name, chapter_url, created_at) 
+                                 chapter_volume, chapter_name, chapter_url, created_at)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                               (manga_id, chapter['chapter_id'], chapter['chapter_slug'],
                                chapter['chapter_number'], chapter['chapter_volume'],
@@ -2243,26 +2241,25 @@ def save_chapters_to_db(chapters, manga_id):
                                chapter['created_at']))
                     saved_count += 1
                 else:
-                    # Проверяем, нужно ли обновить номер главы (на случай изменений)
-                    existing_number = existing['chapter_number']
-                    new_number = chapter['chapter_number']
-                    
-                    if existing_number != new_number:
+                    if existing['chapter_number'] != chapter['chapter_number']:
                         c.execute('UPDATE chapters SET chapter_number = ? WHERE chapter_id = ?',
-                                 (new_number, chapter['chapter_id']))
+                                 (chapter['chapter_number'], chapter['chapter_id']))
                         updated_count += 1
-                        
+
             except Exception as e:
                 errors += 1
                 logger.error(f"❌ Ошибка сохранения главы {chapter.get('chapter_id', 'unknown')}: {e}")
-        
+
+            # Промежуточный коммит — освобождаем write-lock
+            if (i + 1) % BATCH_SIZE == 0:
+                conn.commit()
+
         conn.commit()
         logger.info(f"✅ Сохранено {saved_count} новых глав, обновлено {updated_count}, ошибок: {errors}")
-        
-        # Создаем индекс для быстрого поиска глав по номеру
+
         c.execute('CREATE INDEX IF NOT EXISTS idx_chapters_manga_number ON chapters(manga_id, chapter_number)')
         conn.commit()
-        
+
     except Exception as e:
         logger.error(f"❌ Ошибка сохранения глав: {e}")
         import traceback
