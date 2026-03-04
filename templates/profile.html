@@ -391,7 +391,7 @@
         .empty-state { text-align: center; padding: 48px 20px; color: var(--text2); font-size: 14px; }
         .empty-icon { font-size: 48px; margin-bottom: 12px; }
 
-        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1f1f1f; border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 14px; z-index: 300; transition: transform .3s; white-space: nowrap; }
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1f1f1f; border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 14px; z-index: 300; transition: transform .3s; max-width: calc(100vw - 32px); white-space: normal; text-align: center; box-sizing: border-box; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.success { border-color: #22c55e; color: #22c55e; }
         .toast.error { border-color: #ef4444; color: #ef4444; }

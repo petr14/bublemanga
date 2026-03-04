@@ -118,7 +118,7 @@
     .login-notice { text-align:center; padding:3rem 1rem; color:var(--text-3); }
     .login-notice a { color:var(--accent); text-decoration:none; }
 
-    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(60px); background:#18181b; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .3s; z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; }
+    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(60px); background:#18181b; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .3s; z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; max-width:calc(100vw - 32px); white-space:normal; text-align:center; box-sizing:border-box; }
     .toast.show { transform:translateX(-50%) translateY(0); }
     .toast.ok  { border-color:rgba(102,126,234,.4); color:#a5b4fc; }
     .toast.err { border-color:rgba(239,68,68,.4); color:#fca5a5; }

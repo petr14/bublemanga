@@ -788,6 +788,19 @@ def init_db():
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_site_notifications ON site_notifications(user_id, is_read)')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS admin_broadcasts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id INTEGER,
+        title TEXT NOT NULL,
+        body TEXT,
+        url TEXT,
+        notif_type TEXT DEFAULT 'admin',
+        filter_desc TEXT,
+        recipients_count INTEGER DEFAULT 0,
+        send_telegram INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     # Предпочитаемый час дайджеста (МСК)
     try:
         c.execute('ALTER TABLE users ADD COLUMN digest_hour INTEGER DEFAULT 22')
@@ -7207,6 +7220,164 @@ def api_set_digest_hour():
     conn.commit()
     conn.close()
     return jsonify({'ok': True, 'hour': hour})
+
+
+# ==================== ADMIN РАССЫЛКА ====================
+
+def _build_notify_targets(data):
+    """Формирует список пользователей и описание фильтров из параметров запроса."""
+    target = data.get('target', 'all')
+    conditions = []
+    params = []
+    filter_parts = []
+
+    if target == 'specific':
+        ids_raw = data.get('user_ids', '')
+        ids = [int(x.strip()) for x in str(ids_raw).split(',') if x.strip().isdigit()]
+        if not ids:
+            return [], 'конкретные ID: не указаны'
+        placeholders = ','.join('?' * len(ids))
+        conditions.append(f'u.id IN ({placeholders})')
+        params.extend(ids)
+        filter_parts.append(f'ID: {ids_raw.strip()}')
+    elif target == 'filtered':
+        min_level   = data.get('min_level', '').strip()
+        max_level   = data.get('max_level', '').strip()
+        min_chapters = data.get('min_chapters', '').strip()
+        premium_only = data.get('premium_only', False)
+        manga_id     = data.get('manga_id', '').strip()
+        if min_level.isdigit():
+            conditions.append('COALESCE(us.level, 1) >= ?')
+            params.append(int(min_level))
+            filter_parts.append(f'уровень ≥ {min_level}')
+        if max_level.isdigit():
+            conditions.append('COALESCE(us.level, 1) <= ?')
+            params.append(int(max_level))
+            filter_parts.append(f'уровень ≤ {max_level}')
+        if min_chapters.isdigit():
+            conditions.append('COALESCE(us.total_chapters_read, 0) >= ?')
+            params.append(int(min_chapters))
+            filter_parts.append(f'глав прочитано ≥ {min_chapters}')
+        if premium_only:
+            conditions.append('u.is_premium = 1')
+            filter_parts.append('только Premium')
+        if manga_id:
+            conditions.append('EXISTS (SELECT 1 FROM subscriptions sb WHERE sb.user_id = u.id AND sb.manga_id = ?)')
+            params.append(manga_id)
+            filter_parts.append(f'подписан на мангу {manga_id}')
+
+    where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+    conn = get_db()
+    rows = conn.execute(
+        f'''SELECT u.id, u.telegram_id FROM users u
+            LEFT JOIN user_stats us ON us.user_id = u.id
+            {where}''',
+        params
+    ).fetchall()
+    conn.close()
+
+    filter_desc = ', '.join(filter_parts) if filter_parts else ('все пользователи' if target == 'all' else target)
+    return [dict(r) for r in rows], filter_desc
+
+
+@app.route('/api/admin/notify/preview', methods=['POST'])
+@admin_required
+def api_admin_notify_preview():
+    """Подсчёт пользователей под фильтры (превью перед отправкой)."""
+    users, filter_desc = _build_notify_targets(request.json or {})
+    return jsonify({'count': len(users), 'filter_desc': filter_desc})
+
+
+@app.route('/api/admin/notify/send', methods=['POST'])
+@admin_required
+def api_admin_notify_send():
+    """Отправить рассылку уведомлений."""
+    data = request.json or {}
+    title        = (data.get('title') or '').strip()
+    body         = (data.get('body') or '').strip() or None
+    url          = (data.get('url') or '').strip() or None
+    notif_type   = (data.get('notif_type') or 'admin').strip()
+    send_tg      = bool(data.get('send_telegram', False))
+
+    if not title:
+        return jsonify({'error': 'Укажи заголовок'}), 400
+
+    users, filter_desc = _build_notify_targets(data)
+    if not users:
+        return jsonify({'error': 'Нет пользователей под эти фильтры'}), 400
+
+    conn = get_db()
+    try:
+        for u in users:
+            conn.execute(
+                'INSERT INTO site_notifications (user_id, type, title, body, url) VALUES (?,?,?,?,?)',
+                (u['id'], notif_type, title, body, url)
+            )
+        conn.execute(
+            '''INSERT INTO admin_broadcasts
+               (admin_id, title, body, url, notif_type, filter_desc, recipients_count, send_telegram)
+               VALUES (?,?,?,?,?,?,?,?)''',
+            (session.get('user_id'), title, body, url, notif_type, filter_desc, len(users), 1 if send_tg else 0)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+    conn.close()
+
+    # Telegram-рассылка (асинхронно, не блокирует ответ)
+    if send_tg and _bot_loop and _bot_loop.is_running() and telegram_app:
+        tg_targets = [u for u in users if u.get('telegram_id')]
+        if tg_targets:
+            tg_title = title
+            tg_body  = body
+            tg_url   = url
+            async def _bulk_tg():
+                msg = f"📢 <b>{tg_title}</b>"
+                if tg_body:
+                    msg += f"\n\n{tg_body}"
+                if tg_url:
+                    full = tg_url if tg_url.startswith('http') else f"{SITE_URL}{tg_url}"
+                    msg += f"\n\n🔗 <a href='{full}'>Подробнее</a>"
+                for u in tg_targets:
+                    try:
+                        await telegram_app.bot.send_message(
+                            chat_id=u['telegram_id'], text=msg, parse_mode='HTML'
+                        )
+                    except Exception:
+                        pass
+            asyncio.run_coroutine_threadsafe(_bulk_tg(), _bot_loop)
+
+    return jsonify({'ok': True, 'sent': len(users)})
+
+
+@app.route('/api/admin/notify/history')
+@admin_required
+def api_admin_notify_history():
+    """История рассылок."""
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT id, title, body, notif_type, filter_desc, recipients_count, send_telegram, created_at
+           FROM admin_broadcasts ORDER BY created_at DESC LIMIT 50'''
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/admin/notify/manga-search')
+@admin_required
+def api_admin_notify_manga_search():
+    """Поиск манги по названию для фильтра подписок."""
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT manga_id, manga_title FROM manga WHERE manga_title LIKE ? LIMIT 10",
+        (f'%{q}%',)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
 
 
 # ==================== ЗАПУСК ====================

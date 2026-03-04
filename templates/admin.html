@@ -249,6 +249,9 @@ tr:hover td{background:var(--glass)}
     <button class="nav-item" onclick="showSection('quests')" data-section="quests">
       <span class="icon">📋</span><span class="label">Задания</span>
     </button>
+    <button class="nav-item" onclick="showSection('notify')" data-section="notify">
+      <span class="icon">📢</span><span class="label">Рассылка</span>
+    </button>
   </div>
   <div class="sidebar-footer">
     <a href="/">← На сайт</a>
@@ -507,6 +510,130 @@ tr:hover td{background:var(--glass)}
       </thead>
       <tbody id="quests-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ═══ РАССЫЛКА ═══ -->
+<div id="section-notify" class="section">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Рассылка уведомлений</div>
+      <div class="page-subtitle">Отправка уведомлений на сайте и в Telegram по группам пользователей</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+    <!-- Форма -->
+    <div class="panel">
+      <div style="font-weight:700;font-size:15px;margin-bottom:16px">✉️ Новая рассылка</div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label class="form-label">Заголовок *</label>
+          <input class="form-input" id="nb-title" placeholder="Например: Новый контент на сайте!">
+        </div>
+        <div>
+          <label class="form-label">Текст</label>
+          <textarea class="form-input" id="nb-body" rows="3" placeholder="Описание (необязательно)" style="resize:vertical"></textarea>
+        </div>
+        <div>
+          <label class="form-label">Ссылка (url)</label>
+          <input class="form-input" id="nb-url" placeholder="/shop или https://... (необязательно)">
+        </div>
+        <div>
+          <label class="form-label">Иконка / тип</label>
+          <select class="form-input" id="nb-type">
+            <option value="admin">📢 Системное</option>
+            <option value="promo">🎁 Акция</option>
+            <option value="new_content">📚 Новый контент</option>
+            <option value="event">🎉 Событие</option>
+            <option value="warning">⚠️ Важное</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="nb-tg" style="width:16px;height:16px;cursor:pointer">
+          <label for="nb-tg" style="font-size:13px;cursor:pointer">Также отправить в Telegram (у кого есть аккаунт)</label>
+        </div>
+      </div>
+
+      <div style="font-weight:700;font-size:14px;margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--border)">
+        👥 Аудитория
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="radio" name="nb-target" value="all" checked onchange="nbTargetChange()">
+          <span style="font-size:13px">Все пользователи</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="radio" name="nb-target" value="filtered" onchange="nbTargetChange()">
+          <span style="font-size:13px">По фильтрам</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="radio" name="nb-target" value="specific" onchange="nbTargetChange()">
+          <span style="font-size:13px">Конкретные пользователи</span>
+        </label>
+      </div>
+
+      <!-- Фильтры -->
+      <div id="nb-filters" style="display:none;margin-top:14px;padding:14px;background:var(--bg4);border-radius:10px;border:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;font-weight:600">ФИЛЬТРЫ (оставь пустым = без ограничений)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label class="form-label">Уровень от</label>
+            <input class="form-input" id="nb-min-level" type="number" min="1" placeholder="1">
+          </div>
+          <div>
+            <label class="form-label">Уровень до</label>
+            <input class="form-input" id="nb-max-level" type="number" min="1" placeholder="100">
+          </div>
+          <div style="grid-column:1/-1">
+            <label class="form-label">Прочитано глав ≥</label>
+            <input class="form-input" id="nb-min-chapters" type="number" min="0" placeholder="0">
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="nb-premium-only" style="width:16px;height:16px;cursor:pointer">
+          <label for="nb-premium-only" style="font-size:13px;cursor:pointer">Только Premium пользователи</label>
+        </div>
+        <div style="margin-top:12px">
+          <label class="form-label">Подписаны на мангу (поиск по названию)</label>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="nb-manga-search" placeholder="Начни вводить название..." style="flex:1" oninput="nbMangaSearch()">
+            <button class="btn" onclick="nbMangaClear()" style="padding:0 10px;font-size:18px" title="Сбросить">✕</button>
+          </div>
+          <div id="nb-manga-results" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:180px;overflow-y:auto"></div>
+          <div id="nb-manga-selected" style="display:none;margin-top:6px;font-size:12px;padding:6px 10px;background:rgba(102,126,234,.12);border-radius:6px;color:#a5b4fc"></div>
+          <input type="hidden" id="nb-manga-id">
+        </div>
+      </div>
+
+      <!-- Конкретные ID -->
+      <div id="nb-specific" style="display:none;margin-top:14px">
+        <label class="form-label">ID пользователей (через запятую)</label>
+        <input class="form-input" id="nb-user-ids" placeholder="1, 42, 100">
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button class="btn" onclick="nbPreview()" style="flex:1">🔍 Предпросмотр</button>
+        <button class="btn btn-primary" onclick="nbSend()" id="nb-send-btn" style="flex:1">📤 Отправить</button>
+      </div>
+
+      <div id="nb-preview-result" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;text-align:center"></div>
+    </div>
+
+    <!-- История рассылок -->
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-weight:700;font-size:15px">📋 История рассылок</div>
+        <button class="btn" onclick="loadNotifyHistory()" style="padding:4px 10px;font-size:12px">↻ Обновить</button>
+      </div>
+      <div id="nb-history" style="display:flex;flex-direction:column;gap:8px">
+        <div style="color:var(--text2);font-size:13px;text-align:center;padding:20px">Загрузка...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -884,6 +1011,7 @@ function showSection(name){
     if(name==='xplog') loadXpLog();
     if(name==='achievements') loadAchievements();
     if(name==='quests') loadQuests();
+    if(name==='notify') loadNotifyHistory();
   }
 }
 
@@ -1631,6 +1759,133 @@ async function deleteQuest(id, btn){
   const r = await api(`/api/admin/quests/${id}`, {method:'DELETE'});
   if(r.success){ toast('Удалено'); loadQuests(); }
   else { btn.disabled=false; toast('Ошибка','error'); }
+}
+
+// ─── РАССЫЛКА ─────────────────────────────────────────────
+let _nbMangaTimer = null;
+let _nbMangaId    = '';
+
+function nbTargetChange(){
+  const val = document.querySelector('input[name="nb-target"]:checked').value;
+  document.getElementById('nb-filters').style.display  = val === 'filtered'  ? 'block' : 'none';
+  document.getElementById('nb-specific').style.display = val === 'specific' ? 'block' : 'none';
+  document.getElementById('nb-preview-result').style.display = 'none';
+}
+
+function nbGetPayload(){
+  const target = document.querySelector('input[name="nb-target"]:checked').value;
+  return {
+    title:        document.getElementById('nb-title').value.trim(),
+    body:         document.getElementById('nb-body').value.trim(),
+    url:          document.getElementById('nb-url').value.trim(),
+    notif_type:   document.getElementById('nb-type').value,
+    send_telegram: document.getElementById('nb-tg').checked,
+    target,
+    min_level:    document.getElementById('nb-min-level')?.value.trim() || '',
+    max_level:    document.getElementById('nb-max-level')?.value.trim() || '',
+    min_chapters: document.getElementById('nb-min-chapters')?.value.trim() || '',
+    premium_only: document.getElementById('nb-premium-only')?.checked || false,
+    manga_id:     _nbMangaId || '',
+    user_ids:     document.getElementById('nb-user-ids')?.value.trim() || '',
+  };
+}
+
+async function nbPreview(){
+  const p = nbGetPayload();
+  const r = document.getElementById('nb-preview-result');
+  r.style.display = 'block';
+  r.style.background = 'rgba(102,126,234,.08)';
+  r.style.color = '#a5b4fc';
+  r.textContent = 'Считаем...';
+  const res = await fetch('/api/admin/notify/preview', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  const d = await res.json();
+  if(d.count !== undefined){
+    r.textContent = `👥 Получат уведомление: ${d.count} пользователей (${d.filter_desc})`;
+  } else {
+    r.style.color = '#fca5a5';
+    r.textContent = d.error || 'Ошибка';
+  }
+}
+
+async function nbSend(){
+  const p = nbGetPayload();
+  if(!p.title){ toast('Укажи заголовок'); return; }
+  const btn = document.getElementById('nb-send-btn');
+  btn.disabled = true;
+  btn.textContent = 'Отправляем...';
+  const res = await fetch('/api/admin/notify/send', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+  const d = await res.json();
+  btn.disabled = false;
+  btn.textContent = '📤 Отправить';
+  if(d.ok){
+    toast(`✅ Отправлено ${d.sent} пользователям`);
+    loadNotifyHistory();
+  } else {
+    toast(d.error || 'Ошибка', 'error');
+  }
+}
+
+function nbMangaSearch(){
+  clearTimeout(_nbMangaTimer);
+  const q = document.getElementById('nb-manga-search').value.trim();
+  const res = document.getElementById('nb-manga-results');
+  if(q.length < 2){ res.style.display = 'none'; return; }
+  _nbMangaTimer = setTimeout(async () => {
+    const r = await fetch(`/api/admin/notify/manga-search?q=${encodeURIComponent(q)}`);
+    const list = await r.json();
+    if(!list.length){ res.style.display = 'none'; return; }
+    res.style.display = 'block';
+    res.innerHTML = list.map(m =>
+      `<div onclick="nbMangaSelect('${m.manga_id}','${m.manga_title.replace(/'/g,"\\'")}')"\
+       style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+       onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background=''">${m.manga_title}</div>`
+    ).join('');
+  }, 300);
+}
+
+function nbMangaSelect(id, title){
+  _nbMangaId = id;
+  document.getElementById('nb-manga-search').value = title;
+  document.getElementById('nb-manga-results').style.display = 'none';
+  const sel = document.getElementById('nb-manga-selected');
+  sel.style.display = 'block';
+  sel.textContent = `Выбрано: ${title} (ID: ${id})`;
+}
+
+function nbMangaClear(){
+  _nbMangaId = '';
+  document.getElementById('nb-manga-search').value = '';
+  document.getElementById('nb-manga-results').style.display = 'none';
+  document.getElementById('nb-manga-selected').style.display = 'none';
+}
+
+async function loadNotifyHistory(){
+  const el = document.getElementById('nb-history');
+  if(!el) return;
+  el.innerHTML = '<div style="color:var(--text2);font-size:13px;text-align:center;padding:20px">Загрузка...</div>';
+  const r = await fetch('/api/admin/notify/history');
+  const list = await r.json();
+  if(!list.length){
+    el.innerHTML = '<div style="color:var(--text2);font-size:13px;text-align:center;padding:20px">Рассылок ещё не было</div>';
+    return;
+  }
+  const icons = {admin:'📢',promo:'🎁',new_content:'📚',event:'🎉',warning:'⚠️'};
+  el.innerHTML = list.map(b => {
+    const icon = icons[b.notif_type] || '📢';
+    const dt = new Date(b.created_at).toLocaleString('ru');
+    return `<div style="padding:12px;background:var(--bg4);border-radius:10px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-weight:600;font-size:13px">${icon} ${b.title}</div>
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap">${dt}</div>
+      </div>
+      ${b.body ? `<div style="font-size:12px;color:var(--text2);margin-top:4px">${b.body}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:8px;font-size:11px;color:var(--text2)">
+        <span>👥 ${b.recipients_count} получателей</span>
+        <span>${b.filter_desc || 'все'}</span>
+        ${b.send_telegram ? '<span>✈️ TG</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── INIT ─────────────────────────────────────────────────

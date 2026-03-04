@@ -247,6 +247,19 @@
   max-height: 420px; display: flex; flex-direction: column;
 }
 .g-bell.open .g-bell-panel { opacity: 1; visibility: visible; transform: translateY(0); }
+@media (max-width: 700px) {
+  .g-bell-panel {
+    position: fixed;
+    top: 108px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100dvh - 128px);
+    border-radius: 16px;
+    transform: translateY(-8px);
+  }
+  .g-bell.open .g-bell-panel { transform: translateY(0); }
+}
 .g-bell-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 14px 10px; border-bottom: 1px solid rgba(255,255,255,.07);
