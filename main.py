@@ -4470,6 +4470,51 @@ def api_read_chapters(manga_slug):
     return jsonify(chapter_ids)
 
 
+@app.route('/api/manga/<manga_slug>/similar')
+def api_manga_similar(manga_slug):
+    """Похожие манги: минимум 3 совпадающих жанра (tags)."""
+    import json as _jsim
+    conn = get_db()
+    try:
+        src = conn.execute(
+            'SELECT manga_id, tags FROM manga WHERE manga_slug = ?', (manga_slug,)
+        ).fetchone()
+        if not src:
+            return jsonify({'error': 'Not found'}), 404
+        try:
+            src_tags = set(_jsim.loads(src['tags'] or '[]'))
+        except Exception:
+            src_tags = set()
+        if not src_tags:
+            return jsonify({'results': []})
+
+        rows = conn.execute(
+            'SELECT manga_id, manga_title, manga_slug, cover_url, tags FROM manga WHERE manga_id != ?',
+            (src['manga_id'],)
+        ).fetchall()
+
+        results = []
+        for row in rows:
+            try:
+                other_tags = set(_jsim.loads(row['tags'] or '[]'))
+            except Exception:
+                other_tags = set()
+            common = src_tags & other_tags
+            if len(common) >= 3:
+                results.append({
+                    'title': row['manga_title'],
+                    'slug': row['manga_slug'],
+                    'cover': row['cover_url'],
+                    'common_tags': sorted(common)[:6],
+                    'common_count': len(common),
+                })
+
+        results.sort(key=lambda x: x['common_count'], reverse=True)
+        return jsonify({'results': results[:40]})
+    finally:
+        conn.close()
+
+
 def _refresh_manga_worker(slugs):
     """Фоновый поток: загрузить/обновить полные данные манг по slug-ам.
 

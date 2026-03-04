@@ -689,6 +689,7 @@
     tourSteps = pageData.tour.filter(s => document.querySelector(s.sel));
     if (!tourSteps.length) return;
     document.getElementById('hlpPanel').classList.remove('open');
+    document.querySelector('.hlp-btn-wrap').style.visibility = 'hidden';
     tourIdx = 0;
     document.getElementById('hlpTourOverlay').classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -698,6 +699,7 @@
   window.hlpEndTour = function () {
     if (_typeTimer) { clearTimeout(_typeTimer); _typeTimer = null; }
     document.getElementById('hlpTourOverlay').classList.remove('active');
+    document.querySelector('.hlp-btn-wrap').style.visibility = '';
     document.body.style.overflow = '';
     const mask = document.getElementById('hlpTourMask');
     mask.style.removeProperty('--hx'); mask.style.removeProperty('--hy');

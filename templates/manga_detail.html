@@ -1161,9 +1161,9 @@
                             </button>
                             {% endif %}
 
-                            <a href="/search?q={{ manga.manga_title|urlencode }}" class="btn">
+                            <button class="btn" onclick="openSimilarModal()">
                                 <span>Похожие</span>
-                            </a>
+                            </button>
 
                             <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn">
                                 <span>Обновить</span>
@@ -1994,6 +1994,82 @@
             loadComments();
         })();
     </script>
+
+<!-- ── Модалка похожих ── -->
+<div id="similarOverlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)closeSimilarModal()">
+  <div style="max-width:860px;margin:0 auto;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;background:linear-gradient(135deg,#667eea,#764ba2)">
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:#fff">Похожие манги</div>
+        <div id="similarSubtitle" style="font-size:.75rem;color:rgba(255,255,255,.75);margin-top:2px">3+ совпадающих жанра</div>
+      </div>
+      <button onclick="closeSimilarModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="similarBody" style="padding:1.2rem">
+      <div style="text-align:center;padding:2rem;color:#888">Загрузка…</div>
+    </div>
+  </div>
+</div>
+
+<style>
+.sim-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.85rem; }
+.sim-card { background:#1e1e1e; border:1px solid rgba(255,255,255,.07); border-radius:12px; overflow:hidden; cursor:pointer; transition:border-color .2s,transform .15s; text-decoration:none; display:block; }
+.sim-card:hover { border-color:rgba(102,126,234,.5); transform:translateY(-3px); }
+.sim-card-img { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; display:block; }
+.sim-card-img-placeholder { width:100%; aspect-ratio:2/3; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:2rem; }
+.sim-card-body { padding:.6rem .7rem .75rem; }
+.sim-card-title { font-size:.78rem; font-weight:700; color:#f4f4f5; line-height:1.3; margin-bottom:.35rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.sim-tags { display:flex; flex-wrap:wrap; gap:3px; }
+.sim-tag { font-size:.6rem; background:rgba(102,126,234,.15); border:1px solid rgba(102,126,234,.25); border-radius:20px; padding:1px 7px; color:#a5b4fc; white-space:nowrap; }
+.sim-count { font-size:.65rem; color:#6b7280; margin-bottom:.3rem; }
+@media(max-width:600px){ .sim-grid { grid-template-columns:repeat(2,1fr); gap:.6rem; } }
+</style>
+
+<script>
+(function(){
+  const SLUG = '{{ manga.manga_slug }}';
+  let loaded = false;
+
+  window.openSimilarModal = function(){
+    document.getElementById('similarOverlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    if (!loaded) fetchSimilar();
+  };
+  window.closeSimilarModal = function(){
+    document.getElementById('similarOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+  };
+
+  function fetchSimilar(){
+    fetch(`/api/manga/${SLUG}/similar`)
+      .then(r => r.json())
+      .then(data => {
+        loaded = true;
+        const body = document.getElementById('similarBody');
+        const results = data.results || [];
+        if (!results.length){
+          body.innerHTML = '<div style="text-align:center;padding:2.5rem;color:#666">Не найдено манг с 3+ общими жанрами</div>';
+          return;
+        }
+        document.getElementById('similarSubtitle').textContent = `Найдено: ${results.length} манг с 3+ общими жанрами`;
+        body.innerHTML = '<div class="sim-grid">' + results.map(m => `
+          <a class="sim-card" href="/manga/${m.slug}">
+            ${m.cover
+              ? `<img class="sim-card-img" src="${m.cover}" alt="" loading="lazy">`
+              : `<div class="sim-card-img-placeholder">📖</div>`}
+            <div class="sim-card-body">
+              <div class="sim-card-title">${m.title}</div>
+              <div class="sim-count">${m.common_count} общих жанров</div>
+              <div class="sim-tags">${m.common_tags.map(t=>`<span class="sim-tag">${t}</span>`).join('')}</div>
+            </div>
+          </a>`).join('') + '</div>';
+      })
+      .catch(() => {
+        document.getElementById('similarBody').innerHTML = '<div style="text-align:center;padding:2rem;color:#ef4444">Ошибка загрузки</div>';
+      });
+  }
+})();
+</script>
 
 {%- include 'footer.html' %}
 </body>

@@ -243,6 +243,10 @@
       background: rgba(0,0,0,.55); backdrop-filter: blur(3px);
     }
     .manga-preview-overlay.show { display: block; }
+    /* На десктопе оверлей прозрачный и не перехватывает мышь — закрытие через mouseleave */
+    @media (hover: hover) {
+      .manga-preview-overlay.show { background: transparent; backdrop-filter: none; pointer-events: none; }
+    }
     .manga-preview-popup {
       position: fixed; z-index: 601;
       background: #18181b; border: 1px solid rgba(255,255,255,.12);
@@ -350,7 +354,8 @@
 
 <!-- Quick preview popup -->
 <div class="manga-preview-overlay" id="ppOverlay" onclick="closePreview()"></div>
-<div class="manga-preview-popup" id="ppPopup" role="dialog" aria-modal="true">
+<div class="manga-preview-popup" id="ppPopup" role="dialog" aria-modal="true"
+  onmouseenter="clearTimeout(ppCloseTimer)" onmouseleave="closePreview()">
   <div class="pp-cover-wrap">
     <img class="pp-cover" id="ppCover" alt="">
     <div class="pp-gradient"></div>
@@ -660,6 +665,7 @@ const ppOverlay = document.getElementById('ppOverlay');
 const ppPopup   = document.getElementById('ppPopup');
 let ppHoverTimer = null;
 let ppTouchTimer = null;
+let ppCloseTimer = null;
 let ppOpen = false;
 
 const STATUS_CLASS = {ongoing:'status-ongoing',finished:'status-finished',cancelled:'status-cancelled',hiatus:'status-hiatus',announced:'status-announced'};
@@ -732,11 +738,13 @@ function closePreview() {
 
 function ppHoverStart(card) {
   if (window.matchMedia('(hover: none)').matches) return; // touch device
+  clearTimeout(ppCloseTimer);
   ppHoverCancel();
   ppHoverTimer = setTimeout(() => openPreview(card), 450);
 }
 function ppHoverCancel() {
   clearTimeout(ppHoverTimer);
+  if (ppOpen) ppCloseTimer = setTimeout(closePreview, 120);
 }
 
 function ppTouchStart(e, card) {
