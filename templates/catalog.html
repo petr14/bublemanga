@@ -95,32 +95,35 @@
     }
     .filter-sep { height: 1px; background: var(--border); margin: 1rem 0; }
 
-    /* Genre filter header */
-    .genre-filter-header {
-      display: flex; flex-direction: column; gap: .4rem; margin-bottom: .6rem;
-    }
-    .genre-filter-header .filter-label { margin-bottom: 0; }
+    /* Genre section */
+    .genre-section .filter-label { margin-bottom: .5rem; }
     .genre-search-input {
-      width: 100%; box-sizing: border-box;
-      padding: .3rem .65rem; border-radius: 20px; font-size: .75rem;
+      display: block; width: 75%; max-width: 190px;
+      margin: 0 auto .65rem;
+      padding: .3rem .75rem; border-radius: 20px; font-size: .75rem;
       border: 1px solid var(--border2); background: var(--card); color: var(--text1);
       font-family: inherit; outline: none; transition: border-color .15s;
+      box-sizing: border-box; text-align: center;
     }
     .genre-search-input:focus { border-color: var(--primary); }
-    .genre-search-input::placeholder { color: var(--text3); }
+    .genre-search-input::placeholder { color: var(--text3); text-align: center; }
 
     /* Genre grid (collapsible) */
-    .genre-grid { max-height: 200px; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-width: thin; }
-    .genre-grid.expanded { max-height: none; }
+    .genre-grid {
+      max-height: 100px; overflow: hidden;
+      position: relative;
+    }
+    .genre-grid.expanded { max-height: none; overflow: visible; }
     .genre-grid:not(.expanded):not(.searching)::after {
-      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px;
       background: linear-gradient(transparent, var(--bg));
       pointer-events: none;
     }
-    .genre-grid.searching { max-height: none; }
+    .genre-grid.searching { max-height: none; overflow: visible; }
     .show-more-genres {
       margin-top: .5rem; font-size: .75rem; color: var(--primary); cursor: pointer;
       background: none; border: none; font-family: inherit; padding: 0;
+      display: block;
     }
     .show-more-genres:hover { text-decoration: underline; }
 
@@ -620,7 +623,7 @@ function filterGenres(q) {
 
 // ── Genre expand ──────────────────────────────────────────
 function toggleGenreExpand(btn) {
-  const grid = btn.previousElementSibling;
+  const grid = btn.closest('.filter-section').querySelector('.genre-grid');
   const expanded = grid.classList.toggle('expanded');
   btn.textContent = expanded ? 'Свернуть ↑' : 'Показать все жанры ↓';
 }
