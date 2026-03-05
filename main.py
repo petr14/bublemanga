@@ -552,22 +552,22 @@ def init_db():
     # ── Seed: товары магазина ──────────────────────────────────────────────
     SHOP_ITEMS = [
         # Рамки профиля
-        ('Золотая рамка',    'Роскошная золотая рамка для аватара',   'frame',      None, 'border: 3px solid #FFD700; box-shadow: 0 0 12px #FFD700;',       500,  0),
-        ('Неоновая рамка',   'Ярко-фиолетовая неоновая рамка',        'frame',      None, 'border: 3px solid #a855f7; box-shadow: 0 0 16px #a855f7;',       1000, 0),
-        ('Радужная рамка',   'Переливающаяся RGB рамка',              'frame',      None, 'border: 3px solid transparent; background: linear-gradient(#141414,#141414) padding-box, linear-gradient(135deg,#f43f5e,#a855f7,#3b82f6) border-box;', 2000, 0),
-        ('Аниме рамка',      'Рамка в стиле аниме с сакурой',         'frame',      None, 'border: 3px solid #ec4899; box-shadow: 0 0 12px #ec4899;',        750,  0),
+        ('Золотая рамка',    'Роскошная золотая рамка для аватара',   'frame',      None, 'border: 3px solid #FFD700; box-shadow: 0 0 12px #FFD700;',       1200,  0),
+        ('Неоновая рамка',   'Ярко-фиолетовая неоновая рамка',        'frame',      None, 'border: 3px solid #a855f7; box-shadow: 0 0 16px #a855f7;',       3000,  0),
+        ('Радужная рамка',   'Переливающаяся RGB рамка',              'frame',      None, 'border: 3px solid transparent; background: linear-gradient(#141414,#141414) padding-box, linear-gradient(135deg,#f43f5e,#a855f7,#3b82f6) border-box;', 7000, 0),
+        ('Аниме рамка',      'Рамка в стиле аниме с сакурой',         'frame',      None, 'border: 3px solid #ec4899; box-shadow: 0 0 12px #ec4899;',        1800,  0),
         # Фоны профиля
-        ('Ночной город',     'Тёмный городской пейзаж',               'background', None, 'background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);', 300,  0),
-        ('Сакура',           'Нежно-розовый цветочный фон',           'background', None, 'background: linear-gradient(135deg, #f8b4d9, #f093fb, #f5576c);', 300,  0),
-        ('Космос',           'Звёздное небо',                         'background', None, 'background: linear-gradient(135deg, #0d0d1a, #1a1a3e, #0d0d1a); background-size:400% 400%;', 500, 0),
-        ('Океан',            'Глубокий океанский градиент',           'background', None, 'background: linear-gradient(135deg, #001f3f, #0074D9, #7FDBFF);', 400,  0),
+        ('Ночной город',     'Тёмный городской пейзаж',               'background', None, 'background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);', 800,   0),
+        ('Сакура',           'Нежно-розовый цветочный фон',           'background', None, 'background: linear-gradient(135deg, #f8b4d9, #f093fb, #f5576c);', 800,   0),
+        ('Космос',           'Звёздное небо',                         'background', None, 'background: linear-gradient(135deg, #0d0d1a, #1a1a3e, #0d0d1a); background-size:400% 400%;', 1500, 0),
+        ('Океан',            'Глубокий океанский градиент',           'background', None, 'background: linear-gradient(135deg, #001f3f, #0074D9, #7FDBFF);', 1000,  0),
         # Значки
-        ('VIP',              'Эксклюзивный VIP значок',               'badge',      None, '👑 VIP',                                                          2000, 0),
-        ('Отаку',            'Значок настоящего отаку',               'badge',      None, '🎌 Отаку',                                                        800,  0),
-        ('Манга-гуру',       'Для тех, кто знает толк',               'badge',      None, '📖 Манга-гуру',                                                   1500, 0),
+        ('VIP',              'Эксклюзивный VIP значок',               'badge',      None, '👑 VIP',                                                          8000,  0),
+        ('Отаку',            'Значок настоящего отаку',               'badge',      None, '🎌 Отаку',                                                        2500,  0),
+        ('Манга-гуру',       'Для тех, кто знает толк',               'badge',      None, '📖 Манга-гуру',                                                   5000,  0),
         # Слоты загрузки
-        ('Загрузка аватара', 'Разблокировать загрузку своего аватара','avatar_slot', None, None,                                                              0,    1),
-        ('Загрузка фона',    'Разблокировать загрузку своего фона',   'bg_slot',    None, None,                                                              500,  1),
+        ('Загрузка аватара', 'Разблокировать загрузку своего аватара','avatar_slot', None, None,                                                              0,     1),
+        ('Загрузка фона',    'Разблокировать загрузку своего фона',   'bg_slot',    None, None,                                                              1500,  1),
     ]
     c.executemany(
         '''INSERT OR IGNORE INTO shop_items
@@ -575,6 +575,33 @@ def init_db():
            VALUES (?, ?, ?, ?, ?, ?, ?)''',
         SHOP_ITEMS
     )
+
+    # ── Обновление цен существующих предметов магазина ────────────────────
+    _PRICE_UPDATES = [
+        ('Золотая рамка',    1200),
+        ('Неоновая рамка',   3000),
+        ('Радужная рамка',   7000),
+        ('Аниме рамка',      1800),
+        ('Ночной город',     800),
+        ('Сакура',           800),
+        ('Космос',           1500),
+        ('Океан',            1000),
+        ('VIP',              8000),
+        ('Отаку',            2500),
+        ('Манга-гуру',       5000),
+        ('Загрузка фона',    1500),
+    ]
+    for _name, _price in _PRICE_UPDATES:
+        c.execute('UPDATE shop_items SET price = ? WHERE name = ?', (_price, _name))
+
+    # ── Обновление наград дневных заданий ─────────────────────────────────
+    _DAILY_UPDATES = [
+        ('Читатель дня',  12),
+        ('Комментатор',   6),
+        ('Исследователь', 6),
+    ]
+    for _title, _coins in _DAILY_UPDATES:
+        c.execute('UPDATE daily_quests SET coins_reward = ? WHERE title = ?', (_coins, _title))
 
     # ── Миграция: Premium поля ─────────────────────────────────────────────
     try:
@@ -740,9 +767,9 @@ def init_db():
 
     # Seed: ежедневные задания
     DAILY_QUESTS_SEED = [
-        ('Читатель дня',   'Прочитай 3 главы сегодня',          '📖', 'chapters_today',  3,  50,  20),
-        ('Комментатор',    'Оставь 1 комментарий сегодня',      '💬', 'comments_today',  1,  30,  10),
-        ('Исследователь',  'Открой 2 разные манги сегодня',     '🔍', 'manga_today',     2,  30,  10),
+        ('Читатель дня',   'Прочитай 3 главы сегодня',          '📖', 'chapters_today',  3,  50,  12),
+        ('Комментатор',    'Оставь 1 комментарий сегодня',      '💬', 'comments_today',  1,  30,  6),
+        ('Исследователь',  'Открой 2 разные манги сегодня',     '🔍', 'manga_today',     2,  30,  6),
     ]
     c.executemany(
         '''INSERT OR IGNORE INTO daily_quests
@@ -4454,13 +4481,13 @@ def _calc_chapter_reward(pages_count: int) -> tuple[int, int]:
     if pages_count <= 5:
         return 5, 0
     elif pages_count <= 15:
-        return 15, 1
+        return 15, 0
     elif pages_count <= 30:
-        return 25, 2
+        return 25, 1
     elif pages_count <= 50:
-        return 40, 3
+        return 40, 2
     else:
-        return 60, 5
+        return 60, 3
 
 
 @app.route('/api/chapter/<chapter_slug>/complete', methods=['POST'])

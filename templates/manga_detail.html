@@ -381,14 +381,16 @@
 
         .chapters-controls {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: .6rem;
+            flex-wrap: wrap;
         }
 
         .chapters-count {
             color: #999;
             font-size: 13px;
             font-weight: 600;
+            white-space: nowrap;
         }
 
         /* ==================== СПИСОК ГЛАВ ==================== */
@@ -1152,12 +1154,12 @@
                             </a>
 
                             {% if user_id %}
-                            <button class="btn btn-collection" onclick="openCollectionPicker('{{ manga.manga_id }}')">
+                            <button class="btn" onclick="openCollectionPicker('{{ manga.manga_id }}')">
                                 <span>В коллекцию</span>
                             </button>
                             <button id="wishlistBtn" class="btn {% if in_wishlist %}btn-subscribe subscribed{% endif %}"
                                     onclick="toggleWishlist('{{ manga.manga_id }}')">
-                                <span>{% if in_wishlist %}🔖 В списке{% else %}🔖 Хочу прочитать{% endif %}</span>
+                                <span>{% if in_wishlist %}В списке{% else %}Хочу прочитать{% endif %}</span>
                             </button>
                             {% endif %}
 
@@ -1382,7 +1384,7 @@
                 const r = await fetch(`/api/wishlist/${mangaId}`, {method:'POST'});
                 const d = await r.json();
                 if (btn) {
-                    btn.innerHTML = `<span>${d.in_wishlist ? '🔖 В списке' : '🔖 Хочу прочитать'}</span>`;
+                    btn.innerHTML = `<span>${d.in_wishlist ? 'В списке' : 'Хочу прочитать'}</span>`;
                     if (d.in_wishlist) btn.classList.add('btn-subscribe','subscribed');
                     else btn.classList.remove('btn-subscribe','subscribed');
                     btn.disabled = false;

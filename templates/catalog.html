@@ -95,14 +95,28 @@
     }
     .filter-sep { height: 1px; background: var(--border); margin: 1rem 0; }
 
+    /* Genre filter header */
+    .genre-filter-header {
+      display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem;
+    }
+    .genre-filter-header .filter-label { margin-bottom: 0; }
+    .genre-search-input {
+      flex: 1; padding: .25rem .55rem; border-radius: 20px; font-size: .75rem;
+      border: 1px solid var(--border2); background: var(--card); color: var(--text1);
+      font-family: inherit; outline: none; transition: border-color .15s;
+    }
+    .genre-search-input:focus { border-color: var(--primary); }
+    .genre-search-input::placeholder { color: var(--text3); }
+
     /* Genre grid (collapsible) */
-    .genre-grid { max-height: 160px; overflow: hidden; position: relative; }
+    .genre-grid { max-height: 200px; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-width: thin; }
     .genre-grid.expanded { max-height: none; }
-    .genre-grid:not(.expanded)::after {
+    .genre-grid:not(.expanded):not(.searching)::after {
       content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
       background: linear-gradient(transparent, var(--bg));
       pointer-events: none;
     }
+    .genre-grid.searching { max-height: none; }
     .show-more-genres {
       margin-top: .5rem; font-size: .75rem; color: var(--primary); cursor: pointer;
       background: none; border: none; font-family: inherit; padding: 0;
@@ -583,6 +597,24 @@ function resetFilters() {
   document.querySelectorAll('[data-type]').forEach(el => el.classList.toggle('active', el.dataset.type === ''));
   document.querySelectorAll('[data-status]').forEach(el => el.classList.toggle('active', el.dataset.status === ''));
   reload();
+}
+
+// ── Genre search ──────────────────────────────────────────
+function filterGenres(q) {
+  const grids = document.querySelectorAll('.genre-grid');
+  const expandBtns = document.querySelectorAll('.show-more-genres');
+  const searching = q.trim().length > 0;
+  const norm = q.trim().toLowerCase();
+
+  grids.forEach(grid => {
+    grid.classList.toggle('searching', searching);
+    grid.querySelectorAll('[data-genre]').forEach(chip => {
+      const match = !searching || chip.dataset.genre.toLowerCase().includes(norm);
+      chip.style.display = match ? '' : 'none';
+    });
+  });
+
+  expandBtns.forEach(btn => { btn.style.display = searching ? 'none' : ''; });
 }
 
 // ── Genre expand ──────────────────────────────────────────

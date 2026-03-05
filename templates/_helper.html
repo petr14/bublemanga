@@ -724,12 +724,14 @@
       return;
     }
 
-    // Скроллим только если элемент вне вьюпорта
+    // Скроллим если элемент вне вьюпорта или не помещается целиком
     const rPre = el.getBoundingClientRect();
-    const needScroll = rPre.bottom < 0 || rPre.top > window.innerHeight || rPre.height === 0;
+    const needScroll = rPre.bottom < 0 || rPre.top > window.innerHeight * 0.5
+      || rPre.height === 0 || rPre.bottom > window.innerHeight - 60;
     if (needScroll) {
       document.body.style.overflow = '';
-      el.scrollIntoView({ behavior: 'instant', block: 'center' });
+      const blockPos = rPre.height > window.innerHeight * 0.6 ? 'start' : 'center';
+      el.scrollIntoView({ behavior: 'instant', block: blockPos });
     }
 
     requestAnimationFrame(() => {
@@ -739,7 +741,10 @@
         const r   = el.getBoundingClientRect();
         const pad = 8;
         const x = r.left - pad, y = r.top - pad;
-        const w = r.width + pad * 2, h = r.height + pad * 2;
+        const w = r.width + pad * 2;
+        // Ограничиваем высоту подсветки видимой областью экрана (с отступом снизу под тултип)
+        const maxH = window.innerHeight - Math.max(0, y) - 16;
+        const h = Math.min(r.height + pad * 2, maxH);
 
         const mask = document.getElementById('hlpTourMask');
         mask.style.setProperty('--hx', x + 'px');
