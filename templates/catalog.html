@@ -96,17 +96,19 @@
     .filter-sep { height: 1px; background: var(--border); margin: 1rem 0; }
 
     /* Genre section */
-    .genre-section .filter-label { margin-bottom: .5rem; }
+    .genre-section-header {
+      display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem;
+    }
+    .genre-section-header .filter-label { margin-bottom: 0; white-space: nowrap; }
     .genre-search-input {
-      display: block; width: 75%; max-width: 190px;
-      margin: 0 auto .65rem;
-      padding: .3rem .75rem; border-radius: 20px; font-size: .75rem;
+      flex: 1; min-width: 0;
+      padding: .25rem .6rem; border-radius: 20px; font-size: .75rem;
       border: 1px solid var(--border2); background: var(--card); color: var(--text1);
       font-family: inherit; outline: none; transition: border-color .15s;
-      box-sizing: border-box; text-align: center;
+      box-sizing: border-box;
     }
     .genre-search-input:focus { border-color: var(--primary); }
-    .genre-search-input::placeholder { color: var(--text3); text-align: center; }
+    .genre-search-input::placeholder { color: var(--text3); }
 
     /* Genre grid (collapsible) */
     .genre-grid {
@@ -626,6 +628,8 @@ function toggleGenreExpand(btn) {
   const grid = btn.closest('.filter-section').querySelector('.genre-grid');
   const expanded = grid.classList.toggle('expanded');
   btn.textContent = expanded ? 'Свернуть ↑' : 'Показать все жанры ↓';
+  const miku = document.querySelector('.hlp-btn-wrap');
+  if (miku) miku.style.visibility = expanded ? 'hidden' : '';
 }
 
 // ── Load more ─────────────────────────────────────────────
