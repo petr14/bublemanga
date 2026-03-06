@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
+  <link rel="icon" type="image/png" href="/static/favicon.png"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
   <meta name="theme-color" content="#667eea"/>
   <title>Топ читателей — BubbleManga</title>
@@ -81,45 +82,95 @@
     /* ── Контейнер ─────────────────────────────── */
     .top-container { max-width: 860px; margin: 0 auto; padding: 1.5rem; }
 
-    /* ── Пьедестал ─────────────────────────────── */
-    .podium {
-      display: flex; justify-content: center; align-items: flex-end;
-      gap: 1rem; margin-bottom: 2.5rem;
+    /* ── Топ-3 карточки ─────────────────────────── */
+    .top3-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.12fr 1fr;
+      gap: .6rem; margin-bottom: 2rem;
+      align-items: end;
     }
-    .podium-item { text-align: center; flex: 1; max-width: 180px; text-decoration: none; }
-    .podium-avatar {
-      width: 72px; height: 72px; border-radius: 50%;
-      margin: 0 auto .5rem;
-      background: var(--primary);
+    .top3-card {
+      border-radius: 16px; overflow: hidden;
+      text-decoration: none; color: inherit;
+      border: 1px solid var(--border);
+      background: var(--card2);
+      display: flex; flex-direction: column; align-items: center;
+      transition: transform .15s;
+    }
+    .top3-card:active { transform: scale(.97); }
+    @media(min-width:1024px) { .top3-card:hover { transform: translateY(-3px); } }
+
+    .top3-bg {
+      width: 100%; height: 100px;
+      background-size: cover; background-position: top center;
+      position: relative; flex-shrink: 0;
+      border-radius: 14px 14px 0 0;
+    }
+    .top3-card.rank-1 .top3-bg { height: 120px; }
+
+    .top3-medal {
+      position: absolute; top: 8px; left: 8px;
+      width: 28px; height: 28px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.8rem; overflow: hidden;
-      box-shadow: 0 4px 24px rgba(102,126,234,.35);
+      font-size: .8rem; font-weight: 800; color: #fff;
+      border: 2px solid rgba(0,0,0,.25); z-index: 2;
+      box-shadow: 0 2px 8px rgba(0,0,0,.5);
     }
-    .podium-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .podium-name {
-      font-size: .85rem; font-weight: 600; color: #d4d4d8;
+    .top3-card.rank-1 .top3-medal { background: linear-gradient(135deg,#FFD700,#FFA500); }
+    .top3-card.rank-2 .top3-medal { background: linear-gradient(135deg,#C0C0C0,#909090); }
+    .top3-card.rank-3 .top3-medal { background: linear-gradient(135deg,#CD7F32,#8B4513); }
+
+    .top3-av-wrap {
+      margin-top: -28px; z-index: 3; position: relative;
+      width: 60px; height: 60px; border-radius: 50%;
+      border: 3px solid var(--card2); overflow: hidden;
+      background: linear-gradient(135deg,#667eea,#764ba2);
+      flex-shrink: 0;
+    }
+    .top3-card.rank-1 .top3-av-wrap { width: 72px; height: 72px; }
+    .top3-av-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .top3-body {
+      padding: .45rem .6rem .8rem;
+      width: 100%; text-align: center;
+    }
+    .top3-name {
+      font-size: .78rem; font-weight: 700; color: #d4d4d8;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: .3rem;
     }
-    .podium-xp { font-size: .75rem; color: var(--text-3); margin-top: .15rem; }
-    .podium-stand {
-      border-radius: 8px 8px 0 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem; font-weight: 800; color: #fff; margin-top: .5rem;
+    .top3-level {
+      display: inline-block;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: .15rem .5rem;
+      font-size: .68rem; font-weight: 700; color: var(--accent);
+      margin-bottom: .55rem; line-height: 1;
     }
-    .stand-1 { height: 90px; background: linear-gradient(135deg, #FFD700, #FFA500); }
-    .stand-2 { height: 70px; background: linear-gradient(135deg, #C0C0C0, #909090); }
-    .stand-3 { height: 55px; background: linear-gradient(135deg, #CD7F32, #8B4513); }
+    .top3-stats {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: .2rem; border-top: 1px solid var(--border);
+      padding-top: .5rem;
+    }
+    .top3-stat-val { font-size: .78rem; font-weight: 700; color: #fff; line-height: 1.2; }
+    .top3-stat-lbl { font-size: .58rem; color: var(--text-3); line-height: 1.3; margin-top: .1rem; }
 
     /* ── Таблица ───────────────────────────────── */
     .leaderboard {
       background: var(--card2); border-radius: 16px;
       border: 1px solid var(--border); overflow: hidden;
     }
+    /* grid: rank | avatar | name | level | xp */
     .lb-row {
-      display: flex; align-items: center; gap: 1rem;
+      display: grid;
+      grid-template-columns: 36px 40px 1fr 56px 64px;
+      align-items: center; gap: .75rem;
       padding: .85rem 1.25rem;
       border-bottom: 1px solid rgba(255,255,255,.04);
       transition: background .15s; text-decoration: none; color: inherit;
+    }
+    /* + chapters column on wider screens */
+    @media(min-width:500px) {
+      .lb-row { grid-template-columns: 36px 40px 1fr 56px 56px 64px; }
     }
     .lb-row:last-child { border-bottom: none; }
     .lb-row:hover { background: var(--card); }
@@ -138,8 +189,8 @@
     }
 
     .lb-rank {
-      width: 36px; text-align: center; font-weight: 700; font-size: 1rem;
-      color: var(--text-3); flex-shrink: 0;
+      text-align: center; font-weight: 700; font-size: 1rem;
+      color: var(--text-3);
     }
     .lb-rank.top3 { color: #FFD700; }
 
@@ -147,25 +198,25 @@
       width: 40px; height: 40px; border-radius: 50%;
       background: var(--primary);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; flex-shrink: 0; overflow: hidden;
+      font-size: 1rem; overflow: hidden;
     }
     .lb-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
     .lb-name {
-      flex: 1; font-weight: 600; font-size: .9rem; color: #d4d4d8;
+      font-weight: 600; font-size: .9rem; color: #d4d4d8;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .lb-level {
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 20px; padding: .2rem .6rem;
-      font-size: .75rem; font-weight: 700; color: var(--accent); flex-shrink: 0;
-      align-self: center; line-height: 1;
+      border-radius: 20px; padding: .2rem .5rem;
+      font-size: .75rem; font-weight: 700; color: var(--accent);
+      line-height: 1; text-align: center; justify-self: center;
     }
-    .lb-xp { text-align: right; flex-shrink: 0; }
+    .lb-xp { text-align: right; }
     .lb-xp-val { font-weight: 700; font-size: .9rem; color: #fff; }
     .lb-xp-label { font-size: .7rem; color: var(--text-3); }
 
-    .lb-chapters { text-align: right; flex-shrink: 0; display: none; }
+    .lb-chapters { text-align: right; display: none; }
     @media(min-width:500px) { .lb-chapters { display: block; } }
     .lb-chapters-val { font-weight: 600; font-size: .85rem; color: var(--text-2); }
     .lb-chapters-label { font-size: .7rem; color: var(--text-3); }
@@ -199,6 +250,7 @@ const {createElement:h,Fragment} = React;
 const LEADERS      = {{ leaders | tojson }};
 const MY_ID        = {{ user_id | tojson }};
 const MY_RANK_DATA = {{ my_rank_data | tojson }};
+const TOTAL_USERS  = {{ total_users | tojson }};
 
 function Av({url, size=40, fontSize='1rem'}){
   const s = {
@@ -212,22 +264,48 @@ function Av({url, size=40, fontSize='1rem'}){
   );
 }
 
-function Podium(){
+function TopThree(){
   const top3 = LEADERS.slice(0,3);
-  if(top3.length < 1) return null;
-  const order  = top3.length >= 3 ? [top3[1],top3[0],top3[2]] : [top3[0]];
-  const stands = top3.length >= 3 ? ['stand-2','stand-1','stand-3'] : ['stand-1'];
-  const medals = top3.length >= 3 ? ['2','1','3'] : ['1'];
+  if(!top3.length) return null;
+  // отображаем: 2-й, 1-й, 3-й
+  const order = top3.length >= 3 ? [top3[1],top3[0],top3[2]] : top3;
+  const ranks = top3.length >= 3 ? [2,1,3] : [1,2,3].slice(0,top3.length);
 
-  return h('div',{className:'podium'},
-    order.map((u,i)=>
-      h('a',{key:u.id, className:'podium-item', href:`/profile/${u.id}`},
-        h('div',{className:'podium-avatar'}, h(Av,{url:u.avatar_url,size:72,fontSize:'1.8rem'})),
-        h('div',{className:'podium-name'}, (u.custom_name||'').trim()||(u.telegram_first_name||'').trim()||(u.telegram_username||'').trim()||`#${u.id}`),
-        h('div',{className:'podium-xp'}, `${(u.xp||0).toLocaleString()} XP`),
-        h('div',{className:`podium-stand ${stands[i]}`}, medals[i])
-      )
-    )
+  return h('div',{className:'top3-grid'},
+    order.map((u,i)=>{
+      const rank = ranks[i];
+      const name = (u.custom_name||'').trim()||(u.telegram_first_name||'').trim()||(u.telegram_username||'').trim()||`#${u.id}`;
+      const betterThan = Math.round((TOTAL_USERS - rank) / TOTAL_USERS * 100);
+      const bgStyle = u.background_url
+        ? {backgroundImage:`url(${u.background_url})`, backgroundSize:'cover', backgroundPosition:'center'}
+        : {background:'linear-gradient(135deg,#08081a 0%,#1a1040 100%)'};
+      return h('a',{key:u.id, className:`top3-card rank-${rank}`, href:`/profile/${u.id}`},
+        h('div',{className:'top3-bg', style:bgStyle},
+          h('div',{className:'top3-medal'}, rank)
+        ),
+        h('div',{className:'top3-av-wrap'},
+          u.avatar_url ? h('img',{src:u.avatar_url,alt:''}) : ''
+        ),
+        h('div',{className:'top3-body'},
+          h('div',{className:'top3-name'}, name),
+          h('div',{className:'top3-level'}, `Lv.${u.level||1}`),
+          h('div',{className:'top3-stats'},
+            h('div',{className:'top3-stat'},
+              h('div',{className:'top3-stat-val'}, u.total_chapters_read||0),
+              h('div',{className:'top3-stat-lbl'}, 'глав')
+            ),
+            h('div',{className:'top3-stat'},
+              h('div',{className:'top3-stat-val'}, (u.xp||0).toLocaleString()),
+              h('div',{className:'top3-stat-lbl'}, 'XP')
+            ),
+            h('div',{className:'top3-stat'},
+              h('div',{className:'top3-stat-val'}, `${betterThan}%`),
+              h('div',{className:'top3-stat-lbl'}, 'лучше чем')
+            )
+          )
+        )
+      );
+    })
   );
 }
 
@@ -257,18 +335,19 @@ function LbRow({u, rank}){
 }
 
 function TopPage(){
+  const rest = LEADERS.slice(3);
   return h(Fragment,null,
     h('div',{className:'top-hero'},
       h('h1',null,'Топ читателей'),
       h('p',null,'Читай больше — зарабатывай XP — попади в топ')
     ),
     h('div',{className:'top-container'},
-      h(Podium),
+      h(TopThree),
       LEADERS.length === 0
         ? h('p',{style:{textAlign:'center',color:'#71717a',padding:'2rem'}},
             'Пока никого нет. Будь первым!')
-        : h('div',{className:'leaderboard'},
-            LEADERS.map((u,i)=>h(LbRow,{key:u.id,u,rank:i+1})),
+        : rest.length > 0 && h('div',{className:'leaderboard'},
+            rest.map((u,i)=>h(LbRow,{key:u.id,u,rank:i+4})),
             MY_RANK_DATA && h(Fragment,null,
               h('div',{className:'lb-my-sep'}),
               h(LbRow,{key:'my-pos',u:MY_RANK_DATA,rank:MY_RANK_DATA.rank})

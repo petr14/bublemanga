@@ -4888,6 +4888,7 @@ def top_page():
                   u.is_premium,
                   s.xp, s.level, s.total_chapters_read,
                   COALESCE(p.custom_avatar_url, p.avatar_url) as avatar_url,
+                  p.background_url,
                   NULLIF(TRIM(COALESCE(p.custom_name, '')), '') as custom_name,
                   (SELECT si.css_value FROM shop_items si
                    JOIN user_items ui ON si.id = ui.item_id
@@ -4897,7 +4898,11 @@ def top_page():
            JOIN user_stats s ON u.id = s.user_id
            LEFT JOIN user_profile p ON u.id = p.user_id'''
 
-    c.execute(ROW_SQL + ' ORDER BY s.xp DESC LIMIT 100')
+    c.execute('SELECT COUNT(*) as cnt FROM user_stats')
+    _cnt_row = c.fetchone()
+    total_users = (_cnt_row['cnt'] if _cnt_row else 1) or 1
+
+    c.execute(ROW_SQL + ' ORDER BY s.xp DESC LIMIT 50')
     rows = c.fetchall()
 
     def make_display(r):
@@ -4932,7 +4937,8 @@ def top_page():
                 my_rank_data = my_data
 
     conn.close()
-    return render_template('top.html', leaders=leaders, user_id=user_id, my_rank_data=my_rank_data)
+    return render_template('top.html', leaders=leaders, user_id=user_id,
+                           my_rank_data=my_rank_data, total_users=total_users)
 
 
 @app.route('/shop')
