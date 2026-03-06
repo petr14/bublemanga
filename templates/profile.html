@@ -102,7 +102,7 @@
         }
         .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .avatar-edit-btn {
-            position: absolute; bottom: 4px; right: 4px;
+            position: absolute; bottom: 2px; right: 2px;
             width: 30px; height: 30px; border-radius: 50%;
             background: var(--primary); border: 2px solid var(--bg);
             color: white; font-size: 13px;
@@ -203,11 +203,12 @@
 
         /* Stats */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-        .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; transition: border-color .2s, transform .2s; }
+        .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 6px; transition: border-color .2s, transform .2s; }
         .stat-card:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .stat-icon { font-size: 22px; margin-bottom: 4px; }
-        .bubble-icon { width: 1em; height: 1em; vertical-align: -0.15em; display: inline-block; }
-        .stat-num { font-size: 22px; font-weight: 800; }
+        .stat-icon { font-size: 16px; display: inline-flex; align-items: center; }
+        .stat-bottom { display: flex; align-items: center; gap: 5px; }
+        .bubble-icon { width: 1em; height: 1em; vertical-align: -0.1em; display: inline-block; }
+        .stat-num { font-size: 24px; font-weight: 800; line-height: 1; }
         .stat-name { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
 
         .section-head { font-size: 16px; font-weight: 700; margin-bottom: 14px; margin-top: 28px; display: flex; align-items: center; gap: 8px; }
@@ -494,11 +495,11 @@
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><span class="stat-name">Глав прочитано</span></div>
-        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
-        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
-        <div class="stat-card"><span class="stat-icon"><img src="/static/bubbles.svg" style="width:24px;height:24px;vertical-align:middle" alt=""></span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Шарики</span></div>
-        <div class="stat-card" style="border-color:rgba(251,146,60,.25)"><span class="stat-icon">🔥</span><span class="stat-num" style="color:#fb923c">{{ profile.reading_streak or 0 }}</span><span class="stat-name">Стрик дней{% if profile.max_streak and profile.max_streak > (profile.reading_streak or 0) %} <span style="font-size:11px;color:var(--text2)">(рекорд: {{ profile.max_streak }})</span>{% endif %}</span></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><div class="stat-bottom"><span class="stat-icon">📖</span><span class="stat-name">Глав прочитано</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><div class="stat-bottom"><span class="stat-icon">📄</span><span class="stat-name">Страниц</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.xp }}</span><div class="stat-bottom"><span class="stat-icon">⭐</span><span class="stat-name">Опыт</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.coins }}</span><div class="stat-bottom"><span class="stat-icon"><img src="/static/bubbles.svg" class="bubble-icon" alt=""></span><span class="stat-name">Шарики</span></div></div>
+        <div class="stat-card" style="border-color:rgba(251,146,60,.25)"><span class="stat-num" style="color:#fb923c">{{ profile.reading_streak or 0 }}</span><div class="stat-bottom"><span class="stat-icon">🔥</span><span class="stat-name">Стрик дней{% if profile.max_streak and profile.max_streak > (profile.reading_streak or 0) %} <span style="font-size:10px;color:var(--text2)">(рекорд: {{ profile.max_streak }})</span>{% endif %}</span></div></div>
     </div>
 
     <div class="section-head"> Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
@@ -886,7 +887,7 @@
             .then(r => r.json())
             .then(rows => {
                 const el = document.getElementById('historyContent');
-                if (!rows.length) { el.innerHTML = emptyState('', 'История пуста', 'Начни читать мангу!'); return; }
+                if (!rows.length) { el.innerHTML = emptyState('😔', 'История пуста', 'Начни читать мангу!'); return; }
                 el.innerHTML = '<div class="history-list">' + rows.map(r => `
                     <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}" class="hitem">
                         <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">

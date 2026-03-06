@@ -417,6 +417,7 @@
             text-decoration: none;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             white-space: nowrap;
             order: 2;
@@ -859,9 +860,10 @@
             margin-bottom: 30px;
             flex-wrap: nowrap;
             overflow-x: auto;
+            overflow-y: visible;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            padding: 0 16px;
+            padding: 6px 16px 0;
         }
 
         @media (min-width: 768px) {
@@ -2044,7 +2046,6 @@
                 </p>
                 <div class="hero-buttons">
                     <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                        <span></span>
                         <span>Начать в Telegram</span>
                     </a>
                     <a href="#trending" class="btn-secondary">
@@ -2667,7 +2668,8 @@
             var scrollEl = null, startX = 0, startY = 0, scrollStart = 0, dir = null;
             document.addEventListener('touchstart', function(e) {
                 var el = e.target.closest('.manga-grid, .slider');
-                if (!el) { scrollEl = null; return; }
+                // активируем только если элемент реально прокручивается горизонтально
+                if (!el || el.scrollWidth <= el.clientWidth + 4) { scrollEl = null; return; }
                 scrollEl = el;
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
