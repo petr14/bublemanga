@@ -36,7 +36,7 @@ class MiraiCollectiblesParser:
                 "exclude": [],
                 "include": []
             },
-            "type": "BANNER",
+            "type": "AVATAR",
             "visible": True
         }
         
@@ -215,7 +215,7 @@ class MiraiCollectiblesParser:
         
         return all_images
     
-    def download_images(self, images, download_dir="static/banner"):
+    def download_images(self, images, download_dir="static/avatar"):
         """Скачивает все изображения в указанную директорию"""
         # Создаем директорию если её нет
         Path(download_dir).mkdir(parents=True, exist_ok=True)
@@ -438,7 +438,7 @@ def main():
         return
     
     # Создаем директории
-    Path("static/banner").mkdir(parents=True, exist_ok=True)
+    Path("static/avatar").mkdir(parents=True, exist_ok=True)
     print("✓ Директория static/banner создана/проверена")
     
     # Создаем парсер
