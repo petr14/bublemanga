@@ -1212,6 +1212,10 @@
                                     {% if user_manga_status %}<div class="status-option status-option-remove" onclick="setMangaStatus('{{ manga.manga_id }}',null)">✕ Убрать</div>{% endif %}
                                 </div>
                             </div>
+
+                            <button class="btn" onclick="openRecommendModal('{{ manga.manga_id }}')">
+                                <span>📨 Рекомендовать</span>
+                            </button>
                             {% endif %}
 
                             <button class="btn" onclick="openSimilarModal()">
@@ -1475,6 +1479,111 @@
                     removeOpt.remove();
                 }
             }
+        }
+
+        // ==================== РЕКОМЕНДАЦИЯ ДРУГУ ====================
+        let _recommendMangaId = null;
+        let _recommendSelectedUser = null;
+
+        function openRecommendModal(mangaId) {
+            _recommendMangaId = mangaId;
+            _recommendSelectedUser = null;
+            document.getElementById('recommendMsg').value = '';
+            document.getElementById('recommendSendBtn').disabled = true;
+            const overlay = document.getElementById('recommendOverlay');
+            overlay.style.display = 'flex';
+            loadRecommendFriends();
+        }
+
+        function closeRecommendModal() {
+            document.getElementById('recommendOverlay').style.display = 'none';
+        }
+
+        async function loadRecommendFriends() {
+            const el = document.getElementById('recommendFriendsList');
+            el.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Загрузка…</div>';
+            try {
+                const r = await fetch('/api/user/following-curators');
+                const d = await r.json();
+                const friends = d.curators || [];
+                if (!friends.length) {
+                    el.innerHTML = '<div style="text-align:center;padding:16px;color:#666;font-size:13px">Нет друзей. Подписывайся на пользователей!</div>';
+                    return;
+                }
+                el.innerHTML = friends.map(f => `
+                    <div class="rec-friend-item" data-uid="${f.id}" onclick="selectRecommendFriend(${f.id},this)"
+                         style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:all .2s;background:rgba(255,255,255,.03)">
+                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden">
+                            ${f.avatar_url ? `<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : f.display_name[0]}
+                        </div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f.display_name)}</div>
+                            ${f.is_premium ? '<div style="font-size:11px;color:#f59e0b">👑 Premium</div>' : ''}
+                        </div>
+                        <div class="rec-check" style="display:none;color:#667eea;font-size:18px">✓</div>
+                    </div>`).join('');
+            } catch(e) {
+                el.innerHTML = '<div style="text-align:center;padding:16px;color:#ef4444;font-size:13px">Ошибка загрузки</div>';
+            }
+        }
+
+        function selectRecommendFriend(uid, el) {
+            document.querySelectorAll('.rec-friend-item').forEach(item => {
+                item.style.borderColor = 'rgba(255,255,255,.08)';
+                item.style.background = 'rgba(255,255,255,.03)';
+                item.querySelector('.rec-check').style.display = 'none';
+            });
+            el.style.borderColor = 'rgba(102,126,234,.5)';
+            el.style.background = 'rgba(102,126,234,.08)';
+            el.querySelector('.rec-check').style.display = 'block';
+            _recommendSelectedUser = uid;
+            document.getElementById('recommendSendBtn').disabled = false;
+        }
+
+        async function sendRecommendation() {
+            if (!_recommendSelectedUser || !_recommendMangaId) return;
+            const btn = document.getElementById('recommendSendBtn');
+            btn.disabled = true;
+            btn.textContent = 'Отправка…';
+            const msg = document.getElementById('recommendMsg').value.trim();
+            try {
+                const r = await fetch(`/api/manga/${_recommendMangaId}/recommend`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({target_user_id: _recommendSelectedUser, message: msg})
+                });
+                const d = await r.json();
+                if (d.ok) {
+                    closeRecommendModal();
+                    showToast('Рекомендация отправлена!', 'success');
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = 'Отправить';
+                    showToast(d.error || 'Ошибка', 'error');
+                }
+            } catch(e) {
+                btn.disabled = false;
+                btn.textContent = 'Отправить';
+                showToast('Ошибка сети', 'error');
+            }
+        }
+
+        function escHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+        function showToast(msg, type) {
+            let t = document.getElementById('_mangaToast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = '_mangaToast';
+                t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1f1f1f;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 20px;font-size:14px;z-index:9999;transition:transform .3s;max-width:calc(100vw - 32px);text-align:center;pointer-events:none;white-space:nowrap';
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            t.style.borderColor = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : 'rgba(255,255,255,.1)';
+            t.style.color = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#fff';
+            t.style.transform = 'translateX(-50%) translateY(0)';
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(80px)'; }, 3000);
         }
 
         async function toggleWishlist(mangaId) {
@@ -2098,6 +2207,31 @@
             loadComments();
         })();
     </script>
+
+<!-- ── Модалка рекомендации ── -->
+{% if user_id %}
+<div id="recommendOverlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);padding:1.5rem;display:none;align-items:center;justify-content:center" onclick="if(event.target===this)closeRecommendModal()">
+  <div style="width:100%;max-width:420px;background:#161616;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:24px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:800">📨 Рекомендовать другу</div>
+      <button onclick="closeRecommendModal()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div style="font-size:13px;color:#a1a1aa;margin-bottom:14px">Выбери друга, которому хочешь порекомендовать эту мангу:</div>
+    <div id="recommendFriendsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;max-height:240px;overflow-y:auto">
+      <div style="text-align:center;padding:20px;color:#666">Загрузка…</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;color:#a1a1aa;display:block;margin-bottom:6px">Сообщение (необязательно)</label>
+      <textarea id="recommendMsg" maxlength="200" placeholder="Очень советую!"
+        style="width:100%;padding:10px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-size:13px;font-family:inherit;resize:none;min-height:70px;outline:none;box-sizing:border-box"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="closeRecommendModal()" style="flex:0;padding:10px 16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#a1a1aa;cursor:pointer;font-size:13px">Отмена</button>
+      <button id="recommendSendBtn" onclick="sendRecommendation()" style="flex:1;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:13px;cursor:pointer" disabled>Отправить</button>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- ── Модалка похожих ── -->
 <div id="similarOverlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)closeSimilarModal()">

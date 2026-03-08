@@ -592,6 +592,7 @@
     <div class="lib-tabs">
         {% if is_own %}<button class="lib-btn active" data-lib="history">История</button>{% endif %}
         <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">Подписки</button>
+        <button class="lib-btn" data-lib="readlist">Список чтения</button>
         <button class="lib-btn" data-lib="collections">Коллекции</button>
         {% if is_own %}<button class="lib-btn" data-lib="wishlist">🔖 Хочу прочитать</button>{% endif %}
         {% if is_own %}<button class="lib-btn" data-lib="curators">Друзья</button>{% endif %}
@@ -619,6 +620,17 @@
     <div id="lib-subscriptions" class="lib-pane{% if not is_own %} active{% endif %}">
         <div id="subsContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
+    <div id="lib-readlist" class="lib-pane">
+        <div class="readlist-status-tabs" id="readlistTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <button class="lib-btn active" data-rstatus="reading" onclick="switchReadlistTab('reading',this)">📖 Читаю</button>
+            <button class="lib-btn" data-rstatus="completed" onclick="switchReadlistTab('completed',this)">✅ Прочитано</button>
+            <button class="lib-btn" data-rstatus="planned" onclick="switchReadlistTab('planned',this)">📋 В планах</button>
+            <button class="lib-btn" data-rstatus="paused" onclick="switchReadlistTab('paused',this)">⏸ Отложено</button>
+            <button class="lib-btn" data-rstatus="dropped" onclick="switchReadlistTab('dropped',this)">🗑 Брошено</button>
+        </div>
+        <div id="readlistContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    </div>
+
     <div id="lib-collections" class="lib-pane">
         {% if is_own %}
         <div class="coll-header">
@@ -914,6 +926,44 @@
         else if (name === 'collections') fetchColls();
         else if (name === 'wishlist') fetchWishlist();
         else if (name === 'curators') loadCurators();
+        else if (name === 'readlist') fetchReadlist('reading');
+    }
+
+    // ── Список чтения ────────────────────────────────────────────────────────
+    const _STATUS_LABELS_PROF = {
+        reading: '📖 Читаю', completed: '✅ Прочитано',
+        planned: '📋 В планах', paused: '⏸ Отложено', dropped: '🗑 Брошено'
+    };
+    let _currentReadlistStatus = 'reading';
+
+    function switchReadlistTab(status, btnEl) {
+        document.querySelectorAll('#readlistTabs .lib-btn').forEach(b => b.classList.remove('active'));
+        btnEl.classList.add('active');
+        fetchReadlist(status);
+    }
+
+    function fetchReadlist(status) {
+        _currentReadlistStatus = status;
+        const el = document.getElementById('readlistContent');
+        el.innerHTML = '<div class="loading-spin"><div class="spin"></div></div>';
+        fetch(`/api/user/reading-list?uid=${PROFILE_USER_ID}&status=${status}`)
+            .then(r => r.json())
+            .then(rows => {
+                if (!rows.length) {
+                    el.innerHTML = emptyState(_STATUS_LABELS_PROF[status] || '📚', 'Список пуст', 'Добавляй мангу через кнопку «Статус» на странице манги');
+                    return;
+                }
+                el.innerHTML = '<div class="manga-grid-lib">' + rows.map(m => `
+                    <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
+                        <img src="${esc(m.cover_url||'')}" class="mcard-img"
+                             onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <div class="mcard-info">
+                            <div class="mcard-title">${esc(m.manga_title)}</div>
+                            <div class="mcard-meta">${typeRu(m.manga_type)}</div>
+                        </div>
+                    </div>`).join('') + '</div>';
+            })
+            .catch(() => { el.innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
     }
 
     // ── Кураторы ─────────────────────────────────────────────────────────────

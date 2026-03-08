@@ -5937,6 +5937,63 @@ def set_manga_status(manga_id):
     return jsonify({'status': status})
 
 
+@app.route('/api/user/reading-list')
+def api_user_reading_list():
+    """Список манги пользователя по статусу чтения"""
+    uid = request.args.get('uid', type=int)
+    target_id = uid if uid else session.get('user_id')
+    if not target_id:
+        return jsonify([])
+    status = request.args.get('status')
+    conn = get_db()
+    q = '''SELECT m.manga_id, m.manga_slug, m.manga_title, m.cover_url, m.manga_type,
+                  ums.status, ums.updated_at
+           FROM user_manga_status ums
+           JOIN manga m ON ums.manga_id = m.manga_id
+           WHERE ums.user_id=?'''
+    params = [target_id]
+    if status:
+        q += ' AND ums.status=?'
+        params.append(status)
+    q += ' ORDER BY ums.updated_at DESC'
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/manga/<manga_id>/recommend', methods=['POST'])
+def api_manga_recommend(manga_id):
+    """Рекомендовать мангу другому пользователю"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    data = request.json or {}
+    target_user_id = data.get('target_user_id')
+    message = (data.get('message') or '').strip()[:200]
+    if not target_user_id:
+        return jsonify({'error': 'Не указан получатель'}), 400
+    conn = get_db()
+    manga = conn.execute('SELECT manga_slug, manga_title FROM manga WHERE manga_id=?', (manga_id,)).fetchone()
+    if not manga:
+        conn.close()
+        return jsonify({'error': 'Манга не найдена'}), 404
+    sender = conn.execute(
+        '''SELECT u.id, COALESCE(up.custom_name, u.telegram_first_name, u.telegram_username, 'Пользователь') as name
+           FROM users u LEFT JOIN user_profile up ON up.user_id = u.id
+           WHERE u.id=?''', (user_id,)).fetchone()
+    title = f'{sender["name"]} рекомендует мангу'
+    body = manga['manga_title']
+    if message:
+        body += f' — «{message}»'
+    create_site_notification(
+        target_user_id, 'manga_recommend', title, body,
+        f'/manga/{manga["manga_slug"]}', conn=conn
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
 @app.route('/api/user/wishlist')
 def api_user_wishlist():
     user_id = session.get('user_id')
