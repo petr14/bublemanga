@@ -825,16 +825,17 @@
         const p = new URLSearchParams(location.search);
         const tabParam = p.get('tab');
         const libParam = p.get('lib');
-        if (tabParam) {
+        if (!tabParam) return;
+        setTimeout(() => {
             const btn = document.querySelector(`.tab-btn[data-tab="${tabParam}"]`);
             if (btn) btn.click();
             if (libParam) {
                 setTimeout(() => {
                     const lbtn = document.querySelector(`.lib-btn[data-lib="${libParam}"]`);
                     if (lbtn) lbtn.click();
-                }, 100);
+                }, 300);
             }
-        }
+        }, 200);
     })();
 
     // Quests
@@ -975,15 +976,22 @@
                 const el = document.getElementById('recommendationsContent');
                 const items = data.recommendations || [];
                 if (!items.length) { el.innerHTML = emptyState('📨', 'Нет рекомендаций', 'Друзья пока ничего не рекомендовали'); return; }
-                el.innerHTML = '<div class="history-list">' + items.map(rec => `
-                    <a href="/manga/${esc(rec.manga_slug)}" class="hitem">
-                        <img src="${esc(rec.cover_url || '')}" class="hitem-cover" onerror="this.style.background='#1a1a1a';this.style.display='block'">
+                el.innerHTML = '<div class="history-list">' + items.map(rec => {
+                    const slug = rec.manga_slug || '';
+                    const href = slug ? `/manga/${esc(slug)}` : '#';
+                    const cover = rec.cover_url
+                        ? `<img src="${esc(rec.cover_url)}" class="hitem-cover" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+                        : '';
+                    const fallback = `<div class="hitem-cover" style="background:linear-gradient(135deg,#667eea,#764ba2);display:${rec.cover_url ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border-radius:8px">📚</div>`;
+                    return `<a href="${href}" class="hitem">
+                        ${cover}${fallback}
                         <div class="hitem-info">
-                            <div class="hitem-title">${esc(rec.manga_title)}</div>
-                            <div class="hitem-chap">от ${esc(rec.sender_name)}${rec.message ? ` — «${esc(rec.message)}»` : ''}</div>
+                            <div class="hitem-title">${esc(rec.manga_title || '—')}</div>
+                            <div class="hitem-chap" style="color:var(--primary)">от ${esc(rec.sender_name)}${rec.message ? `<span style="color:var(--text2)"> — «${esc(rec.message)}»</span>` : ''}</div>
                         </div>
                         <div class="hitem-date">${fmtDate(rec.created_at)}</div>
-                    </a>`).join('') + '</div>';
+                    </a>`;
+                }).join('') + '</div>';
             }).catch(() => { document.getElementById('recommendationsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
     }
 
