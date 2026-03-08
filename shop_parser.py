@@ -36,7 +36,7 @@ class MiraiCollectiblesParser:
                 "exclude": [],
                 "include": []
             },
-            "type": "AVATAR",
+            "type": "FRAME",
             "visible": True
         }
         
@@ -215,7 +215,7 @@ class MiraiCollectiblesParser:
         
         return all_images
     
-    def download_images(self, images, download_dir="static/avatar"):
+    def download_images(self, images, download_dir="static/frame"):
         """Скачивает все изображения в указанную директорию"""
         # Создаем директорию если её нет
         Path(download_dir).mkdir(parents=True, exist_ok=True)
@@ -393,7 +393,7 @@ def test_connection():
     test_url = "https://api.senkuro.com/graphql"
     test_payload = {
         "operationName": "fetchCollectibles",
-        "variables": {"first": 1, "type": "BANNER"},
+        "variables": {"first": 1, "type": "FRAME"},
         "extensions": {
             "persistedQuery": {
                 "version": 1,
@@ -438,8 +438,8 @@ def main():
         return
     
     # Создаем директории
-    Path("static/avatar").mkdir(parents=True, exist_ok=True)
-    print("✓ Директория static/banner создана/проверена")
+    Path("static/frame").mkdir(parents=True, exist_ok=True)
+    print("✓ Директория static/FRAME создана/проверена")
     
     # Создаем парсер
     parser = MiraiCollectiblesParser(delay=2)  # Увеличили задержку
@@ -461,10 +461,10 @@ def main():
     parser.print_summary(all_images)
     
     # Спрашиваем хочет ли пользователь скачать изображения
-    download = input("\nХотите скачать все изображения в static/banner? (y/n): ").lower()
+    download = input("\nХотите скачать все изображения в static/FRAME? (y/n): ").lower()
     if download == 'y':
         downloaded = parser.download_images(all_images)
-        print(f"\nУспешно скачано {downloaded} файлов в папку static/banner/")
+        print(f"\nУспешно скачано {downloaded} файлов в папку static/FRAME/")
     
     print("\nГотово!")
 
