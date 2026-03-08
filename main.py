@@ -4,7 +4,7 @@ import hmac
 import hashlib
 import urllib.parse
 from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response, make_response, send_from_directory
+from flask import Flask, render_template, render_template_string, jsonify, request, session, redirect, url_for, Response, make_response, send_from_directory
 import threading
 import sqlite3
 import secrets
@@ -4184,12 +4184,51 @@ self.addEventListener('fetch', e => {
 def login_token(token):
     """Вход по токену из Telegram"""
     user = get_user_by_token(token)
-    if user:
-        session['user_id'] = user['id']
-        session['username'] = user['telegram_username'] or user['telegram_first_name'] or f"User_{user['id']}"
-        session.permanent = True
-        return redirect(url_for('index'))
-    return "Неверный или устаревший токен. Получите новый через Telegram бота.", 403
+    if not user:
+        return "Неверный или устаревший токен. Получите новый через Telegram бота.", 403
+    session['user_id'] = user['id']
+    session['username'] = user['telegram_username'] or user['telegram_first_name'] or f"User_{user['id']}"
+    session.permanent = True
+    # Не делаем redirect сразу — страница остаётся на /login/<token>.
+    # Это позволяет пользователю нажать «Открыть в браузере» в Telegram
+    # и попасть в Safari уже с токеном → залогиниться там тоже.
+    name = user.get('telegram_first_name') or user.get('telegram_username') or 'Пользователь'
+    return render_template_string('''<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Вход — BubbleManga</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{min-height:100dvh;display:flex;align-items:center;justify-content:center;
+         background:#0a0a0a;font-family:'Segoe UI',system-ui,sans-serif;color:#f4f4f5;padding:20px}
+    .card{text-align:center;max-width:360px;width:100%}
+    .icon{font-size:56px;margin-bottom:16px}
+    h1{font-size:22px;font-weight:700;margin-bottom:8px}
+    .sub{font-size:14px;color:rgba(244,244,245,.55);margin-bottom:28px;line-height:1.5}
+    .btn{display:block;padding:14px 24px;border-radius:14px;text-decoration:none;
+         background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;
+         font-size:15px;font-weight:700;transition:opacity .18s;margin-bottom:12px}
+    .btn:hover{opacity:.85}
+    .hint{font-size:12px;color:rgba(244,244,245,.35);line-height:1.5}
+    .hint b{color:rgba(244,244,245,.6)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Добро пожаловать, {{ name }}!</h1>
+    <p class="sub">Вы успешно вошли в аккаунт.<br>Нажмите кнопку ниже чтобы перейти на сайт.</p>
+    <a href="/" class="btn">Перейти на BubbleManga</a>
+    <p class="hint">
+      Хотите открыть в браузере (Safari)?<br>
+      Нажмите <b>···&nbsp;→&nbsp;Открыть в браузере</b> прямо сейчас —<br>
+      вы попадёте туда уже авторизованным.
+    </p>
+  </div>
+</body>
+</html>''', name=name)
 
 @app.route('/logout')
 def logout():
@@ -7744,6 +7783,16 @@ def api_admin_quests_delete(qid):
     conn.commit()
     conn.close()
     return jsonify({'success': True})
+
+
+# ==================== ЗАКЛАДКИ (СПИСОК ЧТЕНИЯ) ====================
+
+@app.route('/bookmarks')
+def bookmarks_page():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect('/')
+    return render_template('bookmarks.html', g_active='bookmarks')
 
 
 # ==================== КАЛЕНДАРЬ МАНГИ ====================

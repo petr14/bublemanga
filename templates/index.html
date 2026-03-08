@@ -957,7 +957,7 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
             scroll-snap-type: x mandatory;
-            touch-action: pan-y;
+            touch-action: pan-x pan-y;
             padding: 4px 4px 12px;
             animation: fadeIn 0.8s ease-out;
         }
@@ -972,40 +972,45 @@
             position: relative;
         }
 
-        .manga-hidden {
-            display: none !important;
-        }
 
-        .manga-expand-btn {
-            position: absolute;
-            right: -5%;
-            top: 50%;
-            transform: translateY(-60%);
-            width: 42px;
-            height: 42px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            color: #fff;
-            font-size: 24px;
-            line-height: 1;
-            cursor: pointer;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.45);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            padding: 0;
+        /* Scroll arrows — desktop only */
+        .manga-scroll-btn {
+            display: none;
         }
-
-        .manga-expand-btn:hover {
-            transform: translateY(-60%) scale(1.12);
-            box-shadow: 0 6px 22px rgba(102, 126, 234, 0.65);
-        }
-
-        .manga-expand-btn:active {
-            transform: translateY(-60%) scale(0.93);
+        @media (min-width: 768px) {
+            .manga-scroll-btn {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: rgba(20,20,30,.92);
+                border: 1px solid rgba(255,255,255,.15);
+                color: #fff;
+                font-size: 20px;
+                line-height: 1;
+                cursor: pointer;
+                z-index: 10;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 16px rgba(0,0,0,.5);
+                transition: opacity .2s, background .2s, transform .2s;
+                padding: 0;
+                opacity: 0;
+                pointer-events: none;
+            }
+            .manga-scroll-btn.visible {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            .manga-scroll-btn:hover {
+                background: rgba(102,126,234,.8);
+                transform: translateY(-50%) scale(1.08);
+            }
+            .manga-scroll-btn.right { right: -18px; }
+            .manga-scroll-btn.left  { left: -18px; }
         }
 
         @keyframes fadeIn {
@@ -1183,6 +1188,7 @@
             margin-bottom: 4px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             line-height: 1.4;
@@ -1306,7 +1312,7 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
             scroll-snap-type: x mandatory;
-            touch-action: pan-y;
+            touch-action: pan-x pan-y;
             padding: 5px;
         }
 
@@ -2544,10 +2550,9 @@
 
         function renderSliderSection(containerId, data, badge, tag, descr) {
             if (!data || !data.mangas || !data.mangas.length) return;
-            const INITIAL = 6;
             const mangas = data.mangas.slice(0, 14);
-            const cards = mangas.map((m, i) => `
-                <div class="manga-card${i >= INITIAL ? ' manga-hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
+            const cards = mangas.map(m => `
+                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
                         <span class="manga-badge new">${badge}</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
@@ -2561,7 +2566,6 @@
                     </div>
                 </div>`).join('');
 
-            const hasMore = mangas.length > INITIAL;
             document.getElementById(containerId).innerHTML = `
                 <section class="section">
                     <div class="section-header">
@@ -2570,18 +2574,19 @@
                         <p class="section-description">${descr}</p>
                     </div>
                     <div class="manga-grid-outer">
+                        <button class="manga-scroll-btn left" aria-label="Назад">&#8249;</button>
                         <div class="manga-grid" id="${containerId}-grid">${cards}</div>
-                        ${hasMore ? `<button class="manga-expand-btn" id="${containerId}-expand-btn" onclick="expandMangaGrid('${containerId}-grid','${containerId}-expand-btn')" aria-label="Показать ещё">›</button>` : ''}
+                        <button class="manga-scroll-btn right" aria-label="Вперёд">&#8250;</button>
                     </div>
                 </section>`;
+            initScrollBtns(containerId);
         }
 
         function renderPopularNew(popularNew) {
             if (!popularNew || !popularNew.mangas || !popularNew.mangas.length) return;
-            const INITIAL = 6;
             const mangas = popularNew.mangas.slice(0, 14);
-            const cards = mangas.map((m, i) => `
-                <div class="manga-card${i >= INITIAL ? ' manga-hidden' : ''}" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
+            const cards = mangas.map(m => `
+                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
                     <div class="manga-cover-container">
                         <span class="manga-badge hot">Горячее</span>
                         <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
@@ -2596,7 +2601,6 @@
                     </div>
                 </div>`).join('');
 
-            const hasMore = mangas.length > INITIAL;
             document.getElementById('section-popular-new').innerHTML = `
                 <section class="section" id="popular">
                     <div class="section-header">
@@ -2605,27 +2609,38 @@
                         <p class="section-description">Новые манги, набирающие популярность</p>
                     </div>
                     <div class="manga-grid-outer">
+                        <button class="manga-scroll-btn left" aria-label="Назад">&#8249;</button>
                         <div class="manga-grid" id="popular-manga-grid">${cards}</div>
-                        ${hasMore ? `<button class="manga-expand-btn" id="popular-expand-btn" onclick="expandMangaGrid('popular-manga-grid','popular-expand-btn')" aria-label="Показать ещё">›</button>` : ''}
+                        <button class="manga-scroll-btn right" aria-label="Вперёд">&#8250;</button>
                     </div>
                 </section>`;
+            initScrollBtns('section-popular-new');
         }
 
-        function expandMangaGrid(gridId, btnId) {
-            const grid = document.getElementById(gridId);
-            if (!grid) return;
-            const hidden = Array.from(grid.querySelectorAll('.manga-hidden'));
-            if (!hidden.length) return;
-            const toShow = hidden.slice(0, 3);
-            toShow.forEach(c => c.classList.remove('manga-hidden'));
-            if (hidden.length <= 3) {
-                const btn = document.getElementById(btnId);
-                if (btn) btn.style.display = 'none';
+        function initScrollBtns(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const outer = container.querySelector('.manga-grid-outer');
+            if (!outer) return;
+            const grid = outer.querySelector('.manga-grid');
+            const btnL = outer.querySelector('.manga-scroll-btn.left');
+            const btnR = outer.querySelector('.manga-scroll-btn.right');
+            if (!grid || !btnL || !btnR) return;
+
+            const STEP = 450;
+
+            function update() {
+                const atStart = grid.scrollLeft <= 4;
+                const atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 4;
+                btnL.classList.toggle('visible', !atStart);
+                btnR.classList.toggle('visible', !atEnd);
             }
-            setTimeout(() => {
-                const first = toShow[0];
-                if (first) grid.scrollTo({ left: first.offsetLeft - 16, behavior: 'smooth' });
-            }, 50);
+
+            grid.addEventListener('scroll', update, { passive: true });
+            update();
+
+            btnL.addEventListener('click', () => grid.scrollBy({ left: -STEP, behavior: 'smooth' }));
+            btnR.addEventListener('click', () => grid.scrollBy({ left: STEP, behavior: 'smooth' }));
         }
 
         // ==================== ФОНОВОЕ ОБНОВЛЕНИЕ МЕТАДАННЫХ МАНГИ ====================
@@ -2663,35 +2678,30 @@
             };
         })();
 
-        // Горизонтальный свайп для каруселей (.manga-grid, .slider)
+        // Горизонтальный свайп каруселей
         (function() {
-            if (!('ontouchstart' in window)) return;
-            var scrollEl = null, startX = 0, startY = 0, scrollStart = 0, dir = null;
+            var grid = null, startX = 0, startY = 0, decided = false;
             document.addEventListener('touchstart', function(e) {
                 var el = e.target.closest('.manga-grid, .slider');
-                // активируем только если элемент реально прокручивается горизонтально
-                if (!el || el.scrollWidth <= el.clientWidth + 4) { scrollEl = null; return; }
-                scrollEl = el;
+                if (!el || el.scrollWidth <= el.clientWidth + 4) { grid = null; return; }
+                grid = el; decided = false;
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
-                scrollStart = el.scrollLeft;
-                dir = null;
             }, { passive: true });
             document.addEventListener('touchmove', function(e) {
-                if (!scrollEl) return;
-                var dx = startX - e.touches[0].clientX;
-                var dy = startY - e.touches[0].clientY;
-                if (!dir) {
-                    if (Math.abs(dx) > Math.abs(dy) + 4) dir = 'x';
-                    else if (Math.abs(dy) > Math.abs(dx) + 4) dir = 'y';
-                }
-                if (dir === 'x') {
+                if (!grid || decided) return;
+                var dx = Math.abs(e.touches[0].clientX - startX);
+                var dy = Math.abs(e.touches[0].clientY - startY);
+                if (dx > 8 && dx > dy * 1.5) {
+                    decided = true;
                     e.preventDefault();
-                    scrollEl.scrollLeft = scrollStart + dx;
+                } else if (dy > 8) {
+                    decided = true;
+                    grid = null;
                 }
             }, { passive: false });
             document.addEventListener('touchend', function() {
-                scrollEl = null; dir = null;
+                grid = null; decided = false;
             }, { passive: true });
         })();
 

@@ -53,7 +53,7 @@ class MiraiCollectiblesParser:
                 }
             }
         }
-        
+       
         return payload
     
     def fetch_page(self, after_cursor=None):
@@ -71,9 +71,9 @@ class MiraiCollectiblesParser:
                 print(f"Текст ответа: {response.text[:500]}")
                 return None
             
-            # Проверяем, что ответ - JSON
+            # Проверяем, что ответ - JSON (включая application/graphql-response+json)
             content_type = response.headers.get('content-type', '')
-            if 'application/json' not in content_type:
+            if 'json' not in content_type:
                 print(f"Неожиданный Content-Type: {content_type}")
                 print(f"Первые 500 символов ответа: {response.text[:500]}")
                 return None
@@ -390,7 +390,7 @@ def test_connection():
     """Тестирует соединение с API"""
     print("Тестирование соединения с API...")
     
-    test_url = "https://mirai.senkuro.net/graphql"
+    test_url = "https://api.senkuro.com/graphql"
     test_payload = {
         "operationName": "fetchCollectibles",
         "variables": {"first": 1, "type": "BANNER"},

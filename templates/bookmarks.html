@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/static/favicon.png"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#667eea">
+  <title>Закладки — BubbleManga</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: #667eea; --primary2: #764ba2;
+      --bg: #0a0a0a; --bg2: #111111; --bg3: #18181b;
+      --text: #f4f4f5; --text2: rgba(244,244,245,.55);
+      --border: rgba(255,255,255,.07);
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; min-height: 100vh; }
+
+    .bm-wrap {
+      max-width: 900px; margin: 0 auto; padding: 24px 16px 32px;
+    }
+
+    .bm-title {
+      font-size: 22px; font-weight: 700; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .bm-title svg {
+      width: 24px; height: 24px; stroke: var(--primary); fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* Status tabs */
+    .bm-tabs {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .bm-tab {
+      padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--bg3);
+      color: var(--text2); cursor: pointer; transition: all .18s;
+      font-family: inherit;
+    }
+    .bm-tab:hover { color: var(--text); border-color: rgba(255,255,255,.15); }
+    .bm-tab.active {
+      background: rgba(102,126,234,.15); border-color: rgba(102,126,234,.4);
+      color: #818cf8;
+    }
+
+    /* Manga grid */
+    .manga-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 14px;
+    }
+    .mcard {
+      cursor: pointer; border-radius: 12px; overflow: hidden;
+      background: var(--bg3); transition: transform .18s, box-shadow .18s;
+    }
+    .mcard:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    .mcard-img {
+      width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;
+      background: #1a1a2e;
+    }
+    .mcard-info { padding: 8px 8px 10px; }
+    .mcard-title {
+      font-size: 12px; font-weight: 600; color: var(--text);
+      line-height: 1.3; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .mcard-meta { font-size: 11px; color: var(--text2); margin-top: 3px; }
+
+    /* Empty state */
+    .bm-empty {
+      text-align: center; padding: 48px 20px; color: var(--text2);
+    }
+    .bm-empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .bm-empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .bm-empty-sub { font-size: 13px; }
+
+    /* Loading */
+    .spin-wrap { display: flex; justify-content: center; padding: 48px 0; }
+    .spin {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.08);
+      border-top-color: var(--primary); animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+{% include 'header.html' %}
+
+<div class="bm-wrap">
+  <div class="bm-title">
+    <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+    Закладки
+  </div>
+
+  <div class="bm-tabs">
+    <button class="bm-tab active" data-status="reading"   onclick="switchTab('reading',this)">📖 Читаю</button>
+    <button class="bm-tab"        data-status="completed" onclick="switchTab('completed',this)">✅ Прочитано</button>
+    <button class="bm-tab"        data-status="planned"   onclick="switchTab('planned',this)">📋 В планах</button>
+    <button class="bm-tab"        data-status="paused"    onclick="switchTab('paused',this)">⏸ Отложено</button>
+    <button class="bm-tab"        data-status="dropped"   onclick="switchTab('dropped',this)">🗑 Брошено</button>
+  </div>
+
+  <div id="bmContent">
+    <div class="spin-wrap"><div class="spin"></div></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var TYPES = {manga:'Манга', manhwa:'Манхва', manhua:'Маньхуа', novel:'Ранобэ', comic:'Комикс'};
+  function typeRu(t) { return TYPES[t] || t || ''; }
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  var _current = 'reading';
+
+  function switchTab(status, btn) {
+    document.querySelectorAll('.bm-tab').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    loadList(status);
+  }
+  window.switchTab = switchTab;
+
+  function loadList(status) {
+    _current = status;
+    var el = document.getElementById('bmContent');
+    el.innerHTML = '<div class="spin-wrap"><div class="spin"></div></div>';
+    fetch('/api/user/reading-list?status=' + status, {credentials: 'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(rows) {
+        if (!rows.length) {
+          var labels = {reading:'📖 Читаю', completed:'✅ Прочитано', planned:'📋 В планах', paused:'⏸ Отложено', dropped:'🗑 Брошено'};
+          el.innerHTML = '<div class="bm-empty"><div class="bm-empty-icon">🔖</div><div class="bm-empty-title">Список пуст</div><div class="bm-empty-sub">Добавляй мангу через кнопку «Статус» на странице манги</div></div>';
+          return;
+        }
+        el.innerHTML = '<div class="manga-grid">' + rows.map(function(m) {
+          return '<div class="mcard" onclick="location.href=\'/manga/' + esc(m.manga_slug) + '\'">' +
+            '<img src="' + esc(m.cover_url||'') + '" class="mcard-img" ' +
+            'onerror="this.src=\'https://via.placeholder.com/130x195/1a1a1a/667eea\'" loading="lazy">' +
+            '<div class="mcard-info">' +
+              '<div class="mcard-title">' + esc(m.manga_title) + '</div>' +
+              '<div class="mcard-meta">' + typeRu(m.manga_type) + '</div>' +
+            '</div></div>';
+        }).join('') + '</div>';
+      })
+      .catch(function() {
+        el.innerHTML = '<div class="bm-empty"><div class="bm-empty-icon">⚠️</div><div class="bm-empty-title">Ошибка загрузки</div></div>';
+      });
+  }
+
+  loadList('reading');
+})();
+</script>
+</body>
+</html>
