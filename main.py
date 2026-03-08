@@ -1156,6 +1156,24 @@ def init_pg_schema():
         print("✅ PostgreSQL: триггер search_vector установлен")
     except Exception as e:
         logger.warning(f"init_pg_schema: {e}")
+
+    # Таблица оценок манги
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            manga_id TEXT NOT NULL,
+            score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(user_id, manga_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_manga_user_ratings_manga ON manga_user_ratings(manga_id)')
+        conn.commit()
+        print("✅ PostgreSQL: таблица manga_user_ratings готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema manga_user_ratings: {e}")
     finally:
         conn.close()
 
@@ -5280,18 +5298,6 @@ def manga_detail(manga_slug):
     manga_rating_count = 0
     if manga_id:
         conn2 = get_db()
-        conn2.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            manga_id TEXT NOT NULL,
-            score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_id, manga_id),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )''')
-        conn2.execute('CREATE INDEX IF NOT EXISTS idx_manga_user_ratings_manga ON manga_user_ratings(manga_id)')
-        conn2.commit()
         if user_id:
             in_wishlist = bool(conn2.execute(
                 'SELECT 1 FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id)
@@ -6056,23 +6062,19 @@ def api_manga_rate(manga_id):
         return jsonify({'error': 'Оценка должна быть от 1 до 10'}), 400
     conn = get_db()
     try:
-        conn.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            manga_id TEXT NOT NULL,
-            score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_id, manga_id),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )''')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_manga_user_ratings_manga ON manga_user_ratings(manga_id)')
-        conn.execute(
-            '''INSERT INTO manga_user_ratings (user_id, manga_id, score, updated_at)
-               VALUES (?,?,?,CURRENT_TIMESTAMP)
-               ON CONFLICT(user_id, manga_id) DO UPDATE SET score=excluded.score, updated_at=CURRENT_TIMESTAMP''',
-            (user_id, manga_id)
-        )
+        existing = conn.execute(
+            'SELECT id FROM manga_user_ratings WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                'UPDATE manga_user_ratings SET score=?, updated_at=CURRENT_TIMESTAMP WHERE user_id=? AND manga_id=?',
+                (score, user_id, manga_id)
+            )
+        else:
+            conn.execute(
+                'INSERT INTO manga_user_ratings (user_id, manga_id, score) VALUES (?,?,?)',
+                (user_id, manga_id, score)
+            )
         conn.commit()
         row = conn.execute(
             'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
