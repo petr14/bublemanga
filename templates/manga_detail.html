@@ -1458,13 +1458,13 @@
                                 <button id="statusBtn" class="btn {% if user_manga_status %}btn-status-active{% endif %}"
                                         onclick="toggleStatusMenu(event)"
                                         data-status="{{ user_manga_status or '' }}">
-                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}📖 Читаю{% elif user_manga_status == 'completed' %}✅ Прочитано{% elif user_manga_status == 'planned' %}🔖 Хочу прочитать{% elif user_manga_status == 'dropped' %}🗑 Брошено{% elif user_manga_status == 'paused' %}⏸ Отложено{% else %}＋ Статус{% endif %}</span>
+                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}Читаю{% elif user_manga_status == 'completed' %}Прочитано{% elif user_manga_status == 'planned' %}Хочу прочитать{% elif user_manga_status == 'dropped' %}Брошено{% elif user_manga_status == 'paused' %}⏸ Отложено{% else %}＋ Статус{% endif %}</span>
                                 </button>
                                 <div id="statusMenu" class="status-dropdown" style="display:none;">
-                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','reading')">📖 Читаю</div>
-                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','completed')">✅ Прочитано</div>
-                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','planned')">🔖 Хочу прочитать</div>
-                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','dropped')">🗑 Брошено</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','reading')">Читаю</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','completed')">Прочитано</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','planned')">Хочу прочитать</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','dropped')">Брошено</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','paused')">⏸ Отложено</div>
                                     {% if user_manga_status %}<div class="status-option status-option-remove" onclick="setMangaStatus('{{ manga.manga_id }}',null)">✕ Убрать</div>{% endif %}
                                 </div>
@@ -1690,10 +1690,10 @@
         
         // ==================== WISHLIST ====================
         const _STATUS_LABELS = {
-            reading: '📖 Читаю',
-            completed: '✅ Прочитано',
-            planned: '🔖 Хочу прочитать',
-            dropped: '🗑 Брошено',
+            reading: 'Читаю',
+            completed: 'Прочитано',
+            planned: 'Хочу прочитать',
+            dropped: 'Брошено',
             paused:  '⏸ Отложено',
         };
 
@@ -2210,7 +2210,7 @@
                     if (!colls.length) {
                         html += '<p style="color:#a1a1aa;font-size:14px;text-align:center;padding:20px 0">Нет коллекций.<br><a href="/profile/me" style="color:#667eea">Создай на странице профиля</a></p>';
                     } else {
-                        html += colls.map(c => `<div onclick="addToCollection(${c.id},'${mangaId}')" style="padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .2s" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)'"><div style="font-weight:600;font-size:14px">${c.name}</div><div style="font-size:12px;color:#a1a1aa">📖 ${c.items_count} манг</div></div>`).join('');
+                        html += colls.map(c => `<div onclick="addToCollection(${c.id},'${mangaId}')" style="padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .2s" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)'"><div style="font-weight:600;font-size:14px">${c.name}</div><div style="font-size:12px;color:#a1a1aa">${c.items_count} манг</div></div>`).join('');
                     }
                     html += '</div></div>';
                     document.body.insertAdjacentHTML('beforeend', html);
