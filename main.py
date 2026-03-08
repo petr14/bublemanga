@@ -4,7 +4,7 @@ import hmac
 import hashlib
 import urllib.parse
 from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response, make_response
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, Response, make_response, send_from_directory
 import threading
 import sqlite3
 import secrets
@@ -25,6 +25,7 @@ from functools import wraps
 import logging
 from flask_compress import Compress
 from flask_socketio import SocketIO
+from flask_caching import Cache
 from senkuro_api import SenkuroAPI
 
 
@@ -64,7 +65,7 @@ CRYPTOCLOUD_SECRET_KEY = os.environ.get('CRYPTOCLOUD_SECRET_KEY', '')  # для 
 CRYPTOCLOUD_SHOP_ID    = os.environ.get('CRYPTOCLOUD_SHOP_ID', '')
 
 # Базовый URL сайта (для redirect после оплаты)
-SITE_URL = 'http://bubblemanga.myftp.org'
+SITE_URL = 'https://bubblemanga.ru:8443'
 
 app = Flask(__name__)
 
@@ -85,6 +86,25 @@ app.config['COMPRESS_MIMETYPES'] = [
 ]
 app.config['COMPRESS_LEVEL'] = 6
 Compress(app)
+
+# Flask-Caching: Redis если доступен, иначе SimpleCache (в памяти)
+_REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+try:
+    import redis as _redis_lib
+    _r = _redis_lib.from_url(_REDIS_URL, socket_connect_timeout=1)
+    _r.ping()
+    _CACHE_TYPE = 'RedisCache'
+    _CACHE_OPTS = {'CACHE_REDIS_URL': _REDIS_URL}
+    print('✅ Flask-Cache: Redis backend')
+except Exception:
+    _CACHE_TYPE = 'SimpleCache'
+    _CACHE_OPTS = {}
+    print('⚠️  Flask-Cache: SimpleCache (Redis недоступен)')
+
+app.config['CACHE_TYPE'] = _CACHE_TYPE
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300
+app.config.update(_CACHE_OPTS)
+cache = Cache(app)
 
 socketio = SocketIO(
     app,
@@ -131,6 +151,191 @@ _manga_loading = {}
 # ── In-memory кеш user_stats для /api/user/stats ─────────────────────────
 _stats_cache: dict = {}          # {user_id: {'data': dict, 'expires': float}}
 _stats_cache_lock = threading.Lock()
+
+# ── Rate limiting ────────────────────────────────────────────────────────────
+_rl_store: dict = {}
+_rl_lock = threading.Lock()
+
+def _rate_limit_check(key: str, max_calls: int, period: int) -> bool:
+    """Возвращает True если запрос разрешён, False если превышен лимит."""
+    now = time.time()
+    with _rl_lock:
+        calls = _rl_store.get(key, [])
+        calls = [t for t in calls if now - t < period]
+        if len(calls) >= max_calls:
+            _rl_store[key] = calls
+            return False
+        calls.append(now)
+        _rl_store[key] = calls
+        return True
+
+def rate_limit(max_calls: int, period: int = 60):
+    """Декоратор ограничения запросов по IP. max_calls за period секунд."""
+    def decorator(f):
+        import functools
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+            key = f"{f.__name__}:{ip}"
+            if not _rate_limit_check(key, max_calls, period):
+                return jsonify({'error': 'Слишком много запросов. Подождите немного.'}), 429
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# ==================== СОВМЕСТИМЫЙ СЛОЙ БД (SQLite / PostgreSQL) ====================
+
+_DATABASE_URL = os.environ.get('DATABASE_URL', '')  # пусто → SQLite
+_USE_PG = bool(_DATABASE_URL)
+
+if _USE_PG:
+    try:
+        import psycopg2
+        import psycopg2.extras
+    except ImportError:
+        logger.warning("psycopg2 не установлен, переключаемся на SQLite")
+        _USE_PG = False
+
+# Паттерны для транслирования SQLite → PostgreSQL
+_RE_INSERT_OR_IGNORE  = re.compile(r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', re.IGNORECASE)
+_RE_INSERT_OR_REPLACE = re.compile(r'\bINSERT\s+OR\s+REPLACE\s+INTO\b', re.IGNORECASE)
+_RE_TABLE_NAME        = re.compile(r'\bINTO\s+(\w+)\s*\(([^)]+)\)', re.IGNORECASE)
+_RE_DATETIME_NOW      = re.compile(r"datetime\('now'(?:,\s*'([^']+)')?\)", re.IGNORECASE)
+_RE_STRFTIME          = re.compile(r"strftime\('([^']+)',\s*'now'\)", re.IGNORECASE)
+
+# Таблица → (столбец конфликта, список столбцов для UPDATE)
+# None в update_cols → обновлять все вставляемые столбцы кроме конфликтного
+_PG_UPSERT_MAP: dict = {
+    'cache':           ('key',                   None),
+    'manga':           ('manga_id',               None),
+    'chapters':        ('chapter_id',             None),
+    'reading_history': ('user_id, manga_id',      ['chapter_id', 'page_number', 'last_read']),
+}
+
+
+def _translate_sql(sql: str) -> str:
+    """Конвертирует SQLite-специфичный SQL в PostgreSQL-совместимый."""
+    sql = sql.replace('?', '%s')
+    sql = _RE_INSERT_OR_IGNORE.sub('INSERT INTO', sql)
+    sql = _RE_INSERT_OR_REPLACE.sub('INSERT INTO', sql)
+
+    def _dt_repl(m):
+        modifier = m.group(1)
+        if modifier:
+            mod = modifier.strip().lstrip('+-')
+            sign = '-' if '-' in modifier else '+'
+            return f"NOW() {sign} INTERVAL '{mod}'"
+        return 'NOW()'
+    sql = _RE_DATETIME_NOW.sub(_dt_repl, sql)
+
+    _STRFTIME_MAP = {
+        '%Y-%m-%d': 'YYYY-MM-DD', '%Y': 'YYYY', '%m': 'MM',
+        '%d': 'DD', '%H': 'HH24', '%M': 'MI', '%S': 'SS',
+    }
+    def _sf_repl(m):
+        return f"TO_CHAR(NOW(), '{_STRFTIME_MAP.get(m.group(1), m.group(1))}')"
+    sql = _RE_STRFTIME.sub(_sf_repl, sql)
+    return sql
+
+
+def _build_on_conflict(sql_orig: str, is_replace: bool) -> str:
+    """Добавляет ON CONFLICT ... к INSERT INTO.
+    Для INSERT OR IGNORE → DO NOTHING.
+    Для INSERT OR REPLACE → DO UPDATE SET (если таблица есть в _PG_UPSERT_MAP).
+    """
+    m = _RE_TABLE_NAME.search(sql_orig)
+    if not m:
+        return ' ON CONFLICT DO NOTHING'
+    table = m.group(1).lower()
+    cols  = [c.strip() for c in m.group(2).split(',')]
+
+    if not is_replace or table not in _PG_UPSERT_MAP:
+        return ' ON CONFLICT DO NOTHING'
+
+    conflict_col, update_cols = _PG_UPSERT_MAP[table]
+    if update_cols is None:
+        # Обновляем все вставляемые столбцы кроме конфликтного
+        conflict_set = {c.strip() for c in conflict_col.split(',')}
+        update_cols = [c for c in cols if c not in conflict_set]
+    sets = ', '.join(f'{c}=EXCLUDED.{c}' for c in update_cols)
+    return f' ON CONFLICT ({conflict_col}) DO UPDATE SET {sets}'
+
+
+class _CompatCursor:
+    """Курсор-обёртка над psycopg2, совместимый с интерфейсом sqlite3."""
+
+    def __init__(self, pg_cursor):
+        self._c = pg_cursor
+
+    def _pre(self, sql: str, params=None):
+        is_ignore  = bool(_RE_INSERT_OR_IGNORE.search(sql))
+        is_replace = bool(_RE_INSERT_OR_REPLACE.search(sql))
+        translated = _translate_sql(sql)
+        if (is_ignore or is_replace) and 'ON CONFLICT' not in translated.upper():
+            translated = translated.rstrip('; \n') + _build_on_conflict(sql, is_replace)
+        return translated, params or ()
+
+    def execute(self, sql, params=None):
+        sql2, params2 = self._pre(sql, params)
+        self._c.execute(sql2, params2)
+        return self
+
+    def executemany(self, sql, seq):
+        sql2, _ = self._pre(sql)
+        self._c.executemany(sql2, seq)
+        return self
+
+    def fetchone(self):
+        return self._c.fetchone()
+
+    def fetchall(self):
+        return self._c.fetchall()
+
+    @property
+    def lastrowid(self):
+        self._c.execute('SELECT lastval()')
+        return self._c.fetchone()[0]
+
+    @property
+    def rowcount(self):
+        return self._c.rowcount
+
+    def __iter__(self):
+        return iter(self._c)
+
+
+class _CompatConn:
+    """Соединение-обёртка: делает psycopg2 похожим на sqlite3."""
+
+    def __init__(self, pg_conn):
+        self._conn = pg_conn
+
+    def cursor(self):
+        return _CompatCursor(self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+
+    def execute(self, sql, params=None):
+        c = self.cursor()
+        c.execute(sql, params)
+        return c
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self._conn.__exit__(*args)
+
+
+def _get_pg_conn() -> '_CompatConn':
+    pg_conn = psycopg2.connect(_DATABASE_URL)
+    pg_conn.autocommit = False
+    return _CompatConn(pg_conn)
+
 
 # ==================== БАЗА ДАННЫХ ====================
 
@@ -763,6 +968,18 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_comment_likes_comment ON comment_likes(comment_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_wishlist_user ON reading_wishlist(user_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)')
+
+    # Личные теги манги (статус чтения)
+    c.execute('''CREATE TABLE IF NOT EXISTS user_manga_status (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        manga_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, manga_id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_user_manga_status ON user_manga_status(user_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_collection_trophies_week ON collection_trophies(iso_week)')
 
     # Seed: ежедневные задания
@@ -801,6 +1018,14 @@ def init_db():
                      (season_id, title, description, icon, condition_type, condition_value,
                       xp_reward, coins_reward, item_reward_id)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', sq)
+
+    # ── Отправленные рекомендации "похожего" (дедупликация) ──────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS sent_similar_notifications (
+        user_id INTEGER NOT NULL,
+        manga_id INTEGER NOT NULL,
+        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, manga_id)
+    )''')
 
     # ── Уведомления на сайте ──────────────────────────────────────────────────
     c.execute('''CREATE TABLE IF NOT EXISTS site_notifications (
@@ -875,11 +1100,56 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows ON curator_follows(author_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows_follower ON curator_follows(follower_id)')
 
+    # ── FTS5 полнотекстовый поиск ─────────────────────────────────────────
+    c.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS manga_fts
+                 USING fts5(manga_id UNINDEXED, manga_title, original_name, description,
+                            tokenize="unicode61 remove_diacritics 1")''')
+    # Первоначальное заполнение если таблица пустая
+    row = conn.execute('SELECT COUNT(*) FROM manga_fts').fetchone()
+    if row[0] == 0:
+        c.execute('''INSERT INTO manga_fts(manga_id, manga_title, original_name, description)
+                     SELECT manga_id, manga_title, COALESCE(original_name,''), COALESCE(description,'')
+                     FROM manga''')
+
     conn.commit()
     conn.close()
     print("✅ База данных инициализирована")
 
+
+def init_pg_schema():
+    """Проверяет/создаёт триггер обновления search_vector в PostgreSQL."""
+    conn = get_db()
+    try:
+        # Dollar-quoting ($func$) позволяет использовать обычные кавычки внутри
+        conn.execute(
+            "CREATE OR REPLACE FUNCTION manga_search_vector_update() "
+            "RETURNS trigger AS $func$ "
+            "BEGIN "
+            "  NEW.search_vector := to_tsvector('simple', "
+            "    COALESCE(NEW.manga_title,'') || ' ' || "
+            "    COALESCE(NEW.original_name,'') || ' ' || "
+            "    COALESCE(NEW.description,'')); "
+            "  RETURN NEW; "
+            "END; "
+            "$func$ LANGUAGE plpgsql"
+        )
+        conn.execute("DROP TRIGGER IF EXISTS manga_search_vector_trig ON manga")
+        conn.execute(
+            "CREATE TRIGGER manga_search_vector_trig "
+            "BEFORE INSERT OR UPDATE ON manga "
+            "FOR EACH ROW EXECUTE FUNCTION manga_search_vector_update()"
+        )
+        conn.commit()
+        print("✅ PostgreSQL: триггер search_vector установлен")
+    except Exception as e:
+        logger.warning(f"init_pg_schema: {e}")
+    finally:
+        conn.close()
+
+
 def get_db():
+    if _USE_PG:
+        return _get_pg_conn()
     conn = sqlite3.connect('manga.db', timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')
@@ -934,7 +1204,7 @@ def inject_g_user():
             (row['telegram_username'] or '').strip() or
             f'#{user_id}'
         )
-        avatar = row['custom_avatar_url'] or row['avatar_url'] or None
+        avatar = row['avatar_url'] or None
         return {'g_user': {'id': row['id'], 'display_name': display_name, 'avatar_url': avatar}}
     except Exception as e:
         logger.warning(f'inject_g_user error: {e}')
@@ -950,6 +1220,16 @@ from werkzeug.utils import secure_filename
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
+@app.route('/static/uploads/<path:filename>')
+def serve_upload(filename):
+    """Раздаёт загруженные файлы без кеширования браузером."""
+    resp = send_from_directory(UPLOAD_FOLDER, filename)
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 
 def _allowed_file(filename):
@@ -1055,6 +1335,9 @@ def award_xp(user_id, amount, reason, ref_id=None):
     # Инвалидируем кеш статистики
     with _stats_cache_lock:
         _stats_cache.pop(user_id, None)
+
+    # Инвалидируем кеш таблицы лидеров
+    cache.delete('top_leaders')
 
     return {
         'xp': new_xp,
@@ -1302,6 +1585,13 @@ def get_user_full_profile(user_id):
     progress_pct = min(100, int(xp_progress / max(1, xp_needed) * 100))
 
     stats_dict = dict(stats) if stats else {}
+
+    # Находим надетую рамку для рендера на профиле
+    equipped_frame = next((i for i in items if i.get('type') == 'frame' and i.get('is_equipped')), None)
+    frame_preview_url = equipped_frame.get('preview_url') if equipped_frame else None
+    frame_is_animated = bool(equipped_frame.get('is_animated')) if equipped_frame else False
+    frame_css_value   = equipped_frame.get('css_value') if equipped_frame else None
+
     return {
         'user': dict(user),
         'stats': stats_dict,
@@ -1325,6 +1615,9 @@ def get_user_full_profile(user_id):
             f"Пользователь #{user_id}"
         ),
         'followers_count': followers_count,
+        'frame_preview_url': frame_preview_url,
+        'frame_is_animated': frame_is_animated,
+        'frame_css_value': frame_css_value,
     }
 
 # ==================== ГЕЙМИФИКАЦИЯ: СТРИК / DAILY QUESTS / СЕЗОН ====================
@@ -1565,16 +1858,35 @@ def get_similar_manga(manga_id, user_id, limit=3):
 
 def _suggest_similar_manga(user_id, manga_id, manga_title):
     """Отправить пользователю рекомендации похожих манг через Telegram + site notification."""
-    similar = get_similar_manga(manga_id, user_id, limit=3)
-    if not similar:
+    conn = get_db()
+    # дедупликация — не отправлять повторно для той же манги
+    already = conn.execute(
+        'SELECT 1 FROM sent_similar_notifications WHERE user_id=? AND manga_id=?',
+        (user_id, manga_id)
+    ).fetchone()
+    if already:
+        conn.close()
         return
 
-    # Telegram уведомление
-    conn = get_db()
     row = conn.execute('SELECT telegram_id, notifications_enabled FROM users WHERE id=?', (user_id,)).fetchone()
-    conn.close()
     if not row or not row['telegram_id'] or row['notifications_enabled'] == 0:
+        conn.close()
         return
+
+    similar = get_similar_manga(manga_id, user_id, limit=3)
+    if not similar:
+        conn.close()
+        return
+
+    # записываем факт отправки ДО отправки, чтобы гонка потоков не дала дубль
+    try:
+        conn.execute(
+            'INSERT OR IGNORE INTO sent_similar_notifications (user_id, manga_id) VALUES (?,?)',
+            (user_id, manga_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     lines = [f'📖 Ты дочитал всё доступное в <b>{manga_title}</b>!\n']
     lines.append('Пока ждёшь новых глав, попробуй похожее:\n')
@@ -1934,15 +2246,29 @@ def save_manga_search_result(manga_data):
     c = conn.cursor()
     
     try:
-        c.execute('''INSERT OR REPLACE INTO manga 
-                     (manga_id, manga_slug, manga_title, manga_type, 
-                      manga_status, cover_url, rating, last_updated) 
+        c.execute('''INSERT OR REPLACE INTO manga
+                     (manga_id, manga_slug, manga_title, manga_type,
+                      manga_status, cover_url, rating, last_updated)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                  (manga_data['manga_id'], manga_data['manga_slug'], 
+                  (manga_data['manga_id'], manga_data['manga_slug'],
                    manga_data['manga_title'], manga_data['manga_type'],
                    manga_data['manga_status'], manga_data['cover_url'],
                    manga_data.get('rating', 'GENERAL'), datetime.now()))
         conn.commit()
+        # Обновляем FTS индекс
+        try:
+            manga_id = manga_data['manga_id']
+            title = manga_data['manga_title']
+            original_name = manga_data.get('original_name')
+            description = manga_data.get('description')
+            if not _USE_PG:
+                c.execute('DELETE FROM manga_fts WHERE manga_id = ?', (manga_id,))
+                c.execute('''INSERT INTO manga_fts(manga_id, manga_title, original_name, description)
+                             VALUES (?, ?, ?, ?)''',
+                          (manga_id, title, original_name or '', description or ''))
+            conn.commit()
+        except Exception:
+            pass
     except Exception as e:
         print(f"❌ Ошибка сохранения манги: {e}")
     finally:
@@ -2519,7 +2845,21 @@ def is_subscribed(user_id, manga_id):
     conn.close()
     return result is not None
 
+_BOT_UA_KEYWORDS = (
+    'bot', 'spider', 'crawler', 'crawl', 'scraper', 'fetch',
+    'python-requests', 'python-urllib', 'curl/', 'wget/',
+    'scrapy', 'headlesschrome', 'phantomjs', 'selenium',
+    'facebookexternalhit', 'twitterbot', 'slackbot', 'telegrambot',
+    'vkshare', 'whatsapp', 'pinterest', 'linkedinbot',
+)
+
+def _is_bot_request() -> bool:
+    ua = (request.headers.get('User-Agent') or '').lower()
+    return any(kw in ua for kw in _BOT_UA_KEYWORDS)
+
 def increment_manga_views(manga_id):
+    if _is_bot_request():
+        return
     conn = get_db()
     c = conn.cursor()
     c.execute('UPDATE manga SET views = views + 1 WHERE manga_id = ?', (manga_id,))
@@ -3941,41 +4281,96 @@ def api_search():
     conn = get_db()
     c    = conn.cursor()
 
-    c.execute('''SELECT COUNT(*) FROM manga
-                 WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
-              (like, like, like))
-    total = c.fetchone()[0]
-
-    if total == 0:
-        conn.close()
-        return jsonify({'results': [], 'total': 0, 'has_more': False})
+    rows = None
+    total = 0
 
     if sort == 'relevance':
-        c.execute('''
-            SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
-                   cover_url, rating, score, views, chapters_count, last_updated,
-                   CASE
-                     WHEN lower(manga_title) = lower(?)    THEN 10
-                     WHEN lower(manga_title) LIKE lower(?) THEN 5
-                     ELSE 1
-                   END AS _rel
-            FROM manga
-            WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
-            ORDER BY _rel DESC, COALESCE(score, 0) DESC
-            LIMIT ? OFFSET ?
-        ''', (query, starts, like, like, like, limit, offset))
-    else:
-        order_sql = _SORT[sort]
-        c.execute(f'''
-            SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
-                   cover_url, rating, score, views, chapters_count, last_updated
-            FROM manga
-            WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
-            ORDER BY {order_sql}
-            LIMIT ? OFFSET ?
-        ''', (like, like, like, limit, offset))
+        if _USE_PG:
+            # PostgreSQL tsvector поиск
+            tsq = query  # plainto_tsquery сам нормализует
+            try:
+                c.execute('''SELECT COUNT(*) FROM manga
+                             WHERE search_vector @@ plainto_tsquery('simple', %s)''', (tsq,))
+                total = c.fetchone()[0]
+                if total > 0:
+                    c.execute('''
+                        SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+                               cover_url, rating, score, views, chapters_count, last_updated
+                        FROM manga
+                        WHERE search_vector @@ plainto_tsquery('simple', %s)
+                        ORDER BY ts_rank(search_vector, plainto_tsquery('simple', %s)) DESC
+                        LIMIT %s OFFSET %s
+                    ''', (tsq, tsq, limit, offset))
+                    rows = [dict(r) for r in c.fetchall()]
+            except Exception:
+                rows = None
+                total = 0
+        else:
+            # SQLite FTS5 поиск
+            fts_query = query.replace('"', '""')
+            try:
+                c.execute('''SELECT m.manga_id FROM manga_fts
+                             JOIN manga m USING(manga_id)
+                             WHERE manga_fts MATCH ?
+                             ORDER BY rank LIMIT 1''', (fts_query + '*',))
+                use_fts = c.fetchone() is not None
+            except Exception:
+                use_fts = False
 
-    rows = [dict(r) for r in c.fetchall()]
+            if use_fts:
+                c.execute('''SELECT COUNT(*) FROM manga_fts
+                             JOIN manga m USING(manga_id)
+                             WHERE manga_fts MATCH ?''', (fts_query + '*',))
+                total = c.fetchone()[0]
+                if total > 0:
+                    c.execute('''
+                        SELECT m.manga_id, m.manga_slug, m.manga_title, m.manga_type, m.manga_status,
+                               m.cover_url, m.rating, m.score, m.views, m.chapters_count, m.last_updated
+                        FROM manga_fts
+                        JOIN manga m USING(manga_id)
+                        WHERE manga_fts MATCH ?
+                        ORDER BY rank
+                        LIMIT ? OFFSET ?
+                    ''', (fts_query + '*', limit, offset))
+                    rows = [dict(r) for r in c.fetchall()]
+
+    if rows is None:
+        # LIKE fallback (also used for non-relevance sort)
+        c.execute('''SELECT COUNT(*) FROM manga
+                     WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
+                  (like, like, like))
+        total = c.fetchone()[0]
+
+        if total == 0:
+            conn.close()
+            return jsonify({'results': [], 'total': 0, 'has_more': False})
+
+        if sort == 'relevance':
+            c.execute('''
+                SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+                       cover_url, rating, score, views, chapters_count, last_updated,
+                       CASE
+                         WHEN lower(manga_title) = lower(?)    THEN 10
+                         WHEN lower(manga_title) LIKE lower(?) THEN 5
+                         ELSE 1
+                       END AS _rel
+                FROM manga
+                WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+                ORDER BY _rel DESC, COALESCE(score, 0) DESC
+                LIMIT ? OFFSET ?
+            ''', (query, starts, like, like, like, limit, offset))
+        else:
+            order_sql = _SORT[sort]
+            c.execute(f'''
+                SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
+                       cover_url, rating, score, views, chapters_count, last_updated
+                FROM manga
+                WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+                ORDER BY {order_sql}
+                LIMIT ? OFFSET ?
+            ''', (like, like, like, limit, offset))
+        rows = [dict(r) for r in c.fetchall()]
+
     conn.close()
 
     for r in rows:
@@ -4025,13 +4420,12 @@ def search_suggestions():
 
     return jsonify(suggestions[:8])
 
-@app.route('/catalog')
-def catalog_page():
-    """Каталог всех манг с фильтрацией"""
+@cache.cached(timeout=600, key_prefix='catalog_genres')
+def _get_catalog_genres():
+    """Кешированный список жанров для каталога (TTL 10 мин)."""
     conn = get_db()
     c = conn.cursor()
-    # Собрать все уникальные жанры с частотой
-    c.execute('SELECT tags FROM manga WHERE tags IS NOT NULL AND tags != "[]" AND tags != ""')
+    c.execute("SELECT tags FROM manga WHERE tags IS NOT NULL AND tags != '[]' AND tags != ''")
     genre_freq = {}
     for row in c.fetchall():
         try:
@@ -4042,8 +4436,14 @@ def catalog_page():
                     genre_freq[tag] = genre_freq.get(tag, 0) + 1
         except Exception:
             pass
-    genres = sorted(genre_freq.keys(), key=lambda g: -genre_freq[g])
     conn.close()
+    return sorted(genre_freq.keys(), key=lambda g: -genre_freq[g])
+
+
+@app.route('/catalog')
+def catalog_page():
+    """Каталог всех манг с фильтрацией"""
+    genres = _get_catalog_genres()
     return render_template('catalog.html', genres=genres)
 
 
@@ -4820,13 +5220,19 @@ def manga_detail(manga_slug):
         if history:
             reading_history = dict(history)
 
-    # Вишлист
+    # Вишлист + личный статус
     in_wishlist = False
+    user_manga_status = None
     if user_id and manga_id:
         conn2 = get_db()
         in_wishlist = bool(conn2.execute(
             'SELECT 1 FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id)
         ).fetchone())
+        row = conn2.execute(
+            'SELECT status FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+        ).fetchone()
+        if row:
+            user_manga_status = row[0]
         conn2.close()
 
     logger.info(
@@ -4843,6 +5249,7 @@ def manga_detail(manga_slug):
                            reading_history=reading_history,
                            is_loading_more=is_loading_more,
                            in_wishlist=in_wishlist,
+                           user_manga_status=user_manga_status,
                            user_id=user_id)
 
 # ==================== ПРОФИЛИ / ТОП / МАГАЗИН ====================
@@ -4879,64 +5286,74 @@ def profile_page(user_id):
                            viewer_coins=viewer_coins)
 
 
-@app.route('/top')
-def top_page():
-    """Таблица лидеров"""
-    conn = get_db()
-    c = conn.cursor()
-    ROW_SQL = '''SELECT u.id, u.telegram_first_name, u.telegram_username,
+_TOP_ROW_SQL = '''SELECT u.id, u.telegram_first_name, u.telegram_username,
                   u.is_premium,
                   s.xp, s.level, s.total_chapters_read,
-                  COALESCE(p.custom_avatar_url, p.avatar_url) as avatar_url,
+                  p.avatar_url,
                   p.background_url,
                   NULLIF(TRIM(COALESCE(p.custom_name, '')), '') as custom_name,
                   (SELECT si.css_value FROM shop_items si
                    JOIN user_items ui ON si.id = ui.item_id
                    WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
-                   LIMIT 1) as frame_css
+                   LIMIT 1) as frame_css,
+                  (SELECT COUNT(DISTINCT manga_id) FROM reading_history
+                   WHERE user_id = u.id) as manga_count
            FROM users u
            JOIN user_stats s ON u.id = s.user_id
            LEFT JOIN user_profile p ON u.id = p.user_id'''
 
+
+def _top_make_display(r):
+    return (r.get('custom_name') or '').strip() or \
+           r.get('telegram_first_name') or \
+           r.get('telegram_username') or \
+           f"#{r['id']}"
+
+
+@cache.cached(timeout=120, key_prefix='top_leaders')
+def _get_top_leaders():
+    """Кешированный запрос топ-50 и числа пользователей (TTL 2 мин)."""
+    conn = get_db()
+    c = conn.cursor()
     c.execute('SELECT COUNT(*) as cnt FROM user_stats')
     _cnt_row = c.fetchone()
     total_users = (_cnt_row['cnt'] if _cnt_row else 1) or 1
-
-    c.execute(ROW_SQL + ' ORDER BY s.xp DESC LIMIT 50')
+    c.execute(_TOP_ROW_SQL + ' ORDER BY s.xp DESC LIMIT 50')
     rows = c.fetchall()
-
-    def make_display(r):
-        return (r.get('custom_name') or '').strip() or \
-               r.get('telegram_first_name') or \
-               r.get('telegram_username') or \
-               f"#{r['id']}"
-
     leaders = []
-    top_ids = set()
     for row in rows:
         r = dict(row)
-        r['display_name'] = make_display(r)
+        r['display_name'] = _top_make_display(r)
         leaders.append(r)
-        top_ids.add(r['id'])
+    conn.close()
+    return leaders, total_users
+
+
+@app.route('/top')
+def top_page():
+    """Таблица лидеров"""
+    leaders, total_users = _get_top_leaders()
+    top_ids = {r['id'] for r in leaders}
 
     user_id = session.get('user_id')
     my_rank_data = None
     if user_id and user_id not in top_ids:
-        # Ранг пользователя среди всех
+        conn = get_db()
+        c = conn.cursor()
         c.execute('''SELECT COUNT(*) + 1 AS rank FROM user_stats
                      WHERE xp > (SELECT xp FROM user_stats WHERE user_id = ?)''',
                   (user_id,))
         rank_row = c.fetchone()
         if rank_row:
-            c.execute(ROW_SQL + ' WHERE u.id = ?', (user_id,))
+            c.execute(_TOP_ROW_SQL + ' WHERE u.id = ?', (user_id,))
             ur = c.fetchone()
             if ur:
                 my_data = dict(ur)
-                my_data['display_name'] = make_display(my_data)
+                my_data['display_name'] = _top_make_display(my_data)
                 my_data['rank'] = rank_row['rank']
                 my_rank_data = my_data
+        conn.close()
 
-    conn.close()
     return render_template('top.html', leaders=leaders, user_id=user_id,
                            my_rank_data=my_rank_data, total_users=total_users)
 
@@ -5490,6 +5907,36 @@ def toggle_wishlist(manga_id):
     return jsonify({'in_wishlist': in_wishlist})
 
 
+_MANGA_STATUS_LABELS = {
+    'reading':   'Читаю',
+    'completed': 'Прочитано',
+    'planned':   'В планах',
+    'dropped':   'Брошено',
+    'paused':    'Отложено',
+}
+
+@app.route('/api/manga-status/<manga_id>', methods=['POST'])
+def set_manga_status(manga_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    status = (request.json or {}).get('status')
+    if status and status not in _MANGA_STATUS_LABELS:
+        return jsonify({'error': 'Неверный статус'}), 400
+    conn = get_db()
+    if status:
+        conn.execute(
+            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (?,?,?) '
+            'ON CONFLICT(user_id, manga_id) DO UPDATE SET status=excluded.status, updated_at=CURRENT_TIMESTAMP',
+            (user_id, manga_id, status)
+        )
+    else:
+        conn.execute('DELETE FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': status})
+
+
 @app.route('/api/user/wishlist')
 def api_user_wishlist():
     user_id = session.get('user_id')
@@ -5711,6 +6158,7 @@ def get_comments(manga_slug):
 
 
 @app.route('/api/manga/<manga_slug>/comments', methods=['POST'])
+@rate_limit(10, 60)
 def post_comment(manga_slug):
     user_id = session.get('user_id')
     if not user_id:
@@ -5855,6 +6303,7 @@ def profile_equip(item_id):
 
 
 @app.route('/api/profile/update', methods=['POST'])
+@rate_limit(10, 60)
 def profile_update():
     """Обновить bio и/или имя профиля"""
     user_id = session.get('user_id')
@@ -5897,6 +6346,7 @@ def profile_update():
 
 
 @app.route('/upload/avatar', methods=['POST'])
+@rate_limit(5, 60)
 def upload_avatar():
     """Загрузить аватар (только Premium)"""
     user_id = session.get('user_id')
@@ -5924,8 +6374,13 @@ def upload_avatar():
     user_dir = os.path.join(UPLOAD_FOLDER, str(user_id))
     os.makedirs(user_dir, exist_ok=True)
     ext = f.filename.rsplit('.', 1)[1].lower()
-    filename = f'avatar.{ext}'
+    filename = f'avatar_{int(time.time())}.{ext}'
     f.save(os.path.join(user_dir, filename))
+    # удаляем старые файлы аватара
+    for old in os.listdir(user_dir):
+        if old.startswith('avatar_') and old != filename:
+            try: os.remove(os.path.join(user_dir, old))
+            except OSError: pass
 
     avatar_url = f'/static/uploads/{user_id}/{filename}'
     c.execute('INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)', (user_id,))
@@ -5949,6 +6404,7 @@ def upload_avatar():
 
 
 @app.route('/upload/background', methods=['POST'])
+@rate_limit(5, 60)
 def upload_background():
     """Загрузить фон профиля (только Premium)"""
     user_id = session.get('user_id')
@@ -6179,7 +6635,7 @@ def api_following_curators():
     c = conn.cursor()
     rows = c.execute(
         '''SELECT u.id, u.telegram_first_name, u.telegram_username, u.is_premium,
-                  up.custom_name, up.custom_avatar_url
+                  up.custom_name, up.avatar_url
            FROM curator_follows cf
            JOIN users u ON cf.author_id = u.id
            LEFT JOIN user_profile up ON u.id = up.user_id
@@ -6191,7 +6647,7 @@ def api_following_curators():
     result = []
     for r in rows:
         display = (r['custom_name'] or '').strip() or r['telegram_first_name'] or r['telegram_username'] or f'Пользователь #{r["id"]}'
-        result.append({'id': r['id'], 'display_name': display, 'avatar_url': r['custom_avatar_url'], 'is_premium': r['is_premium']})
+        result.append({'id': r['id'], 'display_name': display, 'avatar_url': r['avatar_url'], 'is_premium': r['is_premium']})
     return jsonify({'curators': result})
 
 
@@ -6367,6 +6823,7 @@ def api_collection_like(coll_id):
 
 
 @app.route('/upload/collection-cover', methods=['POST'])
+@rate_limit(5, 60)
 def upload_collection_cover():
     """Загрузить обложку коллекции"""
     user_id = session.get('user_id')
@@ -6541,6 +6998,24 @@ def api_user_quests():
     return jsonify({'quests': quests, 'current_level': current_level})
 
 
+@app.route('/api/user/streak-calendar')
+def api_streak_calendar():
+    """Возвращает активность чтения за последние 365 дней для календаря."""
+    uid = request.args.get('uid', type=int) or session.get('user_id')
+    if not uid:
+        return jsonify({'days': {}})
+    conn = get_db()
+    rows = conn.execute('''
+        SELECT DATE(read_at) as day, COUNT(DISTINCT chapter_id) as count
+        FROM chapters_read
+        WHERE user_id = ?
+          AND read_at >= DATE('now', '-364 days')
+        GROUP BY DATE(read_at)
+    ''', (uid,)).fetchall()
+    conn.close()
+    return jsonify({'days': {r['day']: r['count'] for r in rows}})
+
+
 @app.route('/admin')
 @admin_required
 def admin_panel():
@@ -6549,23 +7024,25 @@ def admin_panel():
 
 # ── Статистика ──────────────────────────────────────────────────────────────
 
+_NO_BOT_USERS = "LOWER(COALESCE(telegram_username,'')) NOT LIKE 'bot\\_seed%'"
+
 @app.route('/api/admin/stats')
 @admin_required
 def api_admin_stats():
     conn = get_db()
     c = conn.cursor()
 
-    c.execute('SELECT COUNT(*) FROM users')
+    c.execute(f'SELECT COUNT(*) FROM users WHERE {_NO_BOT_USERS}')
     total_users = c.fetchone()[0]
 
-    c.execute('SELECT COUNT(*) FROM users WHERE is_active = 0')
+    c.execute(f'SELECT COUNT(*) FROM users WHERE is_active = 0 AND {_NO_BOT_USERS}')
     banned_users = c.fetchone()[0]
 
-    c.execute('SELECT COUNT(*) FROM users WHERE is_premium = 1')
+    c.execute(f'SELECT COUNT(*) FROM users WHERE is_premium = 1 AND {_NO_BOT_USERS}')
     premium_users = c.fetchone()[0]
 
     # Новые пользователи за последние 7 дней
-    c.execute("SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-7 days')")
+    c.execute(f"SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-7 days') AND {_NO_BOT_USERS}")
     new_users_week = c.fetchone()[0]
 
     c.execute('SELECT COUNT(*) FROM manga')
@@ -6574,26 +7051,27 @@ def api_admin_stats():
     c.execute('SELECT COUNT(*) FROM chapters')
     total_chapters = c.fetchone()[0]
 
-    c.execute('SELECT COUNT(*) FROM comments')
+    c.execute(f'SELECT COUNT(*) FROM comments WHERE user_id IN (SELECT id FROM users WHERE {_NO_BOT_USERS})')
     total_comments = c.fetchone()[0]
 
-    c.execute('SELECT COUNT(*) FROM subscriptions')
+    c.execute(f'SELECT COUNT(*) FROM subscriptions WHERE user_id IN (SELECT id FROM users WHERE {_NO_BOT_USERS})')
     total_subscriptions = c.fetchone()[0]
 
-    c.execute('SELECT COUNT(*) FROM reading_history')
+    c.execute(f'SELECT COUNT(*) FROM reading_history WHERE user_id IN (SELECT id FROM users WHERE {_NO_BOT_USERS})')
     total_history = c.fetchone()[0]
 
-    c.execute('SELECT SUM(total_chapters_read) FROM user_stats')
+    c.execute(f'SELECT SUM(s.total_chapters_read) FROM user_stats s JOIN users u ON s.user_id = u.id WHERE {_NO_BOT_USERS}')
     row = c.fetchone()
     total_chapters_read = row[0] or 0
 
     # Топ-10 по XP
-    c.execute('''SELECT u.id, u.telegram_username, u.telegram_first_name,
+    c.execute(f'''SELECT u.id, u.telegram_username, u.telegram_first_name,
                         COALESCE(up.custom_name,'') as custom_name,
                         s.xp, s.level, s.coins
                  FROM user_stats s
                  JOIN users u ON s.user_id = u.id
                  LEFT JOIN user_profile up ON up.user_id = u.id
+                 WHERE {_NO_BOT_USERS}
                  ORDER BY s.xp DESC LIMIT 10''')
     top_users = [dict(r) for r in c.fetchall()]
 
@@ -6602,9 +7080,9 @@ def api_admin_stats():
     top_manga = [dict(r) for r in c.fetchall()]
 
     # Активность — регистрации по дням (последние 14 дней)
-    c.execute("""SELECT date(created_at) as day, COUNT(*) as cnt
+    c.execute(f"""SELECT date(created_at) as day, COUNT(*) as cnt
                  FROM users
-                 WHERE created_at >= datetime('now', '-14 days')
+                 WHERE created_at >= datetime('now', '-14 days') AND {_NO_BOT_USERS}
                  GROUP BY day ORDER BY day""")
     reg_activity = [dict(r) for r in c.fetchall()]
 
@@ -7556,7 +8034,11 @@ def api_admin_notify_manga_search():
 # ==================== ЗАПУСК ====================
 
 if __name__ == "__main__":
-    init_db()
+    if not _USE_PG:
+        init_db()
+    else:
+        print("ℹ️  PostgreSQL mode: init_db() пропускается")
+        init_pg_schema()
     
     # Запуск фонового процесса проверки новых глав
     checker_thread = threading.Thread(target=background_checker, daemon=True)
@@ -7567,4 +8049,4 @@ if __name__ == "__main__":
     
     print(f"🌐 Веб-сервер запущен на {SITE_URL}")
     socketio.run(app, debug=True, use_reloader=False,
-                 host='0.0.0.0', port=80, allow_unsafe_werkzeug=True)
+                 host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

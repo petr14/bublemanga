@@ -163,6 +163,40 @@
             color: #818cf8;
         }
 
+        .btn-status-active {
+            background: rgba(251, 146, 60, 0.15);
+            border-color: rgba(251, 146, 60, 0.35);
+            color: #fb923c;
+        }
+
+        .status-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            background: #1e1e2e;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            min-width: 150px;
+            z-index: 200;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .status-option {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #cdd6f4;
+            transition: background 0.15s;
+        }
+
+        .status-option:hover { background: rgba(255,255,255,0.08); }
+
+        .status-option-remove {
+            color: #f38ba8;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
         /* ==================== ОСНОВНОЙ КОНТЕНТ ==================== */
         .container {
             max-width: 1400px;
@@ -1162,6 +1196,22 @@
                                     onclick="toggleWishlist('{{ manga.manga_id }}')">
                                 <span>{% if in_wishlist %}В списке{% else %}Хочу прочитать{% endif %}</span>
                             </button>
+
+                            <div class="manga-status-wrap" style="position:relative;display:inline-block;">
+                                <button id="statusBtn" class="btn {% if user_manga_status %}btn-status-active{% endif %}"
+                                        onclick="toggleStatusMenu(event)"
+                                        data-status="{{ user_manga_status or '' }}">
+                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}📖 Читаю{% elif user_manga_status == 'completed' %}✅ Прочитано{% elif user_manga_status == 'planned' %}📋 В планах{% elif user_manga_status == 'dropped' %}🗑 Брошено{% elif user_manga_status == 'paused' %}⏸ Отложено{% else %}＋ Статус{% endif %}</span>
+                                </button>
+                                <div id="statusMenu" class="status-dropdown" style="display:none;">
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','reading')">📖 Читаю</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','completed')">✅ Прочитано</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','planned')">📋 В планах</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','dropped')">🗑 Брошено</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','paused')">⏸ Отложено</div>
+                                    {% if user_manga_status %}<div class="status-option status-option-remove" onclick="setMangaStatus('{{ manga.manga_id }}',null)">✕ Убрать</div>{% endif %}
+                                </div>
+                            </div>
                             {% endif %}
 
                             <button class="btn" onclick="openSimilarModal()">
@@ -1378,6 +1428,55 @@
         }
         
         // ==================== WISHLIST ====================
+        const _STATUS_LABELS = {
+            reading: '📖 Читаю',
+            completed: '✅ Прочитано',
+            planned: '📋 В планах',
+            dropped: '🗑 Брошено',
+            paused:  '⏸ Отложено',
+        };
+
+        function toggleStatusMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('statusMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('click', () => {
+            const menu = document.getElementById('statusMenu');
+            if (menu) menu.style.display = 'none';
+        });
+
+        async function setMangaStatus(mangaId, status) {
+            const menu = document.getElementById('statusMenu');
+            if (menu) menu.style.display = 'none';
+            const r = await fetch(`/api/manga-status/${mangaId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status})
+            });
+            const d = await r.json();
+            const btn = document.getElementById('statusBtn');
+            const lbl = document.getElementById('statusBtnLabel');
+            if (btn && lbl) {
+                btn.dataset.status = d.status || '';
+                lbl.textContent = d.status ? _STATUS_LABELS[d.status] : '＋ Статус';
+                if (d.status) btn.classList.add('btn-status-active');
+                else btn.classList.remove('btn-status-active');
+                // rebuild remove option
+                const removeOpt = menu.querySelector('.status-option-remove');
+                if (d.status && !removeOpt) {
+                    const el = document.createElement('div');
+                    el.className = 'status-option status-option-remove';
+                    el.textContent = '✕ Убрать';
+                    el.onclick = () => setMangaStatus(mangaId, null);
+                    menu.appendChild(el);
+                } else if (!d.status && removeOpt) {
+                    removeOpt.remove();
+                }
+            }
+        }
+
         async function toggleWishlist(mangaId) {
             const btn = document.getElementById('wishlistBtn');
             if (btn) btn.disabled = true;

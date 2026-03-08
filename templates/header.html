@@ -197,6 +197,35 @@
   color: rgba(244,244,245,.5); display: flex; align-items: center; justify-content: center;
 }
 
+/* Persistent mobile search bar */
+.g-search-sticky {
+  display: none;
+  padding: 7px 12px 8px;
+  background: rgba(9,9,11,.95);
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.g-search-sticky form {
+  display: flex; align-items: center;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px; overflow: hidden; height: 38px;
+  transition: border-color .2s;
+}
+.g-search-sticky form:focus-within { border-color: rgba(102,126,234,.5); }
+.g-search-sticky input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f4f4f5; font-size: 14px; font-family: inherit; padding: 0 12px;
+}
+.g-search-sticky input::placeholder { color: rgba(244,244,245,.35); }
+.g-search-sticky button {
+  width: 40px; height: 38px; background: none; border: none; cursor: pointer;
+  color: rgba(244,244,245,.5); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.g-search-sticky button:hover { color: #818cf8; }
+@media (max-width: 700px) {
+  .g-search-sticky { display: block; }
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .g-search-form { max-width: 200px; }
@@ -396,17 +425,6 @@
   </div>
 
   <div class="g-mob-nav" id="gMobNav">
-    <form class="g-mob-search" action="/search" method="GET" autocomplete="off">
-      <input type="text" name="q" placeholder="Поиск манги..."
-             value="{{ request.args.get('q', '') }}">
-      <button type="submit" aria-label="Найти">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2.2"
-             stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-      </button>
-    </form>
     <a href="/" class="g-mob-a">Главная</a>
     <a href="/catalog" class="g-mob-a">Каталог</a>
     <a href="/top" class="g-mob-a">Топ</a>
@@ -421,6 +439,21 @@
     <div class="g-mob-sep"></div>
     <a href="https://t.me/hookah_p_bot" target="_blank" class="g-mob-a">Войти через Telegram</a>
     {% endif %}
+  </div>
+
+  <div class="g-search-sticky">
+    <form action="/search" method="GET" autocomplete="off">
+      <input type="text" name="q" placeholder="Поиск манги..."
+             value="{{ request.args.get('q', '') }}"
+             autocomplete="off">
+      <button type="submit" aria-label="Найти">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+    </form>
   </div>
 </header>
 
