@@ -5289,18 +5289,24 @@ def manga_detail(manga_slug):
             ).fetchone()
             if row:
                 user_manga_status = row[0]
-            rrow = conn2.execute(
-                'SELECT score FROM manga_user_ratings WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+            try:
+                rrow = conn2.execute(
+                    'SELECT score FROM manga_user_ratings WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+                ).fetchone()
+                if rrow:
+                    user_manga_rating = rrow[0]
+            except Exception:
+                pass
+        try:
+            arow = conn2.execute(
+                'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
+                (manga_id,)
             ).fetchone()
-            if rrow:
-                user_manga_rating = rrow[0]
-        arow = conn2.execute(
-            'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
-            (manga_id,)
-        ).fetchone()
-        if arow and arow['avg']:
-            manga_rating_avg = round(arow['avg'], 2)
-            manga_rating_count = arow['cnt']
+            if arow and arow['avg']:
+                manga_rating_avg = round(arow['avg'], 2)
+                manga_rating_count = arow['cnt']
+        except Exception:
+            pass
         conn2.close()
 
     logger.info(
@@ -6043,19 +6049,35 @@ def api_manga_rate(manga_id):
     if not isinstance(score, int) or not (1 <= score <= 10):
         return jsonify({'error': 'Оценка должна быть от 1 до 10'}), 400
     conn = get_db()
-    conn.execute(
-        '''INSERT INTO manga_user_ratings (user_id, manga_id, score, updated_at)
-           VALUES (?,?,?,CURRENT_TIMESTAMP)
-           ON CONFLICT(user_id, manga_id) DO UPDATE SET score=excluded.score, updated_at=CURRENT_TIMESTAMP''',
-        (user_id, manga_id)
-    )
-    conn.commit()
-    row = conn.execute(
-        'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
-        (manga_id,)
-    ).fetchone()
-    conn.close()
-    return jsonify({'ok': True, 'avg': round(row['avg'], 2) if row['avg'] else None, 'count': row['cnt']})
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            manga_id TEXT NOT NULL,
+            score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, manga_id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_manga_user_ratings_manga ON manga_user_ratings(manga_id)')
+        conn.execute(
+            '''INSERT INTO manga_user_ratings (user_id, manga_id, score, updated_at)
+               VALUES (?,?,?,CURRENT_TIMESTAMP)
+               ON CONFLICT(user_id, manga_id) DO UPDATE SET score=excluded.score, updated_at=CURRENT_TIMESTAMP''',
+            (user_id, manga_id)
+        )
+        conn.commit()
+        row = conn.execute(
+            'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
+            (manga_id,)
+        ).fetchone()
+        conn.close()
+        return jsonify({'ok': True, 'avg': round(row['avg'], 2) if row['avg'] else None, 'count': row['cnt']})
+    except Exception as e:
+        conn.close()
+        logger.error(f'api_manga_rate error: {e}')
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/manga/<manga_id>/recommend', methods=['POST'])
