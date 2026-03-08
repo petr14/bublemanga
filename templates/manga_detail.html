@@ -1458,20 +1458,20 @@
                                 <button id="statusBtn" class="btn {% if user_manga_status %}btn-status-active{% endif %}"
                                         onclick="toggleStatusMenu(event)"
                                         data-status="{{ user_manga_status or '' }}">
-                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}Читаю{% elif user_manga_status == 'completed' %}Прочитано{% elif user_manga_status == 'planned' %}Хочу прочитать{% elif user_manga_status == 'dropped' %}Брошено{% elif user_manga_status == 'paused' %}⏸ Отложено{% else %}＋ Статус{% endif %}</span>
+                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}Читаю{% elif user_manga_status == 'completed' %}Прочитано{% elif user_manga_status == 'planned' %}Хочу прочитать{% elif user_manga_status == 'dropped' %}Брошено{% elif user_manga_status == 'paused' %}Отложено{% else %}＋ Статус{% endif %}</span>
                                 </button>
                                 <div id="statusMenu" class="status-dropdown" style="display:none;">
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','reading')">Читаю</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','completed')">Прочитано</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','planned')">Хочу прочитать</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','dropped')">Брошено</div>
-                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','paused')">⏸ Отложено</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','paused')">Отложено</div>
                                     {% if user_manga_status %}<div class="status-option status-option-remove" onclick="setMangaStatus('{{ manga.manga_id }}',null)">✕ Убрать</div>{% endif %}
                                 </div>
                             </div>
 
                             <button class="btn" onclick="openRecommendModal('{{ manga.manga_id }}')">
-                                <span>📨 Рекомендовать</span>
+                                <span>Рекомендовать</span>
                             </button>
                             {% endif %}
 
@@ -1694,7 +1694,7 @@
             completed: 'Прочитано',
             planned: 'Хочу прочитать',
             dropped: 'Брошено',
-            paused:  '⏸ Отложено',
+            paused:  'Отложено',
         };
 
         function toggleStatusMenu(e) {
@@ -2591,7 +2591,7 @@
 <div id="recommendOverlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);padding:1.5rem;display:none;align-items:center;justify-content:center" onclick="if(event.target===this)closeRecommendModal()">
   <div style="width:100%;max-width:420px;background:#161616;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:24px;max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:16px;font-weight:800">📨 Рекомендовать другу</div>
+      <div style="font-size:16px;font-weight:800">Рекомендовать другу</div>
       <button onclick="closeRecommendModal()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     <div style="font-size:13px;color:#a1a1aa;margin-bottom:14px">Выбери друга, которому хочешь порекомендовать эту мангу:</div>
