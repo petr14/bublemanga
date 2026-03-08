@@ -1100,6 +1100,19 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows ON curator_follows(author_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows_follower ON curator_follows(follower_id)')
 
+    # Оценки манги пользователями
+    c.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        manga_id TEXT NOT NULL,
+        score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, manga_id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_manga_user_ratings_manga ON manga_user_ratings(manga_id)')
+
     # ── FTS5 полнотекстовый поиск ─────────────────────────────────────────
     c.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS manga_fts
                  USING fts5(manga_id UNINDEXED, manga_title, original_name, description,
@@ -5259,19 +5272,35 @@ def manga_detail(manga_slug):
         if history:
             reading_history = dict(history)
 
-    # Вишлист + личный статус
+    # Вишлист + личный статус + рейтинг
     in_wishlist = False
     user_manga_status = None
-    if user_id and manga_id:
+    user_manga_rating = None
+    manga_rating_avg = None
+    manga_rating_count = 0
+    if manga_id:
         conn2 = get_db()
-        in_wishlist = bool(conn2.execute(
-            'SELECT 1 FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id)
-        ).fetchone())
-        row = conn2.execute(
-            'SELECT status FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+        if user_id:
+            in_wishlist = bool(conn2.execute(
+                'SELECT 1 FROM reading_wishlist WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+            ).fetchone())
+            row = conn2.execute(
+                'SELECT status FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+            ).fetchone()
+            if row:
+                user_manga_status = row[0]
+            rrow = conn2.execute(
+                'SELECT score FROM manga_user_ratings WHERE user_id=? AND manga_id=?', (user_id, manga_id)
+            ).fetchone()
+            if rrow:
+                user_manga_rating = rrow[0]
+        arow = conn2.execute(
+            'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
+            (manga_id,)
         ).fetchone()
-        if row:
-            user_manga_status = row[0]
+        if arow and arow['avg']:
+            manga_rating_avg = round(arow['avg'], 2)
+            manga_rating_count = arow['cnt']
         conn2.close()
 
     logger.info(
@@ -5289,6 +5318,9 @@ def manga_detail(manga_slug):
                            is_loading_more=is_loading_more,
                            in_wishlist=in_wishlist,
                            user_manga_status=user_manga_status,
+                           user_manga_rating=user_manga_rating,
+                           manga_rating_avg=manga_rating_avg,
+                           manga_rating_count=manga_rating_count,
                            user_id=user_id)
 
 # ==================== ПРОФИЛИ / ТОП / МАГАЗИН ====================
@@ -6000,6 +6032,32 @@ def api_user_reading_list():
     return jsonify([dict(r) for r in rows])
 
 
+@app.route('/api/manga/<manga_id>/rate', methods=['POST'])
+def api_manga_rate(manga_id):
+    """Оценить мангу (1–10)"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    data = request.json or {}
+    score = data.get('score')
+    if not isinstance(score, int) or not (1 <= score <= 10):
+        return jsonify({'error': 'Оценка должна быть от 1 до 10'}), 400
+    conn = get_db()
+    conn.execute(
+        '''INSERT INTO manga_user_ratings (user_id, manga_id, score, updated_at)
+           VALUES (?,?,?,CURRENT_TIMESTAMP)
+           ON CONFLICT(user_id, manga_id) DO UPDATE SET score=excluded.score, updated_at=CURRENT_TIMESTAMP''',
+        (user_id, manga_id)
+    )
+    conn.commit()
+    row = conn.execute(
+        'SELECT AVG(score) as avg, COUNT(*) as cnt FROM manga_user_ratings WHERE manga_id=?',
+        (manga_id,)
+    ).fetchone()
+    conn.close()
+    return jsonify({'ok': True, 'avg': round(row['avg'], 2) if row['avg'] else None, 'count': row['cnt']})
+
+
 @app.route('/api/manga/<manga_id>/recommend', methods=['POST'])
 def api_manga_recommend(manga_id):
     """Рекомендовать мангу другому пользователю"""
@@ -6026,11 +6084,56 @@ def api_manga_recommend(manga_id):
         body += f' — «{message}»'
     create_site_notification(
         target_user_id, 'manga_recommend', title, body,
-        f'/manga/{manga["manga_slug"]}', conn=conn
+        f'/profile/{target_user_id}?tab=library&lib=recommendations', conn=conn
     )
     conn.commit()
     conn.close()
     return jsonify({'ok': True})
+
+
+@app.route('/api/user/friend-recommendations')
+def api_friend_recommendations():
+    """Рекомендации манги от друзей текущего пользователя"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT sn.id, sn.title, sn.body, sn.url, sn.created_at, sn.is_read,
+                  m.manga_id, m.manga_slug, m.manga_title, m.cover_url
+           FROM site_notifications sn
+           LEFT JOIN manga m ON m.manga_slug = REPLACE(sn.url, '/manga/', '')
+           WHERE sn.user_id=? AND sn.type='manga_recommend'
+           ORDER BY sn.created_at DESC
+           LIMIT 50''',
+        (user_id,)
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        title = d.get('title', '') or ''
+        body = d.get('body', '') or ''
+        # "Имя рекомендует мангу" -> sender_name = "Имя"
+        sender_name = title.replace(' рекомендует мангу', '') if ' рекомендует мангу' in title else title
+        # body: "Название манги — «текст»" -> message
+        message = ''
+        manga_title_parsed = body
+        if ' — «' in body:
+            manga_title_parsed, rest = body.split(' — «', 1)
+            message = rest.rstrip('»')
+        result.append({
+            'id': d['id'],
+            'manga_id': d.get('manga_id'),
+            'manga_slug': d.get('manga_slug') or (d.get('url', '').replace('/manga/', '') if d.get('url') else ''),
+            'manga_title': d.get('manga_title') or manga_title_parsed,
+            'cover_url': d.get('cover_url') or '',
+            'sender_name': sender_name,
+            'message': message,
+            'created_at': d['created_at'],
+            'is_read': d['is_read'],
+        })
+    return jsonify({'recommendations': result})
 
 
 @app.route('/api/user/wishlist')

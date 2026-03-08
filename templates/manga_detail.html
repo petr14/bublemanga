@@ -321,6 +321,27 @@
             color: #ffd700;
         }
 
+        /* ==================== ОЦЕНКА ==================== */
+        .manga-rating-block {
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 16px;
+            padding: 18px 20px;
+            margin: 16px 0;
+        }
+        .manga-rating-title { font-size: 13px; color: #b8b8b8; margin-bottom: 12px; font-weight: 600; }
+        .rating-stars { display: flex; gap: 6px; flex-wrap: wrap; }
+        .rating-btn {
+            width: 36px; height: 36px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
+            color: #b8b8b8; font-size: 14px; font-weight: 700; cursor: pointer;
+            transition: all .15s; font-family: inherit;
+        }
+        .rating-btn:hover { background: rgba(251,191,36,.15); border-color: rgba(251,191,36,.4); color: #fbbf24; transform: scale(1.1); }
+        .rating-btn.selected { background: rgba(251,191,36,.2); border-color: #fbbf24; color: #fbbf24; }
+        .rating-avg { font-size: 13px; color: #b8b8b8; margin-top: 10px; }
+        .rating-avg strong { color: #fbbf24; font-size: 16px; }
+
         /* ==================== ДЕЙСТВИЯ ==================== */
         .manga-actions {
             display: flex;
@@ -1173,6 +1194,26 @@
                         {% endif %}
                     </div>
                     
+                    <!-- Оценка манги -->
+                    {% if user_id %}
+                    <div class="manga-rating-block">
+                        <div class="manga-rating-title">Ваша оценка</div>
+                        <div class="rating-stars" id="ratingStars">
+                            {% for i in range(1, 11) %}
+                            <button class="rating-btn{% if user_manga_rating == i %} selected{% endif %}"
+                                    data-score="{{ i }}" onclick="setMangaRating('{{ manga.manga_id }}', {{ i }})">{{ i }}</button>
+                            {% endfor %}
+                        </div>
+                        <div class="rating-avg" id="ratingAvg">
+                            {% if manga_rating_avg %}
+                            Средняя оценка: <strong>{{ "%.1f"|format(manga_rating_avg) }}</strong> ({{ manga_rating_count }} оценок)
+                            {% else %}
+                            Оценок пока нет
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Кнопки действий -->
                     <div class="manga-actions">
                         <!-- Строка 1: действия -->
@@ -1192,21 +1233,16 @@
                             <button class="btn" onclick="openCollectionPicker('{{ manga.manga_id }}')">
                                 <span>В коллекцию</span>
                             </button>
-                            <button id="wishlistBtn" class="btn {% if in_wishlist %}btn-subscribe subscribed{% endif %}"
-                                    onclick="toggleWishlist('{{ manga.manga_id }}')">
-                                <span>{% if in_wishlist %}В списке{% else %}Хочу прочитать{% endif %}</span>
-                            </button>
-
                             <div class="manga-status-wrap" style="position:relative;display:inline-block;">
                                 <button id="statusBtn" class="btn {% if user_manga_status %}btn-status-active{% endif %}"
                                         onclick="toggleStatusMenu(event)"
                                         data-status="{{ user_manga_status or '' }}">
-                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}📖 Читаю{% elif user_manga_status == 'completed' %}✅ Прочитано{% elif user_manga_status == 'planned' %}📋 В планах{% elif user_manga_status == 'dropped' %}🗑 Брошено{% elif user_manga_status == 'paused' %}⏸ Отложено{% else %}＋ Статус{% endif %}</span>
+                                    <span id="statusBtnLabel">{% if user_manga_status == 'reading' %}📖 Читаю{% elif user_manga_status == 'completed' %}✅ Прочитано{% elif user_manga_status == 'planned' %}🔖 Хочу прочитать{% elif user_manga_status == 'dropped' %}🗑 Брошено{% elif user_manga_status == 'paused' %}⏸ Отложено{% else %}＋ Статус{% endif %}</span>
                                 </button>
                                 <div id="statusMenu" class="status-dropdown" style="display:none;">
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','reading')">📖 Читаю</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','completed')">✅ Прочитано</div>
-                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','planned')">📋 В планах</div>
+                                    <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','planned')">🔖 Хочу прочитать</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','dropped')">🗑 Брошено</div>
                                     <div class="status-option" onclick="setMangaStatus('{{ manga.manga_id }}','paused')">⏸ Отложено</div>
                                     {% if user_manga_status %}<div class="status-option status-option-remove" onclick="setMangaStatus('{{ manga.manga_id }}',null)">✕ Убрать</div>{% endif %}
@@ -1435,7 +1471,7 @@
         const _STATUS_LABELS = {
             reading: '📖 Читаю',
             completed: '✅ Прочитано',
-            planned: '📋 В планах',
+            planned: '🔖 Хочу прочитать',
             dropped: '🗑 Брошено',
             paused:  '⏸ Отложено',
         };
@@ -1586,19 +1622,23 @@
             t._timer = setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(80px)'; }, 3000);
         }
 
-        async function toggleWishlist(mangaId) {
-            const btn = document.getElementById('wishlistBtn');
-            if (btn) btn.disabled = true;
+        // ==================== РЕЙТИНГ ====================
+        async function setMangaRating(mangaId, score) {
             try {
-                const r = await fetch(`/api/wishlist/${mangaId}`, {method:'POST'});
+                const r = await fetch(`/api/manga/${mangaId}/rate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({score})
+                });
                 const d = await r.json();
-                if (btn) {
-                    btn.innerHTML = `<span>${d.in_wishlist ? 'В списке' : 'Хочу прочитать'}</span>`;
-                    if (d.in_wishlist) btn.classList.add('btn-subscribe','subscribed');
-                    else btn.classList.remove('btn-subscribe','subscribed');
-                    btn.disabled = false;
+                document.querySelectorAll('.rating-btn').forEach(b => {
+                    b.classList.toggle('selected', parseInt(b.dataset.score) === score);
+                });
+                const avgEl = document.getElementById('ratingAvg');
+                if (avgEl && d.avg) {
+                    avgEl.innerHTML = `Средняя оценка: <strong>${d.avg.toFixed(1)}</strong> (${d.count} оценок)`;
                 }
-            } catch(e) { if (btn) btn.disabled = false; }
+            } catch(e) {}
         }
 
         // ==================== АВТОПРОКРУТКА К ПОСЛЕДНЕЙ ПРОЧИТАННОЙ ГЛАВЕ ====================

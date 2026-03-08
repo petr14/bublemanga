@@ -323,7 +323,10 @@
         .streak-day.l2 { background: #166534; border-color: #15803d; }
         .streak-day.l3 { background: #16a34a; border-color: #22c55e; }
         .streak-day.l4 { background: #22c55e; border-color: #4ade80; }
-        .streak-cal-months { display: flex; gap: 3px; font-size: 10px; color: var(--text2); margin-bottom: 3px; overflow: hidden; }
+        .streak-cal-scroll { overflow-x: auto; padding-bottom: 4px; }
+        .streak-cal-scroll::-webkit-scrollbar { height: 3px; }
+        .streak-cal-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .streak-cal-months { display: flex; gap: 3px; font-size: 10px; color: var(--text2); margin-bottom: 3px; white-space: nowrap; }
         .streak-cal-legend { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); margin-top: 5px; justify-content: flex-end; }
         .streak-cal-legend .streak-day { width: 10px; height: 10px; cursor: default; }
 
@@ -478,7 +481,7 @@
             <div class="avatar-premium-crown" title="Premium">👑</div>
             {% endif %}
             {% if is_own %}
-            <button class="avatar-edit-btn" onclick="openEditModal('avatar')" title="Сменить аватар">📷</button>
+            <button class="avatar-edit-btn" onclick="openEditModal('avatar')" title="Редактировать профиль">✏️</button>
             {% endif %}
         </div>
 
@@ -508,9 +511,6 @@
                 </div>
             </div>
             <div class="hero-actions">
-                {% if is_own %}
-                <button class="btn-edit" onclick="openEditModal('main')"> Редактировать профиль</button>
-                {% endif %}
                 {% if not is_own and user_id %}
                 <button class="btn-follow" id="followBtn" onclick="toggleFollowCurator({{ profile.user.id }})">Добавить в друзья</button>
                 {% endif %}
@@ -523,6 +523,7 @@
 <div class="tabs-bar">
     <button class="tab-btn active" data-tab="profile"> Профиль</button>
     <button class="tab-btn" data-tab="library"> Библиотека</button>
+    {% if is_own %}<button class="tab-btn" data-tab="friends">👥 Друзья</button>{% endif %}
     {% if is_own %}<button class="tab-btn" data-tab="quests"> Задания</button>{% endif %}
 </div>
 
@@ -594,15 +595,17 @@
         <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">Подписки</button>
         <button class="lib-btn" data-lib="collections">Коллекции</button>
         {% if is_own %}<button class="lib-btn" data-lib="wishlist">🔖 Хочу прочитать</button>{% endif %}
-        {% if is_own %}<button class="lib-btn" data-lib="curators">Друзья</button>{% endif %}
+        {% if is_own %}<button class="lib-btn" data-lib="recommendations">📨 Рекомендации</button>{% endif %}
     </div>
 
     {% if is_own %}
     <div id="lib-history" class="lib-pane active">
         <div class="streak-cal-wrap" id="streakCalWrap">
             <div class="streak-cal-title">Активность чтения <span id="streakCalTotal"></span></div>
+            <div class="streak-cal-scroll">
             <div class="streak-cal-months" id="streakCalMonths"></div>
-            <div class="streak-cal" id="streakCal"></div>
+            <div class="streak-cal" id="streakCal" style="overflow-x:unset;padding-bottom:0"></div>
+            </div>
             <div class="streak-cal-legend">
                 Меньше
                 <div class="streak-day"></div>
@@ -632,11 +635,18 @@
     <div id="lib-wishlist" class="lib-pane">
         <div id="wishlistContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
-    <div id="lib-curators" class="lib-pane">
-        <div id="curatorsContent"><div class="loading-spin"><div class="spin"></div></div></div>
+    <div id="lib-recommendations" class="lib-pane">
+        <div id="recommendationsContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
     {% endif %}
 </div>
+
+<!-- ДРУЗЬЯ -->
+{% if is_own %}
+<div id="tab-friends" class="tab-pane">
+    <div id="curatorsContent"><div class="loading-spin"><div class="spin"></div></div></div>
+</div>
+{% endif %}
 
 <!-- ЗАДАНИЯ -->
 {% if is_own %}
@@ -810,6 +820,23 @@
     // XP fill
     setTimeout(() => { document.getElementById('xpFill').style.width = XP_PCT + '%'; }, 300);
 
+    // Deep-link: ?tab=library&lib=recommendations
+    (function() {
+        const p = new URLSearchParams(location.search);
+        const tabParam = p.get('tab');
+        const libParam = p.get('lib');
+        if (tabParam) {
+            const btn = document.querySelector(`.tab-btn[data-tab="${tabParam}"]`);
+            if (btn) btn.click();
+            if (libParam) {
+                setTimeout(() => {
+                    const lbtn = document.querySelector(`.lib-btn[data-lib="${libParam}"]`);
+                    if (lbtn) lbtn.click();
+                }, 100);
+            }
+        }
+    })();
+
     // Quests
     let _allQuests = [];
 
@@ -883,6 +910,7 @@
     })();
 
     // Main tabs
+    let _friendsLoaded = false;
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -890,6 +918,7 @@
             btn.classList.add('active');
             document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
             if (btn.dataset.tab === 'library') initLibrary();
+            if (btn.dataset.tab === 'friends' && !_friendsLoaded) { _friendsLoaded = true; loadCurators(); }
         });
     });
 
@@ -914,10 +943,10 @@
         else if (name === 'subscriptions') fetchSubs();
         else if (name === 'collections') fetchColls();
         else if (name === 'wishlist') fetchWishlist();
-        else if (name === 'curators') loadCurators();
+        else if (name === 'recommendations') fetchRecommendations();
     }
 
-    // ── Кураторы ─────────────────────────────────────────────────────────────
+    // ── Кураторы / Друзья ─────────────────────────────────────────────────────────────
     function loadCurators() {
         fetch('/api/user/following-curators')
             .then(r => r.json())
@@ -936,6 +965,26 @@
                         </div>
                     </div>`).join('') + '</div>';
             }).catch(() => { document.getElementById('curatorsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
+    }
+
+    // ── Рекомендации друзей ───────────────────────────────────────────────────
+    function fetchRecommendations() {
+        fetch('/api/user/friend-recommendations')
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('recommendationsContent');
+                const items = data.recommendations || [];
+                if (!items.length) { el.innerHTML = emptyState('📨', 'Нет рекомендаций', 'Друзья пока ничего не рекомендовали'); return; }
+                el.innerHTML = '<div class="history-list">' + items.map(rec => `
+                    <a href="/manga/${esc(rec.manga_slug)}" class="hitem">
+                        <img src="${esc(rec.cover_url || '')}" class="hitem-cover" onerror="this.style.background='#1a1a1a';this.style.display='block'">
+                        <div class="hitem-info">
+                            <div class="hitem-title">${esc(rec.manga_title)}</div>
+                            <div class="hitem-chap">от ${esc(rec.sender_name)}${rec.message ? ` — «${esc(rec.message)}»` : ''}</div>
+                        </div>
+                        <div class="hitem-date">${fmtDate(rec.created_at)}</div>
+                    </a>`).join('') + '</div>';
+            }).catch(() => { document.getElementById('recommendationsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
     }
 
     // ── Streak calendar ───────────────────────────────────────────────────────
