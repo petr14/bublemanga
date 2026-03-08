@@ -322,104 +322,210 @@
         }
 
         /* ==================== ОЦЕНКА ==================== */
+        @keyframes ratingIn {
+            0%   { opacity:0; transform: translateY(32px) scale(.93); }
+            60%  { transform: translateY(-5px) scale(1.01); }
+            100% { opacity:1; transform: none; }
+        }
+        @keyframes scorePop {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.28) rotate(-4deg); }
+            70%  { transform: scale(.94) rotate(2deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+        @keyframes phraseSlide {
+            0%   { opacity:0; transform: translateY(8px); }
+            100% { opacity:1; transform: none; }
+        }
+        @keyframes sakuraFall {
+            0%   { transform: translateY(-20px) rotate(0deg) translateX(0); opacity:1; }
+            100% { transform: translateY(120px) rotate(360deg) translateX(30px); opacity:0; }
+        }
+        @keyframes starBurst {
+            0%   { transform: scale(0) rotate(0); opacity:1; }
+            70%  { opacity:1; }
+            100% { transform: scale(1.6) rotate(180deg); opacity:0; }
+        }
+        @keyframes glowPulse {
+            0%,100% { box-shadow: 0 0 20px rgba(102,126,234,.3), 0 0 60px rgba(118,75,162,.1); }
+            50%      { box-shadow: 0 0 35px rgba(102,126,234,.55), 0 0 80px rgba(118,75,162,.25); }
+        }
+        @keyframes thumbWobble {
+            0%,100% { transform: scale(1); }
+            30%      { transform: scale(1.3) rotate(-8deg); }
+            60%      { transform: scale(1.1) rotate(4deg); }
+        }
+        @keyframes overlayIn {
+            from { opacity:0; }
+            to   { opacity:1; }
+        }
+        @keyframes shimmerBg {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .manga-rating-block {
             display: flex; align-items: center; gap: 12px;
-            background: #1a1a1a;
-            border: 1px solid rgba(255,255,255,.07);
-            border-radius: 16px;
-            padding: 14px 18px;
-            margin: 16px 0;
+            background: linear-gradient(135deg, rgba(102,126,234,.08), rgba(118,75,162,.08));
+            border: 1px solid rgba(102,126,234,.2);
+            border-radius: 16px; padding: 14px 18px; margin: 16px 0;
+            transition: border-color .3s;
         }
-        .rating-open-btn {
-            flex-shrink: 0;
-            padding: 8px 18px; border-radius: 50px;
-            background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.3);
-            color: #fbbf24; font-size: 13px; font-weight: 700; cursor: pointer;
-            transition: all .2s; font-family: inherit; white-space: nowrap;
-        }
-        .rating-open-btn:hover { background: rgba(251,191,36,.22); border-color: #fbbf24; }
-        .rating-open-btn.rated { background: rgba(251,191,36,.18); border-color: #fbbf24; }
-        .rating-avg-inline { font-size: 13px; color: #b8b8b8; flex: 1; min-width: 0; }
-        .rating-avg-inline strong { color: #fbbf24; font-size: 15px; }
+        .manga-rating-block:hover { border-color: rgba(102,126,234,.4); }
 
-        /* Модалка оценки */
+        .rating-open-btn {
+            flex-shrink: 0; padding: 9px 20px; border-radius: 50px;
+            background: linear-gradient(135deg, rgba(102,126,234,.18), rgba(118,75,162,.18));
+            border: 1px solid rgba(102,126,234,.35);
+            color: #a5b4fc; font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: all .25s; font-family: inherit; white-space: nowrap;
+            position: relative; overflow: hidden;
+        }
+        .rating-open-btn::after {
+            content:''; position:absolute; inset:0;
+            background: linear-gradient(135deg, rgba(255,255,255,.08), transparent);
+            opacity:0; transition: opacity .2s;
+        }
+        .rating-open-btn:hover { background: linear-gradient(135deg, rgba(102,126,234,.32), rgba(118,75,162,.32)); border-color: #818cf8; color: #c7d2fe; transform: translateY(-1px); }
+        .rating-open-btn:hover::after { opacity:1; }
+        .rating-open-btn.rated { background: linear-gradient(135deg, rgba(102,126,234,.25), rgba(118,75,162,.25)); border-color: #818cf8; color: #c7d2fe; }
+        .rating-avg-inline { font-size: 13px; color: #b8b8b8; flex: 1; min-width: 0; }
+        .rating-avg-inline strong { background: linear-gradient(135deg,#818cf8,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size: 15px; }
+
+        /* ── Оверлей ── */
         .rating-modal-overlay {
             position: fixed; inset: 0; z-index: 500;
-            background: rgba(0,0,0,.7); backdrop-filter: blur(8px);
+            background: rgba(5,5,15,.82); backdrop-filter: blur(12px) saturate(1.4);
             display: flex; align-items: center; justify-content: center;
-            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s;
+            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .3s;
         }
-        .rating-modal-overlay.open { opacity: 1; pointer-events: all; }
+        .rating-modal-overlay.open { opacity: 1; pointer-events: all; animation: overlayIn .3s ease; }
+
+        /* ── Модалка ── */
         .rating-modal {
-            background: #161620; border: 1px solid rgba(255,255,255,.1);
-            border-radius: 24px; padding: 32px 28px 28px;
-            width: 100%; max-width: 400px;
-            transform: translateY(24px) scale(.97); transition: transform .25s;
-            text-align: center; position: relative;
+            position: relative; overflow: hidden;
+            background: linear-gradient(160deg, #12121e 0%, #1a1030 50%, #0e1628 100%);
+            border: 1px solid rgba(102,126,234,.25);
+            border-radius: 28px; padding: 36px 28px 28px;
+            width: 100%; max-width: 420px; text-align: center;
+            transform: translateY(40px) scale(.93);
+            transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+            animation: glowPulse 4s ease infinite;
         }
-        .rating-modal-overlay.open .rating-modal { transform: none; }
+        .rating-modal-overlay.open .rating-modal { transform: none; animation: ratingIn .42s cubic-bezier(.34,1.56,.64,1) forwards, glowPulse 4s ease 1s infinite; }
+
+        /* Фоновый градиент */
+        .rating-modal::before {
+            content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
+            background: radial-gradient(ellipse at 50% 0%, rgba(102,126,234,.18) 0%, transparent 65%),
+                        radial-gradient(ellipse at 80% 100%, rgba(118,75,162,.14) 0%, transparent 60%);
+        }
+        .rating-modal > * { position:relative; z-index:1; }
+
+        /* Сакура-частицы */
+        .rating-sakura { position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none; overflow:hidden; z-index:0; }
+        .sakura-petal {
+            position:absolute; font-size:14px; opacity:0;
+            animation: sakuraFall var(--dur) var(--delay) linear infinite;
+        }
+
+        /* Закрыть */
         .rating-modal-close {
-            position: absolute; top: 16px; right: 16px;
+            position: absolute; top: 16px; right: 16px; z-index:10;
             width: 32px; height: 32px; border-radius: 50%;
-            background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
-            color: #b8b8b8; font-size: 16px; cursor: pointer;
+            background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+            color: #b8b8b8; font-size: 15px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            transition: background .2s;
+            transition: all .2s;
         }
-        .rating-modal-close:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
-        .rating-modal-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
-        .rating-modal-manga { font-size: 13px; color: #b8b8b8; margin-bottom: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rating-modal-close:hover { background: rgba(239,68,68,.2); border-color: #ef4444; color: #ef4444; transform: rotate(90deg); }
 
+        /* Шапка */
+        .rating-modal-header { margin-bottom: 20px; }
+        .rating-modal-tag {
+            display: inline-block; padding: 3px 12px; border-radius: 99px; margin-bottom: 10px;
+            background: linear-gradient(135deg, rgba(102,126,234,.2), rgba(118,75,162,.2));
+            border: 1px solid rgba(102,126,234,.3);
+            font-size: 11px; font-weight: 700; letter-spacing: .8px;
+            color: #a5b4fc; text-transform: uppercase;
+        }
+        .rating-modal-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .rating-modal-manga { font-size: 12px; color: rgba(255,255,255,.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Большая цифра */
+        .rating-score-wrap { position:relative; display:inline-block; margin-bottom: 2px; }
         .rating-score-display {
-            font-size: 72px; font-weight: 900; line-height: 1;
-            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            font-size: 88px; font-weight: 900; line-height: 1;
+            background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; margin-bottom: 4px;
-            transition: transform .15s;
+            background-clip: text; display: block;
+            filter: drop-shadow(0 0 20px rgba(129,140,248,.4));
         }
-        .rating-score-display.bump { transform: scale(1.18); }
-        .rating-phrase {
-            font-size: 15px; font-weight: 600; color: #e5e7eb;
-            min-height: 24px; margin-bottom: 28px;
-            transition: opacity .15s;
-        }
+        .rating-score-display.pop { animation: scorePop .4s cubic-bezier(.34,1.56,.64,1); }
 
-        /* Ползунок */
-        .rating-slider-wrap { padding: 0 4px; margin-bottom: 10px; }
+        /* Звёздочки-burst вокруг цифры */
+        .rating-burst { position:absolute; inset:-10px; pointer-events:none; }
+        .rating-burst span {
+            position:absolute; top:50%; left:50%; font-size:16px;
+            transform-origin:center; opacity:0;
+        }
+        .rating-burst span.fire { animation: starBurst .5s ease forwards; }
+
+        /* Фраза */
+        .rating-phrase {
+            font-size: 15px; font-weight: 700; min-height: 22px; margin-bottom: 28px;
+            background: linear-gradient(135deg, #e0e7ff, #c4b5fd);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .rating-phrase.slide { animation: phraseSlide .2s ease; }
+
+        /* ── Ползунок ── */
+        .rating-slider-wrap { padding: 0 6px; margin-bottom: 8px; position:relative; }
         .rating-slider {
             -webkit-appearance: none; appearance: none;
-            width: 100%; height: 6px; border-radius: 99px;
-            background: linear-gradient(to right, #fbbf24 var(--pct), rgba(255,255,255,.12) var(--pct));
-            outline: none; cursor: pointer;
+            width: 100%; height: 6px; border-radius: 99px; outline: none; cursor: pointer;
+            background: linear-gradient(to right,
+                #818cf8 var(--pct),
+                rgba(255,255,255,.1) var(--pct));
+            transition: background .1s;
         }
         .rating-slider::-webkit-slider-thumb {
             -webkit-appearance: none; appearance: none;
-            width: 26px; height: 26px; border-radius: 50%;
-            background: linear-gradient(135deg, #fbbf24, #f59e0b);
-            box-shadow: 0 0 0 3px rgba(251,191,36,.25), 0 4px 12px rgba(0,0,0,.4);
-            cursor: pointer; transition: transform .15s, box-shadow .15s;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: linear-gradient(135deg, #818cf8, #a78bfa);
+            box-shadow: 0 0 0 3px rgba(129,140,248,.25), 0 0 16px rgba(167,139,250,.5), 0 4px 12px rgba(0,0,0,.5);
+            cursor: pointer; transition: box-shadow .2s;
         }
-        .rating-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 0 0 5px rgba(251,191,36,.3), 0 4px 16px rgba(0,0,0,.5);
-        }
+        .rating-slider:active::-webkit-slider-thumb { animation: thumbWobble .35s ease; }
         .rating-slider::-moz-range-thumb {
-            width: 26px; height: 26px; border-radius: 50%; border: none;
-            background: linear-gradient(135deg, #fbbf24, #f59e0b);
-            box-shadow: 0 0 0 3px rgba(251,191,36,.25); cursor: pointer;
+            width: 28px; height: 28px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #818cf8, #a78bfa);
+            box-shadow: 0 0 0 3px rgba(129,140,248,.25), 0 0 16px rgba(167,139,250,.5);
+            cursor: pointer;
         }
-        .rating-ticks { display: flex; justify-content: space-between; padding: 0 2px; margin-bottom: 24px; }
-        .rating-ticks span { font-size: 10px; color: rgba(255,255,255,.3); font-weight: 600; }
-        .rating-ticks span.active { color: #fbbf24; }
 
-        .rating-submit-btn {
-            width: 100%; padding: 13px; border-radius: 14px;
-            background: linear-gradient(135deg, #fbbf24, #f59e0b);
-            border: none; color: #111; font-size: 15px; font-weight: 800;
-            cursor: pointer; transition: opacity .2s, transform .15s; font-family: inherit;
+        /* Метки */
+        .rating-ticks { display: flex; justify-content: space-between; padding: 0 4px; margin-bottom: 26px; }
+        .rating-ticks span {
+            font-size: 10px; color: rgba(255,255,255,.22); font-weight: 700;
+            transition: color .15s, transform .15s;
         }
-        .rating-submit-btn:hover { opacity: .9; transform: translateY(-1px); }
-        .rating-submit-btn:active { transform: scale(.98); }
+        .rating-ticks span.active { color: #a78bfa; transform: scale(1.3); }
+
+        /* Кнопка */
+        .rating-submit-btn {
+            width: 100%; padding: 14px; border-radius: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            background-size: 200% 200%; animation: shimmerBg 4s ease infinite;
+            border: none; color: #fff; font-size: 15px; font-weight: 800;
+            cursor: pointer; transition: transform .2s, box-shadow .2s; font-family: inherit;
+            box-shadow: 0 4px 20px rgba(102,126,234,.4);
+        }
+        .rating-submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(102,126,234,.6); }
+        .rating-submit-btn:active { transform: scale(.97); }
+        .rating-submit-btn.done { background: linear-gradient(135deg,#22c55e,#16a34a); box-shadow: 0 4px 20px rgba(34,197,94,.4); animation: none; }
 
         /* ==================== ДЕЙСТВИЯ ==================== */
         .manga-actions {
@@ -1292,11 +1398,23 @@
                     <!-- Модальное окно оценки -->
                     <div class="rating-modal-overlay" id="ratingModalOverlay" onclick="closeRatingModal(event)">
                         <div class="rating-modal">
+                            <!-- Сакура -->
+                            <div class="rating-sakura" id="ratingSakura"></div>
+
                             <button class="rating-modal-close" onclick="closeRatingModal()">✕</button>
-                            <div class="rating-modal-title">Оцените мангу</div>
-                            <div class="rating-modal-manga">{{ manga.manga_title }}</div>
-                            <div class="rating-score-display" id="ratingScoreDisplay">{{ user_manga_rating or 5 }}</div>
+
+                            <div class="rating-modal-header">
+                                <div class="rating-modal-tag">Ваша оценка</div>
+                                <div class="rating-modal-title">Оцените мангу</div>
+                                <div class="rating-modal-manga">{{ manga.manga_title }}</div>
+                            </div>
+
+                            <div class="rating-score-wrap">
+                                <div class="rating-score-display" id="ratingScoreDisplay">{{ user_manga_rating or 5 }}</div>
+                                <div class="rating-burst" id="ratingBurst"></div>
+                            </div>
                             <div class="rating-phrase" id="ratingPhrase"></div>
+
                             <div class="rating-slider-wrap">
                                 <input type="range" class="rating-slider" id="ratingSlider"
                                        min="1" max="10" value="{{ user_manga_rating or 5 }}"
@@ -1308,7 +1426,10 @@
                                 <span{% if user_manga_rating == i %} class="active"{% endif %}>{{ i }}</span>
                                 {% endfor %}
                             </div>
-                            <button class="rating-submit-btn" onclick="submitRating('{{ manga.manga_id }}')">Сохранить оценку</button>
+
+                            <button class="rating-submit-btn" id="ratingSubmitBtn" onclick="submitRating('{{ manga.manga_id }}')">
+                                Сохранить оценку
+                            </button>
                         </div>
                     </div>
                     {% endif %}
@@ -1731,9 +1852,47 @@
             6:  'Норм, но не зацепило ⚔️',
             7:  'Советую, если не занят 🍜',
             8:  'Залпом прочитал всё ночью 🌙',
-            9:  'Шедевр, Мияздки одобрил бы 🌸',
+            9:  'Шедевр, Миядзаки одобрил бы 🌸',
             10: 'Манга моей жизни. Ничего лучше нет 👑',
         };
+
+        const _BURST_EMOJIS = {
+            1:'💀',2:'💔',3:'😤',4:'😑',5:'😶',
+            6:'⚔️',7:'🍜',8:'🌙',9:'🌸',10:'✨'
+        };
+
+        // Создаём сакуру один раз при открытии
+        function spawnSakura() {
+            const wrap = document.getElementById('ratingSakura');
+            if (!wrap || wrap.children.length) return;
+            const petals = ['🌸','✨','⭐','💫','🌟'];
+            for (let i = 0; i < 10; i++) {
+                const el = document.createElement('span');
+                el.className = 'sakura-petal';
+                el.textContent = petals[i % petals.length];
+                el.style.cssText = `left:${Math.random()*90+5}%;--dur:${3+Math.random()*4}s;--delay:${Math.random()*4}s;font-size:${10+Math.random()*10}px`;
+                wrap.appendChild(el);
+            }
+        }
+
+        // Взрыв эмодзи вокруг цифры
+        function fireBurst(v) {
+            const wrap = document.getElementById('ratingBurst');
+            if (!wrap) return;
+            wrap.innerHTML = '';
+            const emoji = _BURST_EMOJIS[v] || '✨';
+            const count = v >= 8 ? 7 : 4;
+            for (let i = 0; i < count; i++) {
+                const s = document.createElement('span');
+                s.textContent = emoji;
+                const angle = (360 / count) * i;
+                const dist = 38 + Math.random() * 14;
+                s.style.cssText = `transform:rotate(${angle}deg) translateX(${dist}px) rotate(-${angle}deg) scale(0);`;
+                s.style.animationDelay = (i * 0.04) + 's';
+                wrap.appendChild(s);
+                requestAnimationFrame(() => s.classList.add('fire'));
+            }
+        }
 
         function onSliderInput(el) {
             const v = parseInt(el.value);
@@ -1742,12 +1901,18 @@
 
             const disp = document.getElementById('ratingScoreDisplay');
             disp.textContent = v;
-            disp.classList.remove('bump');
-            void disp.offsetWidth; // reflow
-            disp.classList.add('bump');
-            setTimeout(() => disp.classList.remove('bump'), 150);
+            disp.classList.remove('pop');
+            void disp.offsetWidth;
+            disp.classList.add('pop');
+            setTimeout(() => disp.classList.remove('pop'), 400);
 
-            document.getElementById('ratingPhrase').textContent = _RATING_PHRASES[v] || '';
+            fireBurst(v);
+
+            const phrase = document.getElementById('ratingPhrase');
+            phrase.classList.remove('slide');
+            void phrase.offsetWidth;
+            phrase.textContent = _RATING_PHRASES[v] || '';
+            phrase.classList.add('slide');
 
             document.querySelectorAll('#ratingTicks span').forEach((s, i) => {
                 s.classList.toggle('active', i + 1 === v);
@@ -1757,9 +1922,13 @@
         function openRatingModal() {
             const overlay = document.getElementById('ratingModalOverlay');
             overlay.classList.add('open');
-            // init phrase
+            spawnSakura();
             const slider = document.getElementById('ratingSlider');
-            document.getElementById('ratingPhrase').textContent = _RATING_PHRASES[parseInt(slider.value)] || '';
+            const v = parseInt(slider.value);
+            document.getElementById('ratingPhrase').textContent = _RATING_PHRASES[v] || '';
+            document.querySelectorAll('#ratingTicks span').forEach((s, i) => {
+                s.classList.toggle('active', i + 1 === v);
+            });
         }
 
         function closeRatingModal(e) {
@@ -1769,6 +1938,8 @@
 
         async function submitRating(mangaId) {
             const score = parseInt(document.getElementById('ratingSlider').value);
+            const submitBtn = document.getElementById('ratingSubmitBtn');
+            submitBtn.disabled = true;
             try {
                 const r = await fetch(`/api/manga/${mangaId}/rate`, {
                     method: 'POST',
@@ -1776,20 +1947,29 @@
                     body: JSON.stringify({score})
                 });
                 const d = await r.json();
-                // Обновить кнопку
+
+                submitBtn.textContent = '✓ Оценка сохранена!';
+                submitBtn.classList.add('done');
+
                 const btn = document.getElementById('ratingOpenBtn');
                 if (btn) { btn.textContent = `⭐ Ваша оценка: ${score}`; btn.classList.add('rated'); }
-                // Обновить среднюю
                 const avgEl = document.getElementById('ratingAvg');
                 if (avgEl && d.avg) {
                     avgEl.innerHTML = `Средняя: <strong>${d.avg.toFixed(1)}</strong> · ${d.count} оценок`;
                 }
-                // Обновить тики
                 document.querySelectorAll('#ratingTicks span').forEach((s, i) => {
                     s.classList.toggle('active', i + 1 === score);
                 });
-                document.getElementById('ratingModalOverlay').classList.remove('open');
-            } catch(e) {}
+
+                setTimeout(() => {
+                    document.getElementById('ratingModalOverlay').classList.remove('open');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Сохранить оценку';
+                    submitBtn.classList.remove('done');
+                }, 1200);
+            } catch(e) {
+                submitBtn.disabled = false;
+            }
         }
 
         // ==================== АВТОПРОКРУТКА К ПОСЛЕДНЕЙ ПРОЧИТАННОЙ ГЛАВЕ ====================
