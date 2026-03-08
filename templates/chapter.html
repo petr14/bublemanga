@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="/static/favicon.png"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#000000">
     <title>{{ chapter.manga_title }} - Глава {{ chapter.chapter_number }}</title>
@@ -205,7 +206,7 @@
         /* ==================== КНОПКА "НАВЕРХ" ==================== */
         .scroll-top {
             position: fixed;
-            bottom: 70px;
+            bottom: 24px;
             right: 20px;
             width: 50px;
             height: 50px;
@@ -295,7 +296,9 @@
             transition: all 0.3s ease;
             pointer-events: none;
             text-align: center;
+            cursor: pointer;
         }
+        .tooltip.show { pointer-events: auto; }
 
         .tooltip.show {
             opacity: 1;
@@ -367,7 +370,7 @@
             }
 
             .scroll-top {
-                bottom: 90px;
+                bottom: 30px;
                 right: 40px;
                 width: 56px;
                 height: 56px;
@@ -405,6 +408,12 @@
         body.reading-mode .chapter-navigation {
             opacity: 0;
             visibility: hidden;
+        }
+
+        .chapter-navigation.ch-hidden {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none;
         }
 
         /* ==================== ОПТИМИЗАЦИИ ==================== */
@@ -1068,8 +1077,10 @@
             if (readerSettings.menu === 'scroll') {
                 if (scrollTop > lastScrollTop && scrollTop > 100) {
                     header.classList.add('hidden');
+                    chapterNavigation.classList.add('ch-hidden');
                 } else if (scrollTop < lastScrollTop) {
                     header.classList.remove('hidden');
+                    chapterNavigation.classList.remove('ch-hidden');
                 }
             }
 
@@ -1152,7 +1163,9 @@
             const tooltip = document.getElementById('tooltip');
             tooltip.textContent = message;
             tooltip.classList.add('show');
-            setTimeout(() => tooltip.classList.remove('show'), duration);
+            const hide = () => tooltip.classList.remove('show');
+            const timer = setTimeout(hide, duration);
+            tooltip.onclick = () => { clearTimeout(timer); hide(); };
         }
 
         // ==================== КЛАВИАТУРНЫЕ СОКРАЩЕНИЯ ====================
@@ -1398,6 +1411,7 @@
             const diff = touchStartY - e.changedTouches[0].screenY;
             if (diff < -50) {
                 header.classList.remove('hidden');
+                chapterNavigation.classList.remove('ch-hidden');
             }
         }, { passive: true });
 
@@ -1405,7 +1419,7 @@
         window.addEventListener('load', () => {
             if (!localStorage.getItem('reader_tips_shown')) {
                 setTimeout(() => {
-                    showTooltip('Нажмите ⚙ для настроек читалки', 4000);
+                    showTooltip('Нажмите ⚙ для настроек читалки', 1800);
                     localStorage.setItem('reader_tips_shown', 'true');
                 }, 1000);
             }
@@ -1569,6 +1583,7 @@
             if (readerSettings.menu !== 'click') return;
             if (e.target.classList.contains('click-zone')) return;
             header.classList.toggle('hidden');
+            chapterNavigation.classList.toggle('ch-hidden', header.classList.contains('hidden'));
         });
 
         // ==================== АВТОПРОКРУТКА ====================

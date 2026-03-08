@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="/static/favicon.png"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#667eea">
     <title>{{ profile.display_name }} — Профиль</title>
@@ -89,7 +90,7 @@
         }
 
         /* Avatar */
-        .avatar-wrap { position: relative; flex-shrink: 0; }
+        .avatar-wrap { position: relative; flex-shrink: 0; width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
         .avatar {
             width: 110px; height: 110px;
             border-radius: 50%;
@@ -99,10 +100,24 @@
             display: flex; align-items: center; justify-content: center;
             font-size: 40px; font-weight: 700; color: white;
             overflow: hidden;
+            flex-shrink: 0;
         }
         .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .avatar-wrap.has-frame .avatar {
+            box-shadow: var(--shadow);
+            border-color: transparent;
+        }
+        .avatar-frame {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px; height: 150px;
+            pointer-events: none;
+            z-index: 5;
+            object-fit: contain;
+        }
         .avatar-edit-btn {
-            position: absolute; bottom: 4px; right: 4px;
+            position: absolute; bottom: 2px; right: 2px;
             width: 30px; height: 30px; border-radius: 50%;
             background: var(--primary); border: 2px solid var(--bg);
             color: white; font-size: 13px;
@@ -203,11 +218,12 @@
 
         /* Stats */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
-        .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; transition: border-color .2s, transform .2s; }
+        .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 6px; transition: border-color .2s, transform .2s; }
         .stat-card:hover { border-color: var(--primary); transform: translateY(-2px); }
-        .stat-icon { font-size: 22px; margin-bottom: 4px; }
-        .bubble-icon { width: 1em; height: 1em; vertical-align: -0.15em; display: inline-block; }
-        .stat-num { font-size: 22px; font-weight: 800; }
+        .stat-icon { font-size: 16px; display: inline-flex; align-items: center; }
+        .stat-bottom { display: flex; align-items: center; gap: 5px; }
+        .bubble-icon { width: 1em; height: 1em; vertical-align: -0.1em; display: inline-block; }
+        .stat-num { font-size: 24px; font-weight: 800; line-height: 1; }
         .stat-name { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
 
         .section-head { font-size: 16px; font-weight: 700; margin-bottom: 14px; margin-top: 28px; display: flex; align-items: center; gap: 8px; }
@@ -287,6 +303,29 @@
         .mcard-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(239,68,68,0.85); border: none; color: white; font-size: 12px; cursor: pointer; display: none; align-items: center; justify-content: center; transition: transform .2s; }
         .mcard:hover .mcard-remove { display: flex; }
         .mcard-remove:hover { transform: scale(1.15); }
+
+        /* Streak calendar */
+        .streak-cal-wrap { margin-bottom: 1.25rem; }
+        .streak-cal-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .streak-cal-title span { font-size: 12px; color: var(--text2); font-weight: 400; }
+        .streak-cal { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 4px; }
+        .streak-cal::-webkit-scrollbar { height: 3px; }
+        .streak-cal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .streak-week { display: flex; flex-direction: column; gap: 3px; }
+        .streak-day {
+            width: 11px; height: 11px; border-radius: 2px;
+            background: var(--card2); border: 1px solid rgba(255,255,255,.04);
+            flex-shrink: 0; cursor: default;
+            transition: transform .1s;
+        }
+        .streak-day:hover { transform: scale(1.4); z-index: 1; position: relative; }
+        .streak-day.l1 { background: #1a3a1a; border-color: #2d5a2d; }
+        .streak-day.l2 { background: #166534; border-color: #15803d; }
+        .streak-day.l3 { background: #16a34a; border-color: #22c55e; }
+        .streak-day.l4 { background: #22c55e; border-color: #4ade80; }
+        .streak-cal-months { display: flex; gap: 3px; font-size: 10px; color: var(--text2); margin-bottom: 3px; overflow: hidden; }
+        .streak-cal-legend { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); margin-top: 5px; justify-content: flex-end; }
+        .streak-cal-legend .streak-day { width: 10px; height: 10px; cursor: default; }
 
         /* History */
         .history-list { display: flex; flex-direction: column; gap: 10px; }
@@ -423,7 +462,7 @@
     <div class="particles" id="particles"></div>
 
     <div class="hero-content">
-        <div class="avatar-wrap">
+        <div class="avatar-wrap{% if profile.frame_preview_url %} has-frame{% endif %}" id="avatarWrap">
             <div class="avatar" id="avatarEl">
                 {% if profile.profile and profile.profile.avatar_url %}
                 <img src="{{ profile.profile.avatar_url }}" alt="Avatar" onerror="this.style.display='none'">
@@ -431,6 +470,10 @@
                 {{ profile.display_name[0]|upper }}
                 {% endif %}
             </div>
+            <img class="avatar-frame" id="frameEl"
+                 src="{{ profile.frame_preview_url or '' }}"
+                 {% if not profile.frame_preview_url %}style="display:none"{% endif %}
+                 alt="">
             {% if profile.user.is_premium %}
             <div class="avatar-premium-crown" title="Premium">👑</div>
             {% endif %}
@@ -494,11 +537,11 @@
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><span class="stat-name">Глав прочитано</span></div>
-        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><span class="stat-name">Страниц</span></div>
-        <div class="stat-card"><span class="stat-icon"></span><span class="stat-num">{{ profile.xp }}</span><span class="stat-name">Опыт</span></div>
-        <div class="stat-card"><span class="stat-icon"><img src="/static/bubbles.svg" style="width:24px;height:24px;vertical-align:middle" alt=""></span><span class="stat-num">{{ profile.coins }}</span><span class="stat-name">Шарики</span></div>
-        <div class="stat-card" style="border-color:rgba(251,146,60,.25)"><span class="stat-icon">🔥</span><span class="stat-num" style="color:#fb923c">{{ profile.reading_streak or 0 }}</span><span class="stat-name">Стрик дней{% if profile.max_streak and profile.max_streak > (profile.reading_streak or 0) %} <span style="font-size:11px;color:var(--text2)">(рекорд: {{ profile.max_streak }})</span>{% endif %}</span></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><div class="stat-bottom"><span class="stat-icon">📖</span><span class="stat-name">Глав прочитано</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><div class="stat-bottom"><span class="stat-icon">📄</span><span class="stat-name">Страниц</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.xp }}</span><div class="stat-bottom"><span class="stat-icon">⭐</span><span class="stat-name">Опыт</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.coins }}</span><div class="stat-bottom"><span class="stat-icon"><img src="/static/bubbles.svg" class="bubble-icon" alt=""></span><span class="stat-name">Шарики</span></div></div>
+        <div class="stat-card" style="border-color:rgba(251,146,60,.25)"><span class="stat-num" style="color:#fb923c">{{ profile.reading_streak or 0 }}</span><div class="stat-bottom"><span class="stat-icon">🔥</span><span class="stat-name">Стрик дней{% if profile.max_streak and profile.max_streak > (profile.reading_streak or 0) %} <span style="font-size:10px;color:var(--text2)">(рекорд: {{ profile.max_streak }})</span>{% endif %}</span></div></div>
     </div>
 
     <div class="section-head"> Достижения <span style="font-size:13px;color:var(--text2);font-weight:400">({{ profile.achievements|length }})</span></div>
@@ -556,6 +599,20 @@
 
     {% if is_own %}
     <div id="lib-history" class="lib-pane active">
+        <div class="streak-cal-wrap" id="streakCalWrap">
+            <div class="streak-cal-title">Активность чтения <span id="streakCalTotal"></span></div>
+            <div class="streak-cal-months" id="streakCalMonths"></div>
+            <div class="streak-cal" id="streakCal"></div>
+            <div class="streak-cal-legend">
+                Меньше
+                <div class="streak-day"></div>
+                <div class="streak-day l1"></div>
+                <div class="streak-day l2"></div>
+                <div class="streak-day l3"></div>
+                <div class="streak-day l4"></div>
+                Больше
+            </div>
+        </div>
         <div id="historyContent"><div class="loading-spin"><div class="spin"></div></div></div>
     </div>
     {% endif %}
@@ -840,7 +897,8 @@
     const libLoaded = {};
     document.querySelectorAll('.lib-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.lib-btn').forEach(b => b.classList.remove('active'));
+            if (!btn.dataset.lib) return; // подвкладки списка чтения — не трогать
+            document.querySelectorAll('.lib-tabs .lib-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.lib-pane').forEach(p => p.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('lib-' + btn.dataset.lib).classList.add('active');
@@ -852,7 +910,7 @@
     function loadLibPane(name) {
         if (libLoaded[name]) return;
         libLoaded[name] = true;
-        if (name === 'history') fetchHistory();
+        if (name === 'history') { fetchHistory(); renderStreakCalendar(); }
         else if (name === 'subscriptions') fetchSubs();
         else if (name === 'collections') fetchColls();
         else if (name === 'wishlist') fetchWishlist();
@@ -880,13 +938,85 @@
             }).catch(() => { document.getElementById('curatorsContent').innerHTML = emptyState('⚠️', 'Ошибка загрузки'); });
     }
 
+    // ── Streak calendar ───────────────────────────────────────────────────────
+    function renderStreakCalendar() {
+        fetch(`/api/user/streak-calendar?uid=${PROFILE_USER_ID}`)
+            .then(r => r.json())
+            .then(data => {
+                const days = data.days || {};
+                const total = Object.values(days).reduce((s, v) => s + v, 0);
+                document.getElementById('streakCalTotal').textContent =
+                    total ? `${total.toLocaleString('ru')} глав за год` : '';
+
+                // Строим сетку: 53 недели × 7 дней, начиная с воскресенья год назад
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const start = new Date(today);
+                start.setDate(start.getDate() - 364);
+                // сдвиг до воскресенья
+                start.setDate(start.getDate() - start.getDay());
+
+                const calEl = document.getElementById('streakCal');
+                const monthEl = document.getElementById('streakCalMonths');
+                calEl.innerHTML = '';
+                monthEl.innerHTML = '';
+
+                const MONTHS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                const maxCount = Math.max(...Object.values(days), 1);
+                let lastMonth = -1;
+                const monthPositions = [];
+
+                let weekIdx = 0;
+                let weekEl = null;
+
+                const cur = new Date(start);
+                while (cur <= today) {
+                    if (cur.getDay() === 0) {
+                        weekEl = document.createElement('div');
+                        weekEl.className = 'streak-week';
+                        calEl.appendChild(weekEl);
+                        // месяц
+                        const m = cur.getMonth();
+                        if (m !== lastMonth && cur >= new Date(today.getFullYear(), today.getMonth() - 11, 1)) {
+                            monthPositions.push({ idx: weekIdx, label: MONTHS[m] });
+                            lastMonth = m;
+                        }
+                        weekIdx++;
+                    }
+                    const iso = cur.toISOString().slice(0, 10);
+                    const count = days[iso] || 0;
+                    const d = document.createElement('div');
+                    d.className = 'streak-day';
+                    if (count > 0) {
+                        const ratio = count / maxCount;
+                        d.classList.add(ratio < 0.25 ? 'l1' : ratio < 0.5 ? 'l2' : ratio < 0.75 ? 'l3' : 'l4');
+                    }
+                    d.title = `${iso}: ${count} глав`;
+                    if (cur > today) d.style.visibility = 'hidden';
+                    weekEl && weekEl.appendChild(d);
+                    cur.setDate(cur.getDate() + 1);
+                }
+
+                // Подписи месяцев
+                monthPositions.forEach((mp, i) => {
+                    const span = document.createElement('span');
+                    span.textContent = mp.label;
+                    const nextIdx = monthPositions[i + 1]?.idx ?? weekIdx;
+                    span.style.minWidth = ((nextIdx - mp.idx) * 14) + 'px';
+                    monthEl.appendChild(span);
+                });
+            }).catch(() => {
+                document.getElementById('streakCalWrap').style.display = 'none';
+            });
+    }
+
     // History (только своя)
     function fetchHistory() {
         fetch('/api/user/history?limit=50')
             .then(r => r.json())
             .then(rows => {
                 const el = document.getElementById('historyContent');
-                if (!rows.length) { el.innerHTML = emptyState('', 'История пуста', 'Начни читать мангу!'); return; }
+                if (!rows.length) { el.innerHTML = emptyState('😔', 'История пуста', 'Начни читать мангу!'); return; }
                 el.innerHTML = '<div class="history-list">' + rows.map(r => `
                     <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}" class="hitem">
                         <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">
@@ -1151,17 +1281,39 @@
             }
             // Update OWNED_ITEMS
             OWNED_ITEMS.forEach(i => { if (i.type === type) i.is_equipped = (i.id === itemId ? 1 : 0); });
+            const item = OWNED_ITEMS.find(i => i.id === itemId);
             // Обновляем аватар на странице профиля сразу
             if (type === 'avatar') {
-                const item = OWNED_ITEMS.find(i => i.id === itemId);
                 const avatarEl = document.getElementById('avatarEl');
                 if (avatarEl && item && item.preview_url) {
                     avatarEl.innerHTML = `<img src="${esc(item.preview_url)}" alt="Avatar">`;
                 }
             }
+            // Обновляем рамку поверх аватара
+            if (type === 'frame') {
+                const frameEl = document.getElementById('frameEl');
+                const wrap = document.getElementById('avatarWrap');
+                if (frameEl) {
+                    if (item && item.preview_url) {
+                        frameEl.src = item.preview_url;
+                        frameEl.style.display = '';
+                        wrap && wrap.classList.add('has-frame');
+                    } else {
+                        frameEl.style.display = 'none';
+                        wrap && wrap.classList.remove('has-frame');
+                    }
+                }
+            }
         } else {
             cardEl.classList.remove('equipped');
             OWNED_ITEMS.forEach(i => { if (i.id === itemId) i.is_equipped = 0; });
+            // Снимаем рамку
+            if (type === 'frame') {
+                const frameEl = document.getElementById('frameEl');
+                const wrap = document.getElementById('avatarWrap');
+                if (frameEl) { frameEl.style.display = 'none'; frameEl.src = ''; }
+                wrap && wrap.classList.remove('has-frame');
+            }
         }
         toast(d.equipped ? 'Надето!' : 'Снято', 'success');
     }

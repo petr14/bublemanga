@@ -150,51 +150,47 @@
 }
 .g-login:hover { opacity: .85; }
 
-/* Burger */
-.g-burger {
-  display: none; flex-direction: column; justify-content: center; gap: 5px;
-  width: 36px; height: 36px; border-radius: 9px;
+/* Calendar & Bookmarks icon buttons */
+.g-icon-btn {
+  width: 38px; height: 38px; border-radius: 50%;
   background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
-  cursor: pointer; padding: 8px; transition: background .18s; flex-shrink: 0;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: rgba(244,244,245,.65); transition: all .18s; text-decoration: none;
+  flex-shrink: 0;
 }
-.g-burger span {
-  display: block; width: 100%; height: 2px; border-radius: 2px;
-  background: rgba(244,244,245,.85); transition: all .25s;
-}
-.g-burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.g-burger.open span:nth-child(2) { opacity: 0; }
-.g-burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+.g-icon-btn:hover { background: rgba(255,255,255,.1); color: #f4f4f5; }
+.g-icon-btn.active { color: #818cf8; border-color: rgba(102,126,234,.4); background: rgba(102,126,234,.1); }
+.g-icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Calendar icon — hidden on desktop (already in nav), shown on mobile */
+.g-cal-btn { display: none; }
 
-/* Mobile nav */
-.g-mob-nav {
-  display: none; flex-direction: column;
+/* Persistent mobile search bar */
+.g-search-sticky {
+  display: none;
+  padding: 7px 12px 8px;
+  background: rgba(9,9,11,.95);
   border-top: 1px solid rgba(255,255,255,.07);
-  padding: 8px 12px 14px; gap: 2px;
-  background: rgba(9,9,11,.96);
 }
-.g-mob-nav.open { display: flex; }
-.g-mob-a {
-  padding: 10px 14px; border-radius: 10px;
-  color: rgba(244,244,245,.8); text-decoration: none;
-  font-size: 14px; font-weight: 500; transition: all .15s; display: block;
+.g-search-sticky form {
+  display: flex; align-items: center;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px; overflow: hidden; height: 38px;
+  transition: border-color .2s;
 }
-.g-mob-a:hover { background: rgba(255,255,255,.06); color: #f4f4f5; }
-.g-mob-sep { height: 1px; background: rgba(255,255,255,.07); margin: 6px 0; }
-.g-mob-logout { color: rgba(239,68,68,.75); }
-.g-mob-logout:hover { background: rgba(239,68,68,.08); color: #ef4444; }
-.g-mob-search {
-  display: flex; align-items: center; margin: 4px 0 8px;
-  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
-  border-radius: 10px; overflow: hidden;
-}
-.g-mob-search input {
+.g-search-sticky form:focus-within { border-color: rgba(102,126,234,.5); }
+.g-search-sticky input {
   flex: 1; background: none; border: none; outline: none;
-  color: #f4f4f5; font-size: 14px; font-family: inherit; padding: 10px 12px;
+  color: #f4f4f5; font-size: 14px; font-family: inherit; padding: 0 12px;
 }
-.g-mob-search input::placeholder { color: rgba(244,244,245,.35); }
-.g-mob-search button {
-  width: 40px; height: 40px; background: none; border: none; cursor: pointer;
+.g-search-sticky input::placeholder { color: rgba(244,244,245,.35); }
+.g-search-sticky button {
+  width: 40px; height: 38px; background: none; border: none; cursor: pointer;
   color: rgba(244,244,245,.5); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.g-search-sticky button:hover { color: #818cf8; }
+@media (max-width: 700px) {
+  .g-search-sticky { display: block; }
 }
 
 /* Responsive */
@@ -204,7 +200,7 @@
 @media (max-width: 700px) {
   .g-inner { height: 100px; }
   .g-nav { display: none; }
-  .g-burger { display: flex; }
+  .g-cal-btn { display: flex; }
   .g-search-form { display: none; }
   .g-uname { display: none; }
 
@@ -367,6 +363,12 @@
           </div>
         </div>
       </div>
+      <a href="/bookmarks" class="g-icon-btn{% if g_active == 'bookmarks' %} active{% endif %}" aria-label="Закладки">
+        <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </a>
+      <a href="/calendar" class="g-icon-btn g-cal-btn{% if g_active == 'calendar' %} active{% endif %}" aria-label="Календарь">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </a>
       <div class="g-user" id="gUser">
         <button class="g-user-trigger" onclick="gToggleUser(event)" type="button">
           <div class="g-ava">
@@ -388,39 +390,22 @@
       {% else %}
       <a href="https://t.me/hookah_p_bot" target="_blank" class="g-login">Войти</a>
       {% endif %}
-
-      <button class="g-burger" id="gBurger" onclick="gToggleMob()" type="button" aria-label="Меню">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </div>
 
-  <div class="g-mob-nav" id="gMobNav">
-    <form class="g-mob-search" action="/search" method="GET" autocomplete="off">
+  <div class="g-search-sticky">
+    <form action="/search" method="GET" autocomplete="off">
       <input type="text" name="q" placeholder="Поиск манги..."
-             value="{{ request.args.get('q', '') }}">
+             value="{{ request.args.get('q', '') }}"
+             autocomplete="off">
       <button type="submit" aria-label="Найти">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </button>
     </form>
-    <a href="/" class="g-mob-a">Главная</a>
-    <a href="/catalog" class="g-mob-a">Каталог</a>
-    <a href="/top" class="g-mob-a">Топ</a>
-    <a href="/collections/top" class="g-mob-a">Коллекции</a>
-    <a href="/calendar" class="g-mob-a">Календарь</a>
-    <a href="/shop" class="g-mob-a">Магазин</a>
-    {% if session.user_id %}
-    <div class="g-mob-sep"></div>
-    <a href="/profile/me" class="g-mob-a">👤 Мой профиль</a>
-    <a href="/logout" class="g-mob-a g-mob-logout">🚪 Выйти</a>
-    {% else %}
-    <div class="g-mob-sep"></div>
-    <a href="https://t.me/hookah_p_bot" target="_blank" class="g-mob-a">Войти через Telegram</a>
-    {% endif %}
   </div>
 </header>
 
@@ -431,22 +416,10 @@
     var u = document.getElementById('gUser');
     if (u) u.classList.toggle('open');
   }
-  function gToggleMob() {
-    var m = document.getElementById('gMobNav');
-    var b = document.getElementById('gBurger');
-    if (m) m.classList.toggle('open');
-    if (b) b.classList.toggle('open');
-  }
   document.addEventListener('click', function(e) {
     if (!e.target.closest('#gUser')) {
       var u = document.getElementById('gUser');
       if (u) u.classList.remove('open');
-    }
-    if (!e.target.closest('#gBurger') && !e.target.closest('#gMobNav')) {
-      var m = document.getElementById('gMobNav');
-      var b = document.getElementById('gBurger');
-      if (m) m.classList.remove('open');
-      if (b) b.classList.remove('open');
     }
     if (!e.target.closest('#gBell')) {
       var bell = document.getElementById('gBell');
@@ -454,7 +427,6 @@
     }
   });
   window.gToggleUser = gToggleUser;
-  window.gToggleMob = gToggleMob;
 })();
 
 // ── Notifications bell ──────────────────────────────────
