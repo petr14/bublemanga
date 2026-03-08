@@ -322,6 +322,15 @@
         }
 
         /* ==================== ОЦЕНКА ==================== */
+        @keyframes pixelFly {
+            0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity:1; }
+            100% { transform: translate(var(--tx),var(--ty)) scale(var(--ts)) rotate(var(--tr)); opacity:0; }
+        }
+        .pixel-shard {
+            position: fixed; z-index: 9999; pointer-events: none; border-radius: 2px;
+            animation: pixelFly var(--dur) cubic-bezier(.25,.46,.45,.94) forwards;
+        }
+
         @keyframes ratingIn {
             0%   { opacity:0; transform: translateY(32px) scale(.93); }
             60%  { transform: translateY(-5px) scale(1.01); }
@@ -1936,6 +1945,75 @@
             document.getElementById('ratingModalOverlay').classList.remove('open');
         }
 
+        function disintegrateModal(onDone) {
+            const modal  = document.querySelector('.rating-modal');
+            const overlay = document.getElementById('ratingModalOverlay');
+            if (!modal) { onDone && onDone(); return; }
+
+            const rect = modal.getBoundingClientRect();
+
+            // Цвета пикселей в теме сайта
+            const colors = [
+                '#667eea','#764ba2','#818cf8','#a78bfa','#c084fc',
+                '#e0e7ff','#4f46e5','#7c3aed','#9333ea','#1e1b4b',
+                '#312e81','#ffffff','#6d28d9','#4338ca'
+            ];
+
+            const COLS = 28, ROWS = 18;
+            const pw = rect.width  / COLS;
+            const ph = rect.height / ROWS;
+            const shards = [];
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const el = document.createElement('div');
+                    el.className = 'pixel-shard';
+
+                    // Случайный размер пикселя (некоторые крупнее для эффекта)
+                    const size = (Math.random() < 0.15) ? pw * 1.8 : pw * (0.6 + Math.random() * 0.8);
+
+                    const x = rect.left + c * pw + pw / 2 - size / 2;
+                    const y = rect.top  + r * ph + ph / 2 - size / 2;
+
+                    // Направление разлёта: веером от центра + случайность
+                    const cx = rect.left + rect.width  / 2;
+                    const cy = rect.top  + rect.height / 2;
+                    const dx = (x - cx) + (Math.random() - .5) * 300;
+                    const dy = (y - cy) + (Math.random() - .5) * 300 + Math.random() * 120;
+                    const scale = .1 + Math.random() * .5;
+                    const rotate = (Math.random() - .5) * 720;
+                    const dur = .45 + Math.random() * .55;
+                    const delay = (r / ROWS) * .25 + Math.random() * .1; // волна сверху вниз
+
+                    el.style.cssText = `
+                        left:${x}px; top:${y}px;
+                        width:${size}px; height:${size}px;
+                        background:${colors[Math.floor(Math.random()*colors.length)]};
+                        --tx:${dx}px; --ty:${dy}px; --ts:${scale}; --tr:${rotate}deg;
+                        --dur:${dur}s;
+                        animation-delay:${delay}s;
+                        border-radius:${Math.random() < .3 ? '50%' : '2px'};
+                        opacity:1;
+                    `;
+                    document.body.appendChild(el);
+                    shards.push(el);
+                }
+            }
+
+            // Скрыть содержимое модалки сразу, оверлей — через 150ms
+            modal.style.transition = 'opacity .15s';
+            modal.style.opacity = '0';
+            setTimeout(() => { overlay.classList.remove('open'); }, 200);
+
+            // Убрать пиксели после завершения анимации
+            const maxDur = 1000;
+            setTimeout(() => {
+                shards.forEach(s => s.remove());
+                modal.style.opacity = '';
+                onDone && onDone();
+            }, maxDur);
+        }
+
         async function submitRating(mangaId) {
             const score = parseInt(document.getElementById('ratingSlider').value);
             const submitBtn = document.getElementById('ratingSubmitBtn');
@@ -1948,11 +2026,9 @@
                 });
                 const d = await r.json();
 
-                submitBtn.textContent = '✓ Оценка сохранена!';
-                submitBtn.classList.add('done');
-
-                const btn = document.getElementById('ratingOpenBtn');
-                if (btn) { btn.textContent = `⭐ Ваша оценка: ${score}`; btn.classList.add('rated'); }
+                // Обновить кнопку и среднюю на странице
+                const openBtn = document.getElementById('ratingOpenBtn');
+                if (openBtn) { openBtn.textContent = `⭐ Ваша оценка: ${score}`; openBtn.classList.add('rated'); }
                 const avgEl = document.getElementById('ratingAvg');
                 if (avgEl && d.avg) {
                     avgEl.innerHTML = `Средняя: <strong>${d.avg.toFixed(1)}</strong> · ${d.count} оценок`;
@@ -1961,12 +2037,17 @@
                     s.classList.toggle('active', i + 1 === score);
                 });
 
+                // Дезинтеграция!
+                submitBtn.textContent = '✓ Сохранено!';
+                submitBtn.classList.add('done');
                 setTimeout(() => {
-                    document.getElementById('ratingModalOverlay').classList.remove('open');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Сохранить оценку';
-                    submitBtn.classList.remove('done');
-                }, 1200);
+                    disintegrateModal(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Сохранить оценку';
+                        submitBtn.classList.remove('done');
+                    });
+                }, 350);
+
             } catch(e) {
                 submitBtn.disabled = false;
             }
