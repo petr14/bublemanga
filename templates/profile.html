@@ -909,7 +909,8 @@
     const libLoaded = {};
     document.querySelectorAll('.lib-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.lib-btn').forEach(b => b.classList.remove('active'));
+            if (!btn.dataset.lib) return; // подвкладки списка чтения — не трогать
+            document.querySelectorAll('.lib-tabs .lib-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.lib-pane').forEach(p => p.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById('lib-' + btn.dataset.lib).classList.add('active');
