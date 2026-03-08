@@ -1387,13 +1387,7 @@
                                 onclick="openRatingModal()">
                             {% if user_manga_rating %}⭐ Ваша оценка: {{ user_manga_rating }}{% else %}⭐ Оценить{% endif %}
                         </button>
-                        <div class="rating-avg-inline" id="ratingAvg">
-                            {% if manga_rating_avg %}
-                            Средняя: <strong>{{ "%.1f"|format(manga_rating_avg) }}</strong> · {{ manga_rating_count }} оценок
-                            {% else %}
-                            Оценок пока нет
-                            {% endif %}
-                        </div>
+
                     </div>
 
                     <!-- Модальное окно оценки -->
@@ -1952,12 +1946,8 @@
                 const openBtn = document.getElementById('ratingOpenBtn');
                 if (openBtn) { openBtn.textContent = `⭐ Ваша оценка: ${score}`; openBtn.classList.add('rated'); }
                 const avgEl = document.getElementById('ratingAvg');
-                if (avgEl && d.avg) {
-                    avgEl.innerHTML = `Средняя: <strong>${d.avg.toFixed(1)}</strong> · ${d.count} оценок`;
-                }
-                document.querySelectorAll('#ratingTicks span').forEach((s, i) => {
-                    s.classList.toggle('active', i + 1 === score);
-                });
+
+
 
                 submitBtn.textContent = '✓ Сохранено!';
                 submitBtn.classList.add('done');
