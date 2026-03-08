@@ -323,24 +323,103 @@
 
         /* ==================== ОЦЕНКА ==================== */
         .manga-rating-block {
+            display: flex; align-items: center; gap: 12px;
             background: #1a1a1a;
             border: 1px solid rgba(255,255,255,.07);
             border-radius: 16px;
-            padding: 18px 20px;
+            padding: 14px 18px;
             margin: 16px 0;
         }
-        .manga-rating-title { font-size: 13px; color: #b8b8b8; margin-bottom: 12px; font-weight: 600; }
-        .rating-stars { display: flex; gap: 6px; flex-wrap: wrap; }
-        .rating-btn {
-            width: 36px; height: 36px; border-radius: 8px;
-            border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
-            color: #b8b8b8; font-size: 14px; font-weight: 700; cursor: pointer;
-            transition: all .15s; font-family: inherit;
+        .rating-open-btn {
+            flex-shrink: 0;
+            padding: 8px 18px; border-radius: 50px;
+            background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.3);
+            color: #fbbf24; font-size: 13px; font-weight: 700; cursor: pointer;
+            transition: all .2s; font-family: inherit; white-space: nowrap;
         }
-        .rating-btn:hover { background: rgba(251,191,36,.15); border-color: rgba(251,191,36,.4); color: #fbbf24; transform: scale(1.1); }
-        .rating-btn.selected { background: rgba(251,191,36,.2); border-color: #fbbf24; color: #fbbf24; }
-        .rating-avg { font-size: 13px; color: #b8b8b8; margin-top: 10px; }
-        .rating-avg strong { color: #fbbf24; font-size: 16px; }
+        .rating-open-btn:hover { background: rgba(251,191,36,.22); border-color: #fbbf24; }
+        .rating-open-btn.rated { background: rgba(251,191,36,.18); border-color: #fbbf24; }
+        .rating-avg-inline { font-size: 13px; color: #b8b8b8; flex: 1; min-width: 0; }
+        .rating-avg-inline strong { color: #fbbf24; font-size: 15px; }
+
+        /* Модалка оценки */
+        .rating-modal-overlay {
+            position: fixed; inset: 0; z-index: 500;
+            background: rgba(0,0,0,.7); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s;
+        }
+        .rating-modal-overlay.open { opacity: 1; pointer-events: all; }
+        .rating-modal {
+            background: #161620; border: 1px solid rgba(255,255,255,.1);
+            border-radius: 24px; padding: 32px 28px 28px;
+            width: 100%; max-width: 400px;
+            transform: translateY(24px) scale(.97); transition: transform .25s;
+            text-align: center; position: relative;
+        }
+        .rating-modal-overlay.open .rating-modal { transform: none; }
+        .rating-modal-close {
+            position: absolute; top: 16px; right: 16px;
+            width: 32px; height: 32px; border-radius: 50%;
+            background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+            color: #b8b8b8; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background .2s;
+        }
+        .rating-modal-close:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+        .rating-modal-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+        .rating-modal-manga { font-size: 13px; color: #b8b8b8; margin-bottom: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .rating-score-display {
+            font-size: 72px; font-weight: 900; line-height: 1;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: 4px;
+            transition: transform .15s;
+        }
+        .rating-score-display.bump { transform: scale(1.18); }
+        .rating-phrase {
+            font-size: 15px; font-weight: 600; color: #e5e7eb;
+            min-height: 24px; margin-bottom: 28px;
+            transition: opacity .15s;
+        }
+
+        /* Ползунок */
+        .rating-slider-wrap { padding: 0 4px; margin-bottom: 10px; }
+        .rating-slider {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 6px; border-radius: 99px;
+            background: linear-gradient(to right, #fbbf24 var(--pct), rgba(255,255,255,.12) var(--pct));
+            outline: none; cursor: pointer;
+        }
+        .rating-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 26px; height: 26px; border-radius: 50%;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            box-shadow: 0 0 0 3px rgba(251,191,36,.25), 0 4px 12px rgba(0,0,0,.4);
+            cursor: pointer; transition: transform .15s, box-shadow .15s;
+        }
+        .rating-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 5px rgba(251,191,36,.3), 0 4px 16px rgba(0,0,0,.5);
+        }
+        .rating-slider::-moz-range-thumb {
+            width: 26px; height: 26px; border-radius: 50%; border: none;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            box-shadow: 0 0 0 3px rgba(251,191,36,.25); cursor: pointer;
+        }
+        .rating-ticks { display: flex; justify-content: space-between; padding: 0 2px; margin-bottom: 24px; }
+        .rating-ticks span { font-size: 10px; color: rgba(255,255,255,.3); font-weight: 600; }
+        .rating-ticks span.active { color: #fbbf24; }
+
+        .rating-submit-btn {
+            width: 100%; padding: 13px; border-radius: 14px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border: none; color: #111; font-size: 15px; font-weight: 800;
+            cursor: pointer; transition: opacity .2s, transform .15s; font-family: inherit;
+        }
+        .rating-submit-btn:hover { opacity: .9; transform: translateY(-1px); }
+        .rating-submit-btn:active { transform: scale(.98); }
 
         /* ==================== ДЕЙСТВИЯ ==================== */
         .manga-actions {
@@ -1197,19 +1276,39 @@
                     <!-- Оценка манги -->
                     {% if user_id %}
                     <div class="manga-rating-block">
-                        <div class="manga-rating-title">Ваша оценка</div>
-                        <div class="rating-stars" id="ratingStars">
-                            {% for i in range(1, 11) %}
-                            <button class="rating-btn{% if user_manga_rating == i %} selected{% endif %}"
-                                    data-score="{{ i }}" onclick="setMangaRating('{{ manga.manga_id }}', {{ i }})">{{ i }}</button>
-                            {% endfor %}
-                        </div>
-                        <div class="rating-avg" id="ratingAvg">
+                        <button class="rating-open-btn{% if user_manga_rating %} rated{% endif %}" id="ratingOpenBtn"
+                                onclick="openRatingModal()">
+                            {% if user_manga_rating %}⭐ Ваша оценка: {{ user_manga_rating }}{% else %}⭐ Оценить{% endif %}
+                        </button>
+                        <div class="rating-avg-inline" id="ratingAvg">
                             {% if manga_rating_avg %}
-                            Средняя оценка: <strong>{{ "%.1f"|format(manga_rating_avg) }}</strong> ({{ manga_rating_count }} оценок)
+                            Средняя: <strong>{{ "%.1f"|format(manga_rating_avg) }}</strong> · {{ manga_rating_count }} оценок
                             {% else %}
                             Оценок пока нет
                             {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Модальное окно оценки -->
+                    <div class="rating-modal-overlay" id="ratingModalOverlay" onclick="closeRatingModal(event)">
+                        <div class="rating-modal">
+                            <button class="rating-modal-close" onclick="closeRatingModal()">✕</button>
+                            <div class="rating-modal-title">Оцените мангу</div>
+                            <div class="rating-modal-manga">{{ manga.manga_title }}</div>
+                            <div class="rating-score-display" id="ratingScoreDisplay">{{ user_manga_rating or 5 }}</div>
+                            <div class="rating-phrase" id="ratingPhrase"></div>
+                            <div class="rating-slider-wrap">
+                                <input type="range" class="rating-slider" id="ratingSlider"
+                                       min="1" max="10" value="{{ user_manga_rating or 5 }}"
+                                       style="--pct:{{ ((user_manga_rating or 5) - 1) / 9 * 100 }}%"
+                                       oninput="onSliderInput(this)">
+                            </div>
+                            <div class="rating-ticks" id="ratingTicks">
+                                {% for i in range(1, 11) %}
+                                <span{% if user_manga_rating == i %} class="active"{% endif %}>{{ i }}</span>
+                                {% endfor %}
+                            </div>
+                            <button class="rating-submit-btn" onclick="submitRating('{{ manga.manga_id }}')">Сохранить оценку</button>
                         </div>
                     </div>
                     {% endif %}
@@ -1623,7 +1722,53 @@
         }
 
         // ==================== РЕЙТИНГ ====================
-        async function setMangaRating(mangaId, score) {
+        const _RATING_PHRASES = {
+            1:  'Моя память об этом — тоже исекай 🗑️',
+            2:  'Хуже, чем аниме по игре 💀',
+            3:  'Бросил на 3-й главе 😤',
+            4:  'Типичный фансервис без сюжета 🫥',
+            5:  'Посредственно, как 100-й исекай 😶',
+            6:  'Норм, но не зацепило ⚔️',
+            7:  'Советую, если не занят 🍜',
+            8:  'Залпом прочитал всё ночью 🌙',
+            9:  'Шедевр, Мияздки одобрил бы 🌸',
+            10: 'Манга моей жизни. Ничего лучше нет 👑',
+        };
+
+        function onSliderInput(el) {
+            const v = parseInt(el.value);
+            const pct = (v - 1) / 9 * 100;
+            el.style.setProperty('--pct', pct + '%');
+
+            const disp = document.getElementById('ratingScoreDisplay');
+            disp.textContent = v;
+            disp.classList.remove('bump');
+            void disp.offsetWidth; // reflow
+            disp.classList.add('bump');
+            setTimeout(() => disp.classList.remove('bump'), 150);
+
+            document.getElementById('ratingPhrase').textContent = _RATING_PHRASES[v] || '';
+
+            document.querySelectorAll('#ratingTicks span').forEach((s, i) => {
+                s.classList.toggle('active', i + 1 === v);
+            });
+        }
+
+        function openRatingModal() {
+            const overlay = document.getElementById('ratingModalOverlay');
+            overlay.classList.add('open');
+            // init phrase
+            const slider = document.getElementById('ratingSlider');
+            document.getElementById('ratingPhrase').textContent = _RATING_PHRASES[parseInt(slider.value)] || '';
+        }
+
+        function closeRatingModal(e) {
+            if (e && e.target !== document.getElementById('ratingModalOverlay')) return;
+            document.getElementById('ratingModalOverlay').classList.remove('open');
+        }
+
+        async function submitRating(mangaId) {
+            const score = parseInt(document.getElementById('ratingSlider').value);
             try {
                 const r = await fetch(`/api/manga/${mangaId}/rate`, {
                     method: 'POST',
@@ -1631,13 +1776,19 @@
                     body: JSON.stringify({score})
                 });
                 const d = await r.json();
-                document.querySelectorAll('.rating-btn').forEach(b => {
-                    b.classList.toggle('selected', parseInt(b.dataset.score) === score);
-                });
+                // Обновить кнопку
+                const btn = document.getElementById('ratingOpenBtn');
+                if (btn) { btn.textContent = `⭐ Ваша оценка: ${score}`; btn.classList.add('rated'); }
+                // Обновить среднюю
                 const avgEl = document.getElementById('ratingAvg');
                 if (avgEl && d.avg) {
-                    avgEl.innerHTML = `Средняя оценка: <strong>${d.avg.toFixed(1)}</strong> (${d.count} оценок)`;
+                    avgEl.innerHTML = `Средняя: <strong>${d.avg.toFixed(1)}</strong> · ${d.count} оценок`;
                 }
+                // Обновить тики
+                document.querySelectorAll('#ratingTicks span').forEach((s, i) => {
+                    s.classList.toggle('active', i + 1 === score);
+                });
+                document.getElementById('ratingModalOverlay').classList.remove('open');
             } catch(e) {}
         }
 
