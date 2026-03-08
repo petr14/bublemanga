@@ -98,11 +98,11 @@
   </div>
 
   <div class="bm-tabs">
-    <button class="bm-tab active" data-status="reading"   onclick="switchTab('reading',this)">📖 Читаю</button>
-    <button class="bm-tab"        data-status="completed" onclick="switchTab('completed',this)">✅ Прочитано</button>
-    <button class="bm-tab"        data-status="planned"   onclick="switchTab('planned',this)">📋 В планах</button>
+    <button class="bm-tab active" data-status="reading"   onclick="switchTab('reading',this)">Читаю</button>
+    <button class="bm-tab"        data-status="completed" onclick="switchTab('completed',this)">Прочитано</button>
+    <button class="bm-tab"        data-status="planned"   onclick="switchTab('planned',this)">В планах</button>
     <button class="bm-tab"        data-status="paused"    onclick="switchTab('paused',this)">⏸ Отложено</button>
-    <button class="bm-tab"        data-status="dropped"   onclick="switchTab('dropped',this)">🗑 Брошено</button>
+    <button class="bm-tab"        data-status="dropped"   onclick="switchTab('dropped',this)">Брошено</button>
   </div>
 
   <div id="bmContent">
@@ -135,8 +135,8 @@
       .then(function(r){ return r.json(); })
       .then(function(rows) {
         if (!rows.length) {
-          var labels = {reading:'📖 Читаю', completed:'✅ Прочитано', planned:'📋 В планах', paused:'⏸ Отложено', dropped:'🗑 Брошено'};
-          el.innerHTML = '<div class="bm-empty"><div class="bm-empty-icon">🔖</div><div class="bm-empty-title">Список пуст</div><div class="bm-empty-sub">Добавляй мангу через кнопку «Статус» на странице манги</div></div>';
+          var labels = {reading:'Читаю', completed:'Прочитано', planned:'В планах', paused:'⏸ Отложено', dropped:'Брошено'};
+          el.innerHTML = '<div class="bm-empty"><div class="bm-empty-icon"></div><div class="bm-empty-title">Список пуст</div><div class="bm-empty-sub">Добавляй мангу через кнопку «Статус» на странице манги</div></div>';
           return;
         }
         el.innerHTML = '<div class="manga-grid">' + rows.map(function(m) {

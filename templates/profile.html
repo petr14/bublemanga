@@ -523,7 +523,7 @@
 <div class="tabs-bar">
     <button class="tab-btn active" data-tab="profile"> Профиль</button>
     <button class="tab-btn" data-tab="library"> Библиотека</button>
-    {% if is_own %}<button class="tab-btn" data-tab="friends">👥 Друзья</button>{% endif %}
+    {% if is_own %}<button class="tab-btn" data-tab="friends">Друзья</button>{% endif %}
     {% if is_own %}<button class="tab-btn" data-tab="quests"> Задания</button>{% endif %}
 </div>
 
@@ -594,8 +594,8 @@
         {% if is_own %}<button class="lib-btn active" data-lib="history">История</button>{% endif %}
         <button class="lib-btn{% if not is_own %} active{% endif %}" data-lib="subscriptions">Подписки</button>
         <button class="lib-btn" data-lib="collections">Коллекции</button>
-        {% if is_own %}<button class="lib-btn" data-lib="wishlist">🔖 Хочу прочитать</button>{% endif %}
-        {% if is_own %}<button class="lib-btn" data-lib="recommendations">📨 Рекомендации</button>{% endif %}
+
+        {% if is_own %}<button class="lib-btn" data-lib="recommendations">Рекомендации</button>{% endif %}
     </div>
 
     {% if is_own %}

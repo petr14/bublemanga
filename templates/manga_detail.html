@@ -323,111 +323,6 @@
 
         /* ==================== ОЦЕНКА ==================== */
 
-        /* ── Аниме-дезинтеграция ── */
-        @keyframes animeShardFly {
-            0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity:1; filter: brightness(3); }
-            15%  { filter: brightness(6); }
-            60%  { opacity:.8; }
-            100% { transform: translate(var(--tx),var(--ty)) scale(0) rotate(var(--tr)); opacity:0; filter: brightness(1); }
-        }
-        @keyframes speedLine {
-            0%   { transform: scaleX(0) translateX(0); opacity:1; }
-            60%  { opacity:.7; }
-            100% { transform: scaleX(1) translateX(var(--tx)); opacity:0; }
-        }
-        @keyframes impactFlash {
-            0%   { opacity:0; }
-            8%   { opacity:1; }
-            40%  { opacity:.6; }
-            100% { opacity:0; }
-        }
-        @keyframes whiteFlash {
-            0%,100% { opacity:0; }
-            10%     { opacity:1; }
-            30%     { opacity:.4; }
-        }
-        @keyframes shockwave {
-            0%   { transform: translate(-50%,-50%) scale(0); opacity:.9; border-width: 6px; }
-            100% { transform: translate(-50%,-50%) scale(4); opacity:0; border-width: 1px; }
-        }
-        @keyframes energyOrb {
-            0%   { transform: translate(0,0) scale(1); opacity:1; }
-            30%  { transform: translate(var(--ox), var(--oy)) scale(1.5); opacity:1; filter: brightness(3); }
-            100% { transform: translate(var(--fx), var(--fy)) scale(0); opacity:0; filter: brightness(1); }
-        }
-        @keyframes kanjiPop {
-            0%   { transform: translate(-50%,-50%) scale(0) rotate(-20deg); opacity:0; }
-            20%  { transform: translate(-50%,-50%) scale(1.4) rotate(5deg); opacity:1; }
-            60%  { transform: translate(-50%,-50%) scale(1) rotate(0deg); opacity:1; }
-            100% { transform: translate(-50%,-50%) scale(.5) rotate(10deg) translateY(-40px); opacity:0; }
-        }
-        @keyframes screenShake {
-            0%,100% { transform: translate(0,0); }
-            10%  { transform: translate(-8px, 4px); }
-            20%  { transform: translate(8px, -6px); }
-            30%  { transform: translate(-6px, 8px); }
-            40%  { transform: translate(10px, -4px); }
-            50%  { transform: translate(-4px, 6px); }
-            60%  { transform: translate(6px, -8px); }
-            70%  { transform: translate(-8px, 4px); }
-            80%  { transform: translate(4px, -4px); }
-            90%  { transform: translate(-2px, 2px); }
-        }
-        @keyframes chromaticR {
-            0%,100% { text-shadow:none; filter:none; }
-            20% { filter: drop-shadow(-4px 0 #f00) drop-shadow(4px 0 #00f); }
-            50% { filter: drop-shadow(-8px 0 rgba(255,0,0,.8)) drop-shadow(8px 0 rgba(0,0,255,.8)); }
-        }
-        @keyframes trailFade {
-            0%   { opacity:.7; transform: translate(0,0) scale(1); }
-            100% { opacity:0; transform: translate(var(--ttx),var(--tty)) scale(.3); }
-        }
-        @keyframes modalRipple {
-            0%   { opacity:1; transform: scale(1); filter: brightness(1) blur(0); }
-            25%  { filter: brightness(4) blur(2px); transform: scale(1.04); }
-            60%  { filter: brightness(2) blur(6px); transform: scale(.98); opacity:.5; }
-            100% { filter: brightness(0) blur(20px); transform: scale(1.1); opacity:0; }
-        }
-
-        .anime-shard {
-            position: fixed; z-index: 9999; pointer-events: none;
-            animation: animeShardFly var(--dur) var(--delay) cubic-bezier(.22,1,.36,1) forwards;
-            box-shadow: 0 0 var(--glow) var(--col), 0 0 calc(var(--glow)*2) var(--col);
-        }
-        .anime-speed-line {
-            position: fixed; z-index: 9998; pointer-events: none;
-            height: 2px; transform-origin: left center;
-            animation: speedLine .4s ease-out forwards;
-        }
-        .anime-orb {
-            position: fixed; z-index: 9999; pointer-events: none; border-radius: 50%;
-            animation: energyOrb var(--dur) cubic-bezier(.2,.6,.4,1) forwards;
-            box-shadow: 0 0 12px var(--col), 0 0 24px var(--col), 0 0 40px var(--col);
-        }
-        .anime-trail {
-            position: fixed; z-index: 9997; pointer-events: none; border-radius: 50%;
-            animation: trailFade var(--dur) ease-out forwards;
-        }
-        .anime-shockwave {
-            position: fixed; z-index: 9998; pointer-events: none; border-radius: 50%;
-            border: 4px solid rgba(129,140,248,.8);
-            box-shadow: 0 0 20px rgba(129,140,248,.6);
-            animation: shockwave .6s ease-out forwards;
-        }
-        .anime-kanji {
-            position: fixed; z-index: 10000; pointer-events: none;
-            font-weight: 900; font-family: serif;
-            animation: kanjiPop var(--dur) ease forwards;
-            text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
-            background: linear-gradient(135deg, #818cf8, #c084fc);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-        }
-        .anime-impact {
-            position: fixed; inset: 0; z-index: 9997; pointer-events: none;
-            animation: impactFlash .5s ease forwards;
-            background: radial-gradient(ellipse at var(--cx) var(--cy), rgba(255,255,255,.95) 0%, rgba(129,140,248,.4) 40%, transparent 70%);
-        }
-
         @keyframes ratingIn {
             0%   { opacity:0; transform: translateY(32px) scale(.93); }
             60%  { transform: translateY(-5px) scale(1.01); }
@@ -2042,175 +1937,6 @@
             document.getElementById('ratingModalOverlay').classList.remove('open');
         }
 
-        function disintegrateModal(onDone) {
-            const modal   = document.querySelector('.rating-modal');
-            const overlay = document.getElementById('ratingModalOverlay');
-            if (!modal) { onDone && onDone(); return; }
-
-            const rect = modal.getBoundingClientRect();
-            const cx   = rect.left + rect.width  / 2;
-            const cy   = rect.top  + rect.height / 2;
-            const all  = [];
-
-            const PALETTE = ['#818cf8','#a78bfa','#c084fc','#667eea','#764ba2','#e0e7ff','#4f46e5','#fff','#ddd6fe'];
-            const ORB_COLS = ['#818cf8','#a78bfa','#c084fc','#e879f9','#38bdf8'];
-            const KANJI    = ['無','力','爆','限','界','解','放','終'];
-
-            // ① Хроматическая аберрация на модалке
-            modal.style.animation = 'chromaticR .35s ease';
-
-            // ② Вспышка импакт-фрейма
-            const flash = document.createElement('div');
-            flash.className = 'anime-impact';
-            flash.style.setProperty('--cx', cx + 'px');
-            flash.style.setProperty('--cy', cy + 'px');
-            document.body.appendChild(flash);
-            all.push(flash);
-
-            // ③ Ударная волна (shockwave)
-            const sw = document.createElement('div');
-            sw.className = 'anime-shockwave';
-            sw.style.cssText = `left:${cx}px; top:${cy}px; width:80px; height:80px;`;
-            document.body.appendChild(sw);
-            all.push(sw);
-
-            // ④ Встряска страницы
-            document.body.style.animation = 'screenShake .45s ease';
-            setTimeout(() => { document.body.style.animation = ''; }, 450);
-
-            // ⑤ Кандзи (через 80ms — после вспышки)
-            setTimeout(() => {
-                for (let i = 0; i < 3; i++) {
-                    const k = document.createElement('div');
-                    k.className = 'anime-kanji';
-                    const kx = cx + (Math.random() - .5) * rect.width * .9;
-                    const ky = cy + (Math.random() - .5) * rect.height * .7;
-                    const sz = 28 + Math.random() * 36;
-                    k.textContent = KANJI[Math.floor(Math.random() * KANJI.length)];
-                    k.style.cssText = `left:${kx}px; top:${ky}px; font-size:${sz}px; --dur:${.7 + Math.random() * .4}s; animation-delay:${i * .08}s;`;
-                    document.body.appendChild(k);
-                    all.push(k);
-                }
-            }, 80);
-
-            // ⑥ Линии скорости от центра
-            setTimeout(() => {
-                const LINE_CNT = 18;
-                for (let i = 0; i < LINE_CNT; i++) {
-                    const angle = (360 / LINE_CNT) * i + Math.random() * 10;
-                    const len   = 80 + Math.random() * 160;
-                    const l = document.createElement('div');
-                    l.className = 'anime-speed-line';
-                    l.style.cssText = `
-                        left:${cx}px; top:${cy}px;
-                        width:${len}px;
-                        background: linear-gradient(to right, rgba(129,140,248,.9), transparent);
-                        transform: rotate(${angle}deg);
-                        transform-origin: left center;
-                        --tx: ${Math.cos(angle * Math.PI/180) * len}px;
-                        animation-delay: ${i * .01}s;
-                    `;
-                    document.body.appendChild(l);
-                    all.push(l);
-                }
-            }, 100);
-
-            // ⑦ Энергетические шары (orbs)
-            setTimeout(() => {
-                for (let i = 0; i < 12; i++) {
-                    const angle = (Math.PI * 2 / 12) * i + Math.random() * .5;
-                    const dist1 = 60  + Math.random() * 40;
-                    const dist2 = 180 + Math.random() * 200;
-                    const sz    = 8 + Math.random() * 14;
-                    const col   = ORB_COLS[Math.floor(Math.random() * ORB_COLS.length)];
-                    const dur   = .5 + Math.random() * .4;
-
-                    // Trail (след)
-                    for (let t = 1; t <= 3; t++) {
-                        const tr = document.createElement('div');
-                        tr.className = 'anime-trail';
-                        tr.style.cssText = `
-                            left:${cx}px; top:${cy}px;
-                            width:${sz * (1 - t * .2)}px; height:${sz * (1 - t * .2)}px;
-                            background:${col}; opacity:.4;
-                            --ttx:${Math.cos(angle) * dist1 * .6}px;
-                            --tty:${Math.sin(angle) * dist1 * .6}px;
-                            --dur:${dur * .6}s;
-                            animation-delay:${t * .04}s;
-                        `;
-                        document.body.appendChild(tr);
-                        all.push(tr);
-                    }
-
-                    const orb = document.createElement('div');
-                    orb.className = 'anime-orb';
-                    orb.style.cssText = `
-                        left:${cx - sz/2}px; top:${cy - sz/2}px;
-                        width:${sz}px; height:${sz}px;
-                        background:${col}; --col:${col};
-                        --ox:${Math.cos(angle)*dist1}px; --oy:${Math.sin(angle)*dist1}px;
-                        --fx:${Math.cos(angle)*dist2}px; --fy:${Math.sin(angle)*dist2}px;
-                        --dur:${dur}s;
-                    `;
-                    document.body.appendChild(orb);
-                    all.push(orb);
-                }
-            }, 120);
-
-            // ⑧ Осколки модалки (через 150ms — волна сверху вниз)
-            setTimeout(() => {
-                const COLS_N = 22, ROWS_N = 14;
-                const pw = rect.width  / COLS_N;
-                const ph = rect.height / ROWS_N;
-
-                // Модалка тает
-                modal.style.transition = 'opacity .12s, filter .12s';
-                modal.style.opacity  = '0';
-                modal.style.filter   = 'brightness(4) blur(4px)';
-
-                for (let r = 0; r < ROWS_N; r++) {
-                    for (let c = 0; c < COLS_N; c++) {
-                        // Пропускаем часть — не каждый пиксель (аниме-стиль разреженный)
-                        if (Math.random() < .3) continue;
-
-                        const sz   = pw * (.5 + Math.random() * 1.2);
-                        const x    = rect.left + c * pw + pw/2 - sz/2;
-                        const y    = rect.top  + r * ph + ph/2 - sz/2;
-                        const col  = PALETTE[Math.floor(Math.random() * PALETTE.length)];
-                        const dx   = (x - cx) * (1.5 + Math.random()) + (Math.random()-.5) * 200;
-                        const dy   = (y - cy) * (1.2 + Math.random()) + (Math.random()-.5) * 150;
-                        const rot  = (Math.random()-.5) * 900;
-                        const dur  = .4 + Math.random() * .5;
-                        const delay = (r / ROWS_N) * .2 + Math.random() * .08;
-                        // Размер свечения: крупные осколки светятся ярче
-                        const glow = sz > pw ? `${sz*1.5}px` : `${sz*.8}px`;
-
-                        const sh = document.createElement('div');
-                        sh.className = 'anime-shard';
-                        sh.style.cssText = `
-                            left:${x}px; top:${y}px; width:${sz}px; height:${sz}px;
-                            background:${col}; --col:${col}; --glow:${glow};
-                            --tx:${dx}px; --ty:${dy}px; --tr:${rot}deg; --dur:${dur}s;
-                            animation-delay:${delay}s;
-                            border-radius:${Math.random()<.25 ? '50%' : Math.random()<.5 ? '3px' : '0'};
-                        `;
-                        document.body.appendChild(sh);
-                        all.push(sh);
-                    }
-                }
-            }, 150);
-
-            // ⑨ Закрыть оверлей и очистить
-            setTimeout(() => { overlay.classList.remove('open'); }, 280);
-            setTimeout(() => {
-                all.forEach(el => el.remove());
-                modal.style.opacity = '';
-                modal.style.filter  = '';
-                modal.style.animation = '';
-                onDone && onDone();
-            }, 1300);
-        }
-
         async function submitRating(mangaId) {
             const score = parseInt(document.getElementById('ratingSlider').value);
             const submitBtn = document.getElementById('ratingSubmitBtn');
@@ -2223,7 +1949,6 @@
                 });
                 const d = await r.json();
 
-                // Обновить кнопку и среднюю на странице
                 const openBtn = document.getElementById('ratingOpenBtn');
                 if (openBtn) { openBtn.textContent = `⭐ Ваша оценка: ${score}`; openBtn.classList.add('rated'); }
                 const avgEl = document.getElementById('ratingAvg');
@@ -2234,16 +1959,20 @@
                     s.classList.toggle('active', i + 1 === score);
                 });
 
-                // Дезинтеграция!
                 submitBtn.textContent = '✓ Сохранено!';
                 submitBtn.classList.add('done');
+
+                const overlay = document.getElementById('ratingModalOverlay');
+                overlay.style.transition = 'opacity .4s ease';
+                overlay.style.opacity = '0';
                 setTimeout(() => {
-                    disintegrateModal(() => {
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Сохранить оценку';
-                        submitBtn.classList.remove('done');
-                    });
-                }, 350);
+                    overlay.classList.remove('open');
+                    overlay.style.transition = '';
+                    overlay.style.opacity = '';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Сохранить оценку';
+                    submitBtn.classList.remove('done');
+                }, 420);
 
             } catch(e) {
                 submitBtn.disabled = false;
