@@ -117,7 +117,7 @@
             object-fit: contain;
         }
         .avatar-edit-btn {
-            position: absolute; bottom: 2px; right: 2px;
+            position: absolute; bottom: 2px; right: 2px; z-index: 10;
             width: 30px; height: 30px; border-radius: 50%;
             background: var(--primary); border: 2px solid var(--bg);
             color: white; font-size: 13px;
@@ -173,7 +173,7 @@
             font-size: 14px; line-height: 1;
             box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(245,158,11,.3);
             animation: crownPulse 3s ease-in-out infinite;
-            z-index: 3;
+            z-index: 10;
         }
         @keyframes crownPulse {
             0%, 100% { box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(245,158,11,.3); }
