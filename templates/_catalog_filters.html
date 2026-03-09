@@ -33,20 +33,33 @@
 
 <div class="filter-sep"></div>
 
-<!-- ── Жанры ── -->
+<!-- ── Жанры (сгруппированные) ── -->
 <div class="filter-section genre-section">
   <div class="genre-section-header">
     <div class="filter-label">Жанры</div>
-    <input class="genre-search-input" type="text" placeholder="Поиск..." oninput="filterGenres(this.value)" autocomplete="off">
+    <input class="genre-search-input" type="text" id="genreSearchInput" placeholder="Поиск жанра..." oninput="filterGenres(this.value)" autocomplete="off">
   </div>
-  <div class="chip-group genre-grid" style="flex-direction:column;align-items:flex-start;">
-    {% for genre in genres | sort %}
-    <span class="chip" data-genre="{{ genre }}" onclick="toggleGenre('{{ genre | e }}')">{{ genre }}</span>
+
+  <div id="genreGroupsContainer">
+    {% for group_name, group_tags in genre_groups.items() %}
+    <div class="genre-group" data-group="{{ group_name }}">
+      <div class="genre-group-title" onclick="toggleGenreGroup(this)">
+        <span>{{ group_name }}</span>
+        <svg class="genre-group-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="chip-group genre-group-chips" style="display:none;">
+        {% for genre in group_tags %}
+        <span class="chip genre-chip" data-genre="{{ genre }}" onclick="toggleGenre('{{ genre | e }}')">{{ genre }}</span>
+        {% endfor %}
+      </div>
+    </div>
     {% endfor %}
+
+    <!-- Результаты поиска (скрыты по умолчанию) -->
+    <div id="genreSearchResults" style="display:none;">
+      <div class="chip-group" id="genreSearchChips" style="flex-wrap:wrap;gap:.35rem;"></div>
+    </div>
   </div>
-  {% if genres|length > 3 %}
-  <button class="show-more-genres" onclick="toggleGenreExpand(this)">Показать все жанры ↓</button>
-  {% endif %}
 </div>
 
 <div class="filter-sep"></div>

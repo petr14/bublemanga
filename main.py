@@ -188,6 +188,16 @@ def rate_limit(max_calls: int, period: int = 60):
 _DATABASE_URL = os.environ.get('DATABASE_URL', '')  # пусто → SQLite
 _USE_PG = bool(_DATABASE_URL)
 
+def _to_dt(val):
+    """Приводит datetime-объект или ISO-строку к naive UTC datetime."""
+    if val is None:
+        return None
+    if isinstance(val, str):
+        val = datetime.fromisoformat(val.replace('Z', '+00:00'))
+    if hasattr(val, 'tzinfo') and val.tzinfo is not None:
+        val = val.replace(tzinfo=None)
+    return val
+
 if _USE_PG:
     try:
         import psycopg2
@@ -201,6 +211,7 @@ _RE_INSERT_OR_IGNORE  = re.compile(r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', re.IGNORE
 _RE_INSERT_OR_REPLACE = re.compile(r'\bINSERT\s+OR\s+REPLACE\s+INTO\b', re.IGNORECASE)
 _RE_TABLE_NAME        = re.compile(r'\bINTO\s+(\w+)\s*\(([^)]+)\)', re.IGNORECASE)
 _RE_DATETIME_NOW      = re.compile(r"datetime\('now'(?:,\s*'([^']+)')?\)", re.IGNORECASE)
+_RE_DATE_NOW          = re.compile(r"date\('now'(?:,\s*'([^']+)')?\)", re.IGNORECASE)
 _RE_STRFTIME          = re.compile(r"strftime\('([^']+)',\s*'now'\)", re.IGNORECASE)
 
 # Таблица → (столбец конфликта, список столбцов для UPDATE)
@@ -215,7 +226,7 @@ _PG_UPSERT_MAP: dict = {
 
 def _translate_sql(sql: str) -> str:
     """Конвертирует SQLite-специфичный SQL в PostgreSQL-совместимый."""
-    sql = sql.replace('?', '%s')
+    sql = re.sub(r"'(?:[^']|'')*'|(\?)", lambda m: m.group(0) if m.group(1) is None else '%s', sql)
     sql = _RE_INSERT_OR_IGNORE.sub('INSERT INTO', sql)
     sql = _RE_INSERT_OR_REPLACE.sub('INSERT INTO', sql)
 
@@ -227,6 +238,15 @@ def _translate_sql(sql: str) -> str:
             return f"NOW() {sign} INTERVAL '{mod}'"
         return 'NOW()'
     sql = _RE_DATETIME_NOW.sub(_dt_repl, sql)
+
+    def _date_repl(m):
+        modifier = m.group(1)
+        if modifier:
+            mod = modifier.strip().lstrip('+-')
+            sign = '-' if '-' in modifier else '+'
+            return f"CURRENT_DATE {sign} INTERVAL '{mod}'"
+        return 'CURRENT_DATE'
+    sql = _RE_DATE_NOW.sub(_date_repl, sql)
 
     _STRFTIME_MAP = {
         '%Y-%m-%d': 'YYYY-MM-DD', '%Y': 'YYYY', '%m': 'MM',
@@ -261,6 +281,35 @@ def _build_on_conflict(sql_orig: str, is_replace: bool) -> str:
     return f' ON CONFLICT ({conflict_col}) DO UPDATE SET {sets}'
 
 
+class _CompatRow:
+    """Строка результата с доступом по индексу и по имени (как sqlite3.Row)."""
+    __slots__ = ('_data', '_keys')
+
+    def __init__(self, raw):
+        self._data = dict(raw)
+        self._keys = list(self._data)
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._data[self._keys[key]]
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data.values())
+
+    def __bool__(self):
+        return True
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def keys(self):
+        return self._keys
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+
 class _CompatCursor:
     """Курсор-обёртка над psycopg2, совместимый с интерфейсом sqlite3."""
 
@@ -286,15 +335,17 @@ class _CompatCursor:
         return self
 
     def fetchone(self):
-        return self._c.fetchone()
+        row = self._c.fetchone()
+        return _CompatRow(row) if row is not None else None
 
     def fetchall(self):
-        return self._c.fetchall()
+        return [_CompatRow(r) for r in self._c.fetchall()]
 
     @property
     def lastrowid(self):
         self._c.execute('SELECT lastval()')
-        return self._c.fetchone()[0]
+        row = self._c.fetchone()
+        return list(row.values())[0]
 
     @property
     def rowcount(self):
@@ -755,49 +806,11 @@ def init_db():
     )
 
     # ── Seed: товары магазина ──────────────────────────────────────────────
-    SHOP_ITEMS = [
-        # Рамки профиля
-        ('Золотая рамка',    'Роскошная золотая рамка для аватара',   'frame',      None, 'border: 3px solid #FFD700; box-shadow: 0 0 12px #FFD700;',       1200,  0),
-        ('Неоновая рамка',   'Ярко-фиолетовая неоновая рамка',        'frame',      None, 'border: 3px solid #a855f7; box-shadow: 0 0 16px #a855f7;',       3000,  0),
-        ('Радужная рамка',   'Переливающаяся RGB рамка',              'frame',      None, 'border: 3px solid transparent; background: linear-gradient(#141414,#141414) padding-box, linear-gradient(135deg,#f43f5e,#a855f7,#3b82f6) border-box;', 7000, 0),
-        ('Аниме рамка',      'Рамка в стиле аниме с сакурой',         'frame',      None, 'border: 3px solid #ec4899; box-shadow: 0 0 12px #ec4899;',        1800,  0),
-        # Фоны профиля
-        ('Ночной город',     'Тёмный городской пейзаж',               'background', None, 'background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);', 800,   0),
-        ('Сакура',           'Нежно-розовый цветочный фон',           'background', None, 'background: linear-gradient(135deg, #f8b4d9, #f093fb, #f5576c);', 800,   0),
-        ('Космос',           'Звёздное небо',                         'background', None, 'background: linear-gradient(135deg, #0d0d1a, #1a1a3e, #0d0d1a); background-size:400% 400%;', 1500, 0),
-        ('Океан',            'Глубокий океанский градиент',           'background', None, 'background: linear-gradient(135deg, #001f3f, #0074D9, #7FDBFF);', 1000,  0),
-        # Значки
-        ('VIP',              'Эксклюзивный VIP значок',               'badge',      None, '👑 VIP',                                                          8000,  0),
-        ('Отаку',            'Значок настоящего отаку',               'badge',      None, '🎌 Отаку',                                                        2500,  0),
-        ('Манга-гуру',       'Для тех, кто знает толк',               'badge',      None, '📖 Манга-гуру',                                                   5000,  0),
-        # Слоты загрузки
-        ('Загрузка аватара', 'Разблокировать загрузку своего аватара','avatar_slot', None, None,                                                              0,     1),
-        ('Загрузка фона',    'Разблокировать загрузку своего фона',   'bg_slot',    None, None,                                                              1500,  1),
-    ]
-    c.executemany(
-        '''INSERT OR IGNORE INTO shop_items
-           (name, description, type, preview_url, css_value, price, is_upload)
-           VALUES (?, ?, ?, ?, ?, ?, ?)''',
-        SHOP_ITEMS
-    )
-
-    # ── Обновление цен существующих предметов магазина ────────────────────
-    _PRICE_UPDATES = [
-        ('Золотая рамка',    1200),
-        ('Неоновая рамка',   3000),
-        ('Радужная рамка',   7000),
-        ('Аниме рамка',      1800),
-        ('Ночной город',     800),
-        ('Сакура',           800),
-        ('Космос',           1500),
-        ('Океан',            1000),
-        ('VIP',              8000),
-        ('Отаку',            2500),
-        ('Манга-гуру',       5000),
-        ('Загрузка фона',    1500),
-    ]
-    for _name, _price in _PRICE_UPDATES:
-        c.execute('UPDATE shop_items SET price = ? WHERE name = ?', (_price, _name))
+    # Слоты загрузки (единственные «стандартные» товары — функциональные)
+    c.execute('''INSERT OR IGNORE INTO shop_items (id, name, description, type, preview_url, css_value, price, is_upload)
+                 VALUES (12, 'Загрузка аватара', 'Разблокировать загрузку своего аватара', 'avatar_slot', NULL, NULL, 0, 1)''')
+    c.execute('''INSERT OR IGNORE INTO shop_items (id, name, description, type, preview_url, css_value, price, is_upload)
+                 VALUES (13, 'Загрузка фона', 'Разблокировать загрузку своего фона', 'bg_slot', NULL, NULL, 1500, 1)''')
 
     # ── Обновление наград дневных заданий ─────────────────────────────────
     _DAILY_UPDATES = [
@@ -2836,12 +2849,15 @@ def get_user_subscriptions(user_id, limit=12):
 def get_user_reading(user_id, limit=12):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT m.*, MAX(rh.last_read) as last_read_time
+    c.execute('''SELECT m.*, rh_agg.last_read_time
                  FROM manga m
-                 JOIN reading_history rh ON m.manga_id = rh.manga_id
-                 WHERE rh.user_id = ?
-                 GROUP BY m.manga_id
-                 ORDER BY last_read_time DESC
+                 JOIN (
+                     SELECT manga_id, MAX(last_read) as last_read_time
+                     FROM reading_history
+                     WHERE user_id = ?
+                     GROUP BY manga_id
+                 ) rh_agg ON m.manga_id = rh_agg.manga_id
+                 ORDER BY rh_agg.last_read_time DESC
                  LIMIT ?''', (user_id, limit))
     manga = c.fetchall()
     conn.close()
@@ -4012,18 +4028,18 @@ def index():
 
     # Жанры/теги для секции "Все лейблы"
     genres = [
-        {'icon': '⚡', 'name': 'Система'},
         {'icon': '❤️', 'name': 'Романтика'},
+        {'icon': '🔮', 'name': 'Фэнтези'},
         {'icon': '🌀', 'name': 'Исекай'},
-        {'icon': '👊', 'name': 'Боевик'},
+        {'icon': '👊', 'name': 'Экшен'},
         {'icon': '🤣', 'name': 'Комедия'},
         {'icon': '🎭', 'name': 'Драма'},
-        {'icon': '🔮', 'name': 'Фэнтези'},
+        {'icon': '⚡', 'name': 'Система'},
         {'icon': '👻', 'name': 'Ужасы'},
         {'icon': '🔎', 'name': 'Детектив'},
         {'icon': '💼', 'name': 'Повседневность'},
         {'icon': '🎓', 'name': 'Школа'},
-        {'icon': '👑', 'name': 'Царей'}
+        {'icon': '⚔️', 'name': 'Боевые искусства'},
     ]
 
     return render_template('index.html',
@@ -4490,9 +4506,61 @@ def search_suggestions():
 
     return jsonify(suggestions[:8])
 
+_GENRE_GROUPS = {
+    'Жанры': [
+        'Романтика', 'Фэнтези', 'Драма', 'Комедия', 'Экшен', 'Приключения',
+        'Повседневность', 'Психологическое', 'Боевые искусства', 'Фантастика',
+        'Ужасы', 'Мистика', 'Триллер', 'Детектив', 'Исторический', 'Спорт',
+        'Трагедия', 'Антиутопия', 'Военное', 'Криминал / Преступники',
+        'Музыка', 'Иясикэй', 'Пародия', 'Меха', 'Шоу-бизнес',
+        'Апокалиптический', 'Постапокалиптический', 'Гэг-юмор',
+        'Гурман', 'Философия', 'Медицина', 'Политика', 'Безумие',
+        'Сверхъестественное', 'Нуар',
+    ],
+    'Демография': [
+        'Сёнен', 'Сёдзе', 'Сэйнэн', 'Дзёсей',
+        'Яой', 'Юри', 'Сёнен-ай', 'Сёдзе-ай', 'Этти', 'Эротика',
+    ],
+    'Сеттинг': [
+        'Школа', 'Исекай', 'Средневековье', 'Школьная жизнь',
+        'Магическая академия', 'Учебное заведение', 'Старшая школа',
+        'Космос', 'Подземелье', 'Будущее', 'Виртуальная реальность',
+        'Япония', 'Армия', 'Мурим', 'Фэнтезийный мир', 'Офисные работники',
+    ],
+    'Персонажи & расы': [
+        'ГГ мужчина', 'ГГ женщина', 'ГГ имба', 'Умный ГГ', 'Тупой ГГ',
+        'ГГ не человек', 'Молодой ГГ', 'Антигерой', 'Злодейка',
+        'Горничная', 'Рыцарь', 'Самурай', 'Ниндзя', 'Наёмник',
+        'Вампир', 'Демон', 'Зверолюди', 'Монстродевушка', 'Монстр',
+        'Эльф', 'Драконы', 'Бог', 'Богиня', 'Волшебник / Маг', 'Ведьма',
+        'Волшебные существа', 'Разумные расы', 'Призрак', 'Нежить',
+        'Ангел', 'Злой дух', 'Владыка демонов', 'Девочки-волшебницы',
+        'Гоблин', 'Животные компаньоны', 'Зомби', 'Мифология',
+        'В основном взрослые', 'Мужской гарем', 'Женский гарем',
+        'Брат и сестра', 'Гяру', 'Лоли',
+    ],
+    'Сюжет & механики': [
+        'Реинкарнация', 'Система', 'Магия', 'Навыки / Способности',
+        'Ранги силы', 'Культивация', 'Борьба за власть', 'Сокрытие личности',
+        'Воспоминания из другого мира', 'Выживание', 'Управление территорией',
+        'Игровые элементы', 'Месть', 'Аристократия',
+        'Манипуляция временем / Путешествия', 'Дружба', 'Жестокий мир',
+        'Элементы юмора', 'Бои на мечах', 'Супер сила', 'Спасение мира',
+        'Любовный многоугольник', 'Шантаж', 'Игра с высокими ставками',
+        'Насилие / Жестокость', 'Преступления', 'Мафия', 'Гильдии',
+        'Артефакты', 'Алхимия', 'Яндере', 'Империи', 'Героическое фэнтези',
+        'Правонарушитель / Хулиган', 'Бессмертный', 'Видеоигры', 'Геймеры',
+        'Идол', 'Работа', 'Игры', 'Раб', 'Грузовик-сан',
+        'Огнестрельное оружие', 'Холодное оружие', 'Робот', 'Полиция',
+        'Амнезия / Потеря памяти', 'Хикикомори', 'Культура Отаку',
+        'Командный спорт', 'Спортивное тело', 'Рисование', 'Искусство',
+    ],
+}
+
+
 @cache.cached(timeout=600, key_prefix='catalog_genres')
 def _get_catalog_genres():
-    """Кешированный список жанров для каталога (TTL 10 мин)."""
+    """Кешированный список жанров/тегов для каталога (TTL 10 мин)."""
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT tags FROM manga WHERE tags IS NOT NULL AND tags != '[]' AND tags != ''")
@@ -4507,14 +4575,34 @@ def _get_catalog_genres():
         except Exception:
             pass
     conn.close()
-    return sorted(genre_freq.keys(), key=lambda g: -genre_freq[g])
+
+    # Строим группы: только теги с >= 10 манг
+    groups = {}
+    placed = set()
+    for group_name, group_tags in _GENRE_GROUPS.items():
+        members = [t for t in group_tags if genre_freq.get(t, 0) >= 10]
+        if members:
+            groups[group_name] = members
+            placed.update(members)
+
+    # Все оставшиеся теги с >= 10 манг → «Прочее»
+    others = sorted(
+        [t for t, cnt in genre_freq.items() if cnt >= 10 and t not in placed],
+        key=lambda g: -genre_freq[g]
+    )
+    if others:
+        groups['Прочее'] = others
+
+    return groups
 
 
 @app.route('/catalog')
 def catalog_page():
     """Каталог всех манг с фильтрацией"""
-    genres = _get_catalog_genres()
-    return render_template('catalog.html', genres=genres)
+    genre_groups = _get_catalog_genres()
+    # Плоский список всех тегов для JS
+    all_genres = [tag for tags in genre_groups.values() for tag in tags]
+    return render_template('catalog.html', genre_groups=genre_groups, genres=all_genres)
 
 
 @app.route('/api/catalog')
@@ -5484,7 +5572,8 @@ def shop_page():
         ur = c.fetchone()
         if ur:
             is_premium = ur['is_premium']
-            premium_expires_at = ur['premium_expires_at']
+            _exp = ur['premium_expires_at']
+            premium_expires_at = _exp.isoformat() if hasattr(_exp, 'isoformat') else _exp
 
     conn.close()
 
@@ -5573,8 +5662,9 @@ def shop_activate(item_id):
     # Проверяем Premium
     c.execute('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', (user_id,))
     u = c.fetchone()
-    now_iso = datetime.utcnow().isoformat()
-    if not u or not u['is_premium'] or (u['premium_expires_at'] and u['premium_expires_at'] < now_iso):
+    now_dt = datetime.utcnow()
+    expires_dt = _to_dt(u['premium_expires_at']) if u else None
+    if not u or not u['is_premium'] or (expires_dt and expires_dt < now_dt):
         conn.close()
         return jsonify({'error': 'Требуется Premium подписка'}), 403
 
@@ -5701,7 +5791,7 @@ def _grant_premium(user_id, package_id, payment_id, payment_method='yookassa'):
         # Продлить если подписка ещё активна, иначе начать с сейчас
         if row and row['is_premium'] and row['premium_expires_at']:
             try:
-                current_exp = datetime.fromisoformat(row['premium_expires_at'])
+                current_exp = _to_dt(row['premium_expires_at'])
                 base = current_exp if current_exp > now else now
             except Exception:
                 base = now
@@ -6130,13 +6220,17 @@ def api_friend_recommendations():
         return jsonify({'error': 'Не авторизован'}), 401
     conn = get_db()
     # ref_id хранит manga_slug (для новых), fallback — парсим URL (для старых)
+    if _USE_PG:
+        _slug_expr = "SPLIT_PART(REPLACE(sn.url, '/manga/', ''), '?', 1)"
+    else:
+        _slug_expr = "REPLACE(REPLACE(sn.url, '/manga/', ''), SUBSTR(sn.url, INSTR(sn.url, '?')), '')"
     rows = conn.execute(
-        '''SELECT sn.id, sn.title, sn.body, sn.url, sn.ref_id, sn.created_at, sn.is_read,
+        f'''SELECT sn.id, sn.title, sn.body, sn.url, sn.ref_id, sn.created_at, sn.is_read,
                   m.manga_id, m.manga_slug, m.manga_title, m.cover_url
            FROM site_notifications sn
            LEFT JOIN manga m ON m.manga_slug = COALESCE(
                NULLIF(sn.ref_id, ''),
-               REPLACE(REPLACE(sn.url, '/manga/', ''), SUBSTR(sn.url, INSTR(sn.url, '?')), '')
+               {_slug_expr}
            )
            WHERE sn.user_id=? AND sn.type='manga_recommend'
            ORDER BY sn.created_at DESC
@@ -6521,17 +6615,17 @@ def profile_equip(item_id):
             c.execute(f'UPDATE user_profile SET {col_map[item_type]} = ? WHERE user_id = ?',
                       (item_id, user_id))
         elif item_type == 'avatar':
-            # Получаем preview_url товара и ставим как аватар
-            c.execute('SELECT preview_url FROM shop_items WHERE id = ?', (item_id,))
+            # Получаем оригинальный URL товара и ставим как аватар
+            c.execute('SELECT preview_url, full_url FROM shop_items WHERE id = ?', (item_id,))
             si = c.fetchone()
-            avatar_url = si['preview_url'] if si else None
+            avatar_url = (si['full_url'] or si['preview_url']) if si else None
             c.execute('UPDATE user_profile SET avatar_url = ? WHERE user_id = ?',
                       (avatar_url, user_id))
         elif item_type == 'background':
-            # Получаем preview_url товара и ставим как фон
-            c.execute('SELECT preview_url, css_value FROM shop_items WHERE id = ?', (item_id,))
+            # Получаем оригинальный URL товара и ставим как фон
+            c.execute('SELECT preview_url, full_url, css_value FROM shop_items WHERE id = ?', (item_id,))
             si = c.fetchone()
-            bg_url = (si['preview_url'] if si else None)
+            bg_url = (si['full_url'] or si['preview_url']) if si else None
             c.execute('UPDATE user_profile SET background_url = ? WHERE user_id = ?',
                       (bg_url, user_id))
 
@@ -7113,7 +7207,9 @@ def collection_detail(coll_id):
            LEFT JOIN user_profile p ON c.user_id = p.user_id
            LEFT JOIN users u ON c.user_id = u.id
            WHERE c.id = ?
-           GROUP BY c.id''',
+           GROUP BY c.id, c.name, c.description, c.cover_url, c.is_public, c.created_at, c.user_id,
+                    p.custom_avatar_url, p.avatar_url, p.custom_name,
+                    u.telegram_first_name, u.telegram_username''',
         (coll_id,)
     )
     row = c.fetchone()
@@ -7166,7 +7262,9 @@ def collections_top_page():
            LEFT JOIN user_profile p ON c.user_id = p.user_id
            LEFT JOIN users u ON c.user_id = u.id
            WHERE c.is_public = 1
-           GROUP BY c.id
+           GROUP BY c.id, c.name, c.description, c.cover_url, c.created_at, c.user_id,
+                    p.custom_avatar_url, p.avatar_url, p.custom_name,
+                    u.telegram_first_name, u.telegram_username
            ORDER BY likes_count DESC, items_count DESC, c.created_at DESC
            LIMIT 50'''
     )
@@ -7251,7 +7349,7 @@ def api_streak_calendar():
         GROUP BY DATE(read_at)
     ''', (uid,)).fetchall()
     conn.close()
-    return jsonify({'days': {r['day']: r['count'] for r in rows}})
+    return jsonify({'days': {str(r['day'])[:10]: r['count'] for r in rows}})
 
 
 @app.route('/admin')
@@ -7953,18 +8051,18 @@ def api_calendar_days():
     if not year or not month:
         return jsonify([])
 
-    prefix = f'{year:04d}-{month:02d}'
     conn = get_db()
     try:
         rows = conn.execute(
             """SELECT DATE(created_at) AS day, COUNT(*) AS count
                FROM chapters
-               WHERE DATE(created_at) LIKE ?
+               WHERE EXTRACT(YEAR FROM created_at) = ?
+                 AND EXTRACT(MONTH FROM created_at) = ?
                GROUP BY DATE(created_at)
                ORDER BY day""",
-            (f'{prefix}%',)
+            (year, month)
         ).fetchall()
-        return jsonify([{'day': row['day'], 'count': row['count']} for row in rows])
+        return jsonify([{'day': str(row['day'])[:10], 'count': row['count']} for row in rows])
     except Exception as e:
         logger.error(f"api_calendar_days error: {e}")
         return jsonify([])

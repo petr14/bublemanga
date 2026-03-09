@@ -298,7 +298,7 @@ function toast(msg,type='ok'){
 // ── Превью ────────────────────────────────────────────────────────────────────
 function PreviewAvatar({item}){
   return h('div',{className:'item-preview-avatar'},
-    item.is_animated && h('div',{className:'anim-badge'},'GIF'),
+    !!item.is_animated && h('div',{className:'anim-badge'},'GIF'),
     h('div',{className:'avatar-circle'},
       item.preview_url
         ? h('img',{src:item.preview_url,alt:'',loading:'lazy'})
@@ -319,7 +319,7 @@ function PreviewFrame({item}){
 function PreviewBackground({item}){
   if(item.preview_url)
     return h('div',{className:'item-preview-bg'},
-      item.is_animated && h('div',{className:'anim-badge'},'GIF'),
+      !!item.is_animated && h('div',{className:'anim-badge'},'GIF'),
       h('img',{src:item.preview_url,alt:'',loading:'lazy'}),
       h('div',{className:'bg-overlay'}),
       h('div',{className:'bg-fake'},
@@ -364,9 +364,9 @@ function fmtCountdown(isoStr){
   }catch(e){ return null; }
 }
 
-function ItemCard({item,coins,eqMap,onBuy,onEquip,onActivate}){
-  const owned    = OWNED_IDS.has(item.id);
-  const loaned   = LOANED_IDS.has(item.id);
+function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate}){
+  const owned    = ownedSet.has(item.id);
+  const loaned   = loanedSet.has(item.id);
   const equipped = !!(eqMap[item.id]);
   const countdown = TEMP_EXPIRES[item.id] ? fmtCountdown(TEMP_EXPIRES[item.id]) : null;
   const canAfford = coins >= item.price;
@@ -658,15 +658,18 @@ function BuyPremium(){
 
 // ── Страница ─────────────────────────────────────────────────────────────────
 function ShopPage(){
-  const [coins,   setCoins]  = useState(INIT_COINS);
-  const [activeTab, setTab]  = useState('all');
-  const [eqMap,   setEqMap]  = useState({...EQUIPPED});
+  const [coins,     setCoins]    = useState(INIT_COINS);
+  const [activeTab, setTab]      = useState('all');
+  const [eqMap,     setEqMap]    = useState({...EQUIPPED});
+  const [ownedSet,  setOwnedSet] = useState(()=>new Set(OWNED_IDS));
+  const [loanedSet, setLoanedSet]= useState(()=>new Set(LOANED_IDS));
 
   const buy = useCallback(async item=>{
     const r = await fetch(`/api/shop/buy/${item.id}`,{method:'POST'});
     const j = await r.json();
     if(!r.ok){ toast(j.error||'Ошибка покупки','err'); return; }
-    OWNED_IDS.add(item.id); LOANED_IDS.delete(item.id);
+    setOwnedSet(prev=>new Set([...prev, item.id]));
+    setLoanedSet(prev=>{ const s=new Set(prev); s.delete(item.id); return s; });
     setCoins(j.coins??j.bubbles??0);
     toast(`Куплено: ${item.name}`);
   },[]);
@@ -692,7 +695,8 @@ function ShopPage(){
     const r = await fetch(`/api/shop/activate/${item.id}`,{method:'POST'});
     const j = await r.json();
     if(!r.ok){ toast(j.error||'Ошибка активации','err'); return; }
-    OWNED_IDS.add(item.id); LOANED_IDS.add(item.id);
+    setOwnedSet(prev=>new Set([...prev, item.id]));
+    setLoanedSet(prev=>new Set([...prev, item.id]));
     toast(`Активировано: ${item.name}`);
   },[]);
 
@@ -706,7 +710,7 @@ function ShopPage(){
     if(!items.length) return h('div',{className:'empty-section'},h('div',{className:'eico'},'🛍️'),h('div',null,'Пока ничего нет'));
     const gc = type==='avatar' ? 'items-grid-avatar' : 'items-grid';
     return h('div',{className:gc},
-      items.map(item=>h(ItemCard,{key:item.id,item,coins,eqMap,onBuy:buy,onEquip:equip,onActivate:activate}))
+      items.map(item=>h(ItemCard,{key:item.id,item,coins,eqMap,ownedSet,loanedSet,onBuy:buy,onEquip:equip,onActivate:activate}))
     );
   }
 

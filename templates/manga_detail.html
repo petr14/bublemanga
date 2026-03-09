@@ -1567,7 +1567,7 @@
                                 {% endif %}
                             </div>
                             <div class="chapter-meta">
-                                <span>{{ chapter.created_at[:10] if chapter.created_at else '' }}</span>
+                                <span>{{ (chapter.created_at|string)[:10] if chapter.created_at else '' }}</span>
                                 <span class="chapter-read" style="display:none">✓ Читали</span>
                             </div>
                         </div>
