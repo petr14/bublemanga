@@ -61,6 +61,8 @@
     /* ── Карточка ── */
     .item-card { background:var(--card2); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:border-color .2s,transform .15s,box-shadow .2s; display:flex; flex-direction:column; position:relative; }
     .item-card:hover { border-color:rgba(102,126,234,.3); transform:translateY(-2px); }
+    /* GIF в аватарах не должен прерываться при hover-трансформе карточки */
+    .items-grid-avatar .avatar-circle img { image-rendering: auto; }
     .item-card.owned  { border-color:rgba(102,126,234,.35); }
     .item-card.equipped { border-color:#667eea; box-shadow:0 0 0 1px #667eea,0 0 22px rgba(102,126,234,.22); }
 
@@ -101,6 +103,14 @@
     .item-footer-btns { display:flex; align-items:center; gap:.35rem; }
 
     .btn-buy,.btn-equip,.btn-unequip,.btn-activate,.btn-buy-perm { padding:.3rem .75rem; border-radius:20px; font-size:.76rem; font-weight:700; cursor:pointer; border:none; transition:opacity .2s,transform .1s; font-family:inherit; flex-shrink:0; white-space:nowrap; }
+    /* Кнопки в аватарных карточках — компактнее чтобы помещались */
+    .items-grid-avatar .btn-buy,
+    .items-grid-avatar .btn-equip,
+    .items-grid-avatar .btn-unequip,
+    .items-grid-avatar .btn-activate,
+    .items-grid-avatar .btn-buy-perm { padding:.22rem .45rem; font-size:.68rem; }
+    .items-grid-avatar .item-footer { padding:.4rem .65rem .6rem; }
+    .items-grid-avatar .item-footer-btns { gap:.25rem; }
     .btn-buy { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; }
     .btn-buy:hover { opacity:.85; transform:scale(1.03); }
     .btn-buy:disabled { opacity:.4; cursor:not-allowed; transform:none; }
@@ -312,12 +322,11 @@ function toast(msg,type='ok'){
 
 // ── Превью ────────────────────────────────────────────────────────────────────
 function PreviewAvatar({item}){
-  const src = item.is_animated ? (item.full_url || item.preview_url) : item.preview_url;
   return h('div',{className:'item-preview-avatar'},
     !!item.is_animated && h('div',{className:'anim-badge'},'GIF'),
     h('div',{className:'avatar-circle'},
-      src
-        ? h('img',{src,alt:'',loading:'lazy'})
+      item.preview_url
+        ? h('img',{src:item.preview_url, alt:'', loading:item.is_animated?'eager':'lazy'})
         : h('div',{className:'av-placeholder'},'')
     )
   );
@@ -389,11 +398,9 @@ function TryOnModal({item, coins, eqMap, ownedSet, loanedSet, onBuy, onEquip, on
 
   let preview;
   if(item.type === 'avatar'){
-    // Для анимированных используем full_url (GIF), для обычных — preview_url
-    const src = item.is_animated ? (item.full_url || item.preview_url) : item.preview_url;
     preview = h('div',{className:'tryon-preview-avatar'},
-      src
-        ? h('img',{src, alt:'', loading:'eager'})
+      item.preview_url
+        ? h('img',{src:item.preview_url, alt:'', loading:'eager'})
         : h('div',{style:{width:'100%',height:'100%',background:'linear-gradient(135deg,#667eea,#764ba2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem'}},'')
     );
   } else if(item.type === 'frame'){
