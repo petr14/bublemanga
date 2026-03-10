@@ -197,13 +197,45 @@
     .manga-cover {
       width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;
     }
+    .card-badges {
+      position: absolute; top: .45rem; left: .45rem; right: .45rem;
+      display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; pointer-events: none;
+    }
     .manga-type-badge {
-      position: absolute; top: .45rem; left: .45rem;
       background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.15);
       color: #ddd; font-size: .62rem; font-weight: 700;
       padding: .18rem .45rem; border-radius: 5px;
       text-transform: uppercase; letter-spacing: .03em;
+      pointer-events: none;
     }
+    .user-status-badge {
+      font-size: .62rem; font-weight: 700;
+      padding: .18rem .5rem; border-radius: 5px;
+      cursor: pointer; pointer-events: all;
+      transition: opacity .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .user-status-badge:hover { opacity: .82; transform: scale(.96); }
+    .user-status-badge.no-status { opacity: 0; }
+    .manga-card:hover .user-status-badge.no-status { opacity: 1; }
+
+    /* Status picker dropdown */
+    #statusPicker {
+      position: fixed; z-index: 9999;
+      background: #1e1e2e; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; padding: .35rem; min-width: 140px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      display: none;
+    }
+    #statusPicker.open { display: block; }
+    .sp-item {
+      padding: .45rem .75rem; border-radius: 7px; font-size: .8rem; font-weight: 600;
+      cursor: pointer; transition: background .12s;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .sp-item:hover { background: rgba(255,255,255,.08); }
+    .sp-item .sp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .sp-remove { color: var(--text3); font-weight: 500; border-top: 1px solid rgba(255,255,255,.07); margin-top: .3rem; padding-top: .55rem; }
     .manga-info { padding: .6rem .7rem .75rem; }
     .manga-title {
       font-size: .8rem; font-weight: 600; color: #e4e4e7;
@@ -368,6 +400,9 @@
   Фильтры
 </button>
 
+<!-- Status picker -->
+<div id="statusPicker"></div>
+
 <!-- Quick preview popup -->
 <div class="manga-preview-overlay" id="ppOverlay" onclick="closePreview()"></div>
 <div class="manga-preview-popup" id="ppPopup" role="dialog" aria-modal="true"
@@ -399,6 +434,7 @@
 <script>
 const GENRES_ALL = {{ genres | tojson }};
 const PER = 28;
+const CURRENT_USER_ID = {{ session.get('user_id') | tojson }};
 
 let state = {
   type: '',
@@ -413,6 +449,14 @@ let state = {
 // ── Card builder ──────────────────────────────────────────
 const TYPE_RU = {MANGA:'Манга',MANHWA:'Манхва',MANHUA:'Маньхуа',OEL:'Всемирная',NOVEL:'Новелла',ONE_SHOT:'Короткие',DOUJINSHI:'Додзинси',COMICS:'Комикс'};
 const STATUS_RU = {ONGOING:'Выходит',FINISHED:'Завершена',CANCELLED:'Заброшена',HIATUS:'Пауза',ANNOUNCED:'Анонс'};
+
+const USER_STATUS_CFG = {
+  reading:   {label:'Читаю',      bg:'rgba(99,102,241,.9)',  color:'#fff', dot:'#818cf8'},
+  completed: {label:'Прочитано',  bg:'rgba(22,163,74,.9)',   color:'#fff', dot:'#22c55e'},
+  planned:   {label:'В планах',   bg:'rgba(202,138,4,.9)',   color:'#fff', dot:'#f59e0b'},
+  dropped:   {label:'Брошено',    bg:'rgba(220,38,38,.9)',   color:'#fff', dot:'#ef4444'},
+  paused:    {label:'Отложено',   bg:'rgba(234,88,12,.9)',   color:'#fff', dot:'#f97316'},
+};
 
 function buildCard(m) {
   const typeLabel = TYPE_RU[m.manga_type] || m.manga_type || '';
@@ -429,11 +473,18 @@ function buildCard(m) {
     `data-desc="${esc((m.description || '').replace(/\n/g,' ').substring(0,160))}"`,
     `data-tags="${esc(m.tags || '[]')}"`,
   ].join(' ');
+  const userBadge = CURRENT_USER_ID
+    ? `<div class="user-status-badge no-status" data-manga-id="${esc(m.manga_id)}"
+         onclick="openStatusPicker(event,this)">+</div>`
+    : '';
   return `<div class="manga-card" ${dataAttrs}
       onclick="location.href='/manga/${m.manga_slug}'"
       onmouseenter="ppHoverStart(this)" onmouseleave="ppHoverCancel()"
       ontouchstart="ppTouchStart(event,this)" ontouchend="ppTouchCancel()" ontouchmove="ppTouchCancel()">
-    ${typeLabel ? `<div class="manga-type-badge">${typeLabel}</div>` : ''}
+    <div class="card-badges">
+      ${typeLabel ? `<div class="manga-type-badge">${typeLabel}</div>` : ''}
+      ${userBadge}
+    </div>
     <img src="${m.cover_url || ''}" class="manga-cover" loading="lazy"
          onerror="this.src='https://via.placeholder.com/150x225/1a1a1a/667eea'">
     <div class="manga-info">
@@ -445,6 +496,96 @@ function buildCard(m) {
     </div>
   </div>`;
 }
+
+// ── User reading statuses ──────────────────────────────────
+function applyUserStatus(badge, status) {
+  const cfg = status && USER_STATUS_CFG[status];
+  if (cfg) {
+    badge.textContent = cfg.label;
+    badge.style.background = cfg.bg;
+    badge.style.color = cfg.color;
+    badge.style.border = 'none';
+    badge.style.textShadow = '0 1px 3px rgba(0,0,0,.4)';
+    badge.classList.remove('no-status');
+  } else {
+    badge.textContent = '+';
+    badge.style.background = 'rgba(0,0,0,.55)';
+    badge.style.color = '#fff';
+    badge.style.border = '1px solid rgba(255,255,255,.2)';
+    badge.style.textShadow = 'none';
+    badge.classList.add('no-status');
+  }
+  badge.dataset.current = status || '';
+}
+
+async function loadStatuses(mangaIds) {
+  if (!CURRENT_USER_ID || !mangaIds.length) return;
+  try {
+    const r = await fetch('/api/manga-statuses?ids=' + mangaIds.join(','));
+    const data = await r.json();
+    for (const [mid, st] of Object.entries(data)) {
+      const badge = document.querySelector(`.user-status-badge[data-manga-id="${mid}"]`);
+      if (badge) applyUserStatus(badge, st);
+    }
+  } catch(e) {}
+}
+
+// ── Status picker ──────────────────────────────────────────
+const picker = document.getElementById('statusPicker');
+let pickerBadge = null;
+
+(function buildPicker() {
+  const items = Object.entries(USER_STATUS_CFG).map(([key, cfg]) =>
+    `<div class="sp-item" onclick="selectStatus('${key}')">
+      <span class="sp-dot" style="background:${cfg.dot}"></span>${cfg.label}
+    </div>`
+  ).join('');
+  picker.innerHTML = items +
+    `<div class="sp-item sp-remove" onclick="selectStatus('')">
+      <span class="sp-dot" style="background:#52525b"></span>Убрать статус
+    </div>`;
+})();
+
+function openStatusPicker(e, badge) {
+  e.stopPropagation();
+  if (pickerBadge === badge && picker.classList.contains('open')) {
+    closePicker(); return;
+  }
+  pickerBadge = badge;
+  picker.classList.add('open');
+  const rect = badge.getBoundingClientRect();
+  const ph = picker.offsetHeight || 200;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const top = spaceBelow > ph + 8 ? rect.bottom + 6 : rect.top - ph - 6;
+  let left = rect.left;
+  if (left + 150 > window.innerWidth) left = window.innerWidth - 155;
+  picker.style.top = top + 'px';
+  picker.style.left = left + 'px';
+}
+
+function closePicker() {
+  picker.classList.remove('open');
+  pickerBadge = null;
+}
+
+async function selectStatus(status) {
+  if (!pickerBadge) return;
+  const badge = pickerBadge;
+  const mangaId = badge.dataset.mangaId;
+  closePicker();
+  try {
+    const r = await fetch(`/api/manga-status/${encodeURIComponent(mangaId)}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({status: status || null}),
+    });
+    if (r.ok) applyUserStatus(badge, status || '');
+  } catch(e) {}
+}
+
+document.addEventListener('click', e => {
+  if (picker.classList.contains('open') && !picker.contains(e.target)) closePicker();
+});
 
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -491,6 +632,7 @@ async function fetchCatalog(append = false) {
     } else {
       grid.insertAdjacentHTML('beforeend', d.results.map(buildCard).join(''));
       state.offset += d.results.length;
+      loadStatuses(d.results.map(r => r.manga_id));
     }
 
     if (d.has_more) {

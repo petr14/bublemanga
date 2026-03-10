@@ -1662,6 +1662,11 @@
                 if (data.subscribed) {
                     btn.classList.add('subscribed');
                     btn.innerHTML = '<span>✓</span><span>Подписан</span>';
+                    // Автоставим статус "Читаю" если статус ещё не установлен
+                    const statusBtn = document.getElementById('statusBtn');
+                    if (statusBtn && !statusBtn.dataset.status) {
+                        setMangaStatus(mangaId, 'reading');
+                    }
                 } else {
                     btn.classList.remove('subscribed');
                     btn.innerHTML = '<span></span><span>Подписаться</span>';
@@ -1965,13 +1970,15 @@
         // ==================== АВТОПРОКРУТКА К ПОСЛЕДНЕЙ ПРОЧИТАННОЙ ГЛАВЕ ====================
         window.addEventListener('DOMContentLoaded', function() {
             const readChapter = document.querySelector('.chapter-read');
-            if (readChapter && window.innerWidth >= 1024) {
-                setTimeout(() => {
-                    readChapter.closest('.chapter-item').scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center' 
-                    });
-                }, 500);
+            if (readChapter) {
+                const list = document.getElementById('chapters-list');
+                if (list) {
+                    const item = readChapter.closest('.chapter-item');
+                    // Скроллим только внутри списка глав, не всю страницу
+                    setTimeout(() => {
+                        list.scrollTop = item.offsetTop - list.clientHeight / 2 + item.clientHeight / 2;
+                    }, 300);
+                }
             }
         });
         

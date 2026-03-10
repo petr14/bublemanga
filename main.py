@@ -4,7 +4,7 @@ import hmac
 import hashlib
 import urllib.parse
 from datetime import datetime, timedelta
-from flask import Flask, render_template, render_template_string, jsonify, request, session, redirect, url_for, Response, make_response, send_from_directory
+from flask import Flask, render_template, render_template_string, jsonify, request, session, redirect, url_for, Response, make_response, send_from_directory, send_file
 import threading
 import sqlite3
 import secrets
@@ -43,7 +43,9 @@ TELEGRAM_BOT_TOKEN = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 ADMIN_TELEGRAM_IDS: list = [319026942,649144994]
 
 COIN_PACKAGES = [
-    {'id': 'coins_100',  'coins': 100,  'stars': 15,  'rub': 129,   'usd': '1.49', 'label': '100 шариков'},
+    {
+        
+        'id': 'coins_100',  'coins': 100,  'stars': 15,  'rub': 129,   'usd': '1.49', 'label': '100 шариков'},
     {'id': 'coins_300',  'coins': 300,  'stars': 40,  'rub': 329,   'usd': '3.99', 'label': '300 шариков'},
     {'id': 'coins_700',  'coins': 700,  'stars': 85,  'rub': 699,   'usd': '7.99', 'label': '700 шариков'},
     {'id': 'coins_1500', 'coins': 1500, 'stars': 175, 'rub': 1399,  'usd': '15.99', 'label': '1500 шариков'},
@@ -1264,6 +1266,55 @@ from werkzeug.utils import secure_filename
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+THUMB_CACHE_DIR = os.path.join(os.path.dirname(__file__), 'static', 'cache', 'thumbs')
+os.makedirs(THUMB_CACHE_DIR, exist_ok=True)
+
+
+def _convert_to_webm_bg(abs_path):
+    """Конвертирует анимированный файл в WebM в фоновом потоке."""
+    import subprocess
+    import tempfile
+    from PIL import Image, ImageSequence
+
+    dst = abs_path + '.webm'
+    if os.path.exists(dst):
+        return
+    ext = abs_path.rsplit('.', 1)[-1].lower()
+    tmp_gif = None
+    ffmpeg_input = abs_path
+    try:
+        if ext == 'webp':
+            img = Image.open(abs_path)
+            frames, durations = [], []
+            for frame in ImageSequence.Iterator(img):
+                rgba = frame.convert('RGBA')
+                frames.append(rgba.convert('P', palette=Image.ADAPTIVE, colors=256))
+                durations.append(frame.info.get('duration', 50))
+            tmp = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
+            frames[0].save(tmp.name, save_all=True, append_images=frames[1:],
+                           loop=0, duration=durations, optimize=False)
+            tmp.close()
+            tmp_gif = tmp.name
+            ffmpeg_input = tmp_gif
+        cmd = ['ffmpeg', '-y', '-i', ffmpeg_input,
+               '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '35',
+               '-cpu-used', '5', '-deadline', 'realtime',
+               '-auto-alt-ref', '0', '-an', dst]
+        subprocess.run(cmd, capture_output=True, timeout=300)
+    except Exception as e:
+        logger.error(f'WebM bg convert error {abs_path}: {e}')
+    finally:
+        if tmp_gif:
+            try: os.unlink(tmp_gif)
+            except OSError: pass
+
+
+def schedule_webm_conversion(abs_path):
+    """Запускает конвертацию в WebM в daemon-потоке."""
+    ext = abs_path.rsplit('.', 1)[-1].lower() if '.' in abs_path else ''
+    if ext in ('gif', 'webp'):
+        t = threading.Thread(target=_convert_to_webm_bg, args=(abs_path,), daemon=True)
+        t.start()
 
 
 @app.route('/static/uploads/<path:filename>')
@@ -1274,6 +1325,152 @@ def serve_upload(filename):
     resp.headers['Pragma'] = 'no-cache'
     resp.headers['Expires'] = '0'
     return resp
+
+
+@app.route('/thumb')
+def serve_thumb():
+    """Отдаёт сжатую миниатюру изображения. Поддерживает анимированные GIF."""
+    import io as _io
+    from PIL import Image, ImageSequence
+
+    src = request.args.get('src', '')
+    try:
+        max_w = min(int(request.args.get('w', 200)), 800)
+    except ValueError:
+        return '', 400
+
+    # Только файлы из uploads
+    if not src.startswith('/static/uploads/'):
+        return '', 400
+    abs_path = os.path.join(os.path.dirname(__file__), src.lstrip('/'))
+    if not os.path.isfile(abs_path):
+        return '', 404
+
+    ext = abs_path.rsplit('.', 1)[-1].lower()
+    mtime = str(int(os.path.getmtime(abs_path)))
+    cache_key = hashlib.md5(f'{src}:{max_w}:{mtime}'.encode()).hexdigest()
+    cache_path = os.path.join(THUMB_CACHE_DIR, f'{cache_key}.{ext}')
+
+    if os.path.exists(cache_path):
+        resp = send_file(cache_path)
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+
+    try:
+        img = Image.open(abs_path)
+        # Не увеличиваем, если уже меньше
+        if img.width <= max_w:
+            resp = send_file(abs_path)
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            return resp
+
+        ratio = max_w / img.width
+        new_size = (max_w, max(1, int(img.height * ratio)))
+
+        if ext == 'gif':
+            frames, durations = [], []
+            for frame in ImageSequence.Iterator(img):
+                rgba = frame.convert('RGBA').resize(new_size, Image.LANCZOS)
+                frames.append(rgba.convert('P', palette=Image.ADAPTIVE, colors=256))
+                durations.append(frame.info.get('duration', 100))
+            buf = _io.BytesIO()
+            frames[0].save(buf, format='GIF', save_all=True,
+                           append_images=frames[1:],
+                           loop=img.info.get('loop', 0),
+                           duration=durations, optimize=False)
+            with open(cache_path, 'wb') as f:
+                f.write(buf.getvalue())
+        else:
+            out = img.copy()
+            out.thumbnail(new_size, Image.LANCZOS)
+            save_kwargs = {'optimize': True}
+            if ext in ('jpg', 'jpeg'):
+                save_kwargs['quality'] = 82
+            out.save(cache_path, **save_kwargs)
+
+        resp = send_file(cache_path)
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception as e:
+        logger.error(f'Thumb error {src}: {e}')
+        return send_file(abs_path)
+
+
+@app.route('/anim')
+def serve_anim():
+    """Конвертирует анимацию (GIF/WebP) в WebM через ffmpeg и отдаёт как <video>."""
+    import subprocess
+    import tempfile
+    from PIL import Image, ImageSequence
+
+    src = request.args.get('src', '')
+    try:
+        max_w = min(int(request.args.get('w', 600)), 800)
+    except ValueError:
+        return '', 400
+
+    if not src.startswith('/static/uploads/'):
+        return '', 400
+    abs_path = os.path.join(os.path.dirname(__file__), src.lstrip('/'))
+    if not os.path.isfile(abs_path):
+        return '', 404
+
+    mtime = str(int(os.path.getmtime(abs_path)))
+    cache_key = hashlib.md5(f'anim:{src}:{max_w}:{mtime}'.encode()).hexdigest()
+    cache_path = os.path.join(THUMB_CACHE_DIR, f'{cache_key}.webm')
+
+    if os.path.exists(cache_path):
+        resp = send_file(cache_path, mimetype='video/webm')
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+
+    ext = abs_path.rsplit('.', 1)[-1].lower()
+    ffmpeg_input = abs_path
+    tmp_gif = None
+
+    try:
+        # Animated WebP ffmpeg не читает напрямую — конвертируем через Pillow в GIF
+        if ext == 'webp':
+            img = Image.open(abs_path)
+            frames, durations = [], []
+            ratio = max_w / img.width if img.width > max_w else 1.0
+            new_size = (max(1, int(img.width * ratio)), max(1, int(img.height * ratio)))
+            for frame in ImageSequence.Iterator(img):
+                rgba = frame.convert('RGBA').resize(new_size, Image.LANCZOS)
+                frames.append(rgba.convert('P', palette=Image.ADAPTIVE, colors=256))
+                durations.append(frame.info.get('duration', 50))
+            tmp = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
+            frames[0].save(tmp.name, save_all=True, append_images=frames[1:],
+                           loop=0, duration=durations, optimize=False)
+            tmp.close()
+            tmp_gif = tmp.name
+            ffmpeg_input = tmp_gif
+
+        cmd = [
+            'ffmpeg', '-y', '-i', ffmpeg_input,
+            '-vf', f'scale={max_w}:-2' if ext != 'webp' else 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+            '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '35',
+            '-cpu-used', '5', '-deadline', 'realtime',
+            '-auto-alt-ref', '0', '-an',
+            cache_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, timeout=120)
+        if tmp_gif:
+            try: os.unlink(tmp_gif)
+            except OSError: pass
+
+        if result.returncode == 0 and os.path.exists(cache_path):
+            resp = send_file(cache_path, mimetype='video/webm')
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            return resp
+        logger.error(f'ffmpeg failed for {src}: {result.stderr.decode()[:300]}')
+    except Exception as e:
+        logger.error(f'Anim convert error {src}: {e}')
+        if tmp_gif:
+            try: os.unlink(tmp_gif)
+            except OSError: pass
+
+    return send_file(abs_path)
 
 
 def _allowed_file(filename):
@@ -2150,7 +2347,8 @@ def get_cached_spotlights(ttl_seconds=3600):
         
         if cache_row:
             cache_data = json.loads(cache_row['value'])
-            cache_time = datetime.fromisoformat(cache_row['updated_at'])
+            _upd = cache_row['updated_at']
+            cache_time = _upd if isinstance(_upd, datetime) else datetime.fromisoformat(str(_upd))
             current_time = datetime.now()
             
             # Проверяем свежесть кеша
@@ -2396,7 +2594,7 @@ def get_user_by_token(token):
     """Получить пользователя по токену"""
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT * FROM users WHERE login_token = ? AND is_active = 1''', (token,))
+    c.execute('''SELECT * FROM users WHERE login_token = ? AND is_active IS NOT FALSE''', (token,))
     user = c.fetchone()
     conn.close()
     return dict(user) if user else None
@@ -2693,7 +2891,9 @@ def get_cached_recent_chapters(ttl_seconds=300):
         c.execute('SELECT value, updated_at FROM cache WHERE key = ?', (cache_key,))
         row = c.fetchone()
         if row:
-            age = (datetime.now() - datetime.fromisoformat(row['updated_at'])).total_seconds()
+            _upd = row['updated_at']
+            _upd_dt = _upd if isinstance(_upd, datetime) else datetime.fromisoformat(str(_upd))
+            age = (datetime.now() - _upd_dt).total_seconds()
             if age < ttl_seconds:
                 logger.info(f"📦 Используем кеш последних глав (возраст: {age:.0f} сек)")
                 return json.loads(row['value'])
@@ -2871,14 +3071,20 @@ def toggle_subscription(user_id, manga_id):
     existing = c.fetchone()
     
     if existing:
-        c.execute('DELETE FROM subscriptions WHERE user_id = ? AND manga_id = ?', 
+        c.execute('DELETE FROM subscriptions WHERE user_id = ? AND manga_id = ?',
                   (user_id, manga_id))
         subscribed = False
     else:
-        c.execute('INSERT INTO subscriptions (user_id, manga_id) VALUES (?, ?)', 
+        c.execute('INSERT INTO subscriptions (user_id, manga_id) VALUES (?, ?)',
                   (user_id, manga_id))
+        # Автоматически ставим статус "Читаю" если статус не установлен
+        c.execute(
+            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (?,?,?) '
+            'ON CONFLICT(user_id, manga_id) DO NOTHING',
+            (user_id, manga_id, 'reading')
+        )
         subscribed = True
-    
+
     conn.commit()
     conn.close()
     return subscribed
@@ -3028,7 +3234,7 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
         '''SELECT s.user_id, u.is_premium, u.notifications_enabled
            FROM subscriptions s
            JOIN users u ON s.user_id = u.id
-           WHERE s.manga_id = ? AND u.is_active = 1''',
+           WHERE s.manga_id = ? AND u.is_active IS NOT FALSE''',
         (manga_id,)
     )
     subscribers = c.fetchall()
@@ -3161,7 +3367,7 @@ async def send_daily_digest(hour=22):
                JOIN users u ON nq.user_id = u.id
                WHERE (u.last_digest_date IS NULL OR u.last_digest_date < ?)
                  AND COALESCE(u.digest_hour, 22) = ?
-                 AND u.is_active = 1 AND u.notifications_enabled = 1''',
+                 AND u.is_active IS NOT FALSE AND u.notifications_enabled IS NOT FALSE''',
             (today, hour)
         )
         users = c.fetchall()
@@ -4610,11 +4816,11 @@ def api_catalog():
     """AJAX-каталог с фильтрацией и сортировкой"""
     _PER = 28
     _SORT = {
-        'score':    'COALESCE(score, 0) DESC',
-        'views':    'COALESCE(views, 0) DESC',
-        'chapters': 'COALESCE(chapters_count, 0) DESC',
-        'updated':  "COALESCE(last_updated, '1970') DESC",
-        'title':    'manga_title ASC',
+        'score':    'COALESCE(score, 0) DESC, manga_id ASC',
+        'views':    'COALESCE(views, 0) DESC, manga_id ASC',
+        'chapters': 'COALESCE(chapters_count, 0) DESC, manga_id ASC',
+        'updated':  "COALESCE(last_updated, '1970') DESC, manga_id ASC",
+        'title':    'manga_title ASC, manga_id ASC',
     }
     manga_type = request.args.get('type', '').strip().upper()
     manga_status = request.args.get('status', '').strip().upper()
@@ -5463,6 +5669,10 @@ _TOP_ROW_SQL = '''SELECT u.id, u.telegram_first_name, u.telegram_username,
                    JOIN user_items ui ON si.id = ui.item_id
                    WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
                    LIMIT 1) as frame_css,
+                  (SELECT si.preview_url FROM shop_items si
+                   JOIN user_items ui ON si.id = ui.item_id
+                   WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
+                   LIMIT 1) as frame_preview_url,
                   (SELECT COUNT(DISTINCT manga_id) FROM reading_history
                    WHERE user_id = u.id) as manga_count
            FROM users u
@@ -6106,6 +6316,26 @@ def set_manga_status(manga_id):
     return jsonify({'status': status})
 
 
+@app.route('/api/manga-statuses')
+def get_manga_statuses():
+    """Batch-получение статусов для списка манг текущего пользователя"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({})
+    ids_raw = request.args.get('ids', '')
+    manga_ids = [i.strip() for i in ids_raw.split(',') if i.strip()][:100]
+    if not manga_ids:
+        return jsonify({})
+    conn = get_db()
+    placeholders = ','.join(['?' for _ in manga_ids])
+    rows = conn.execute(
+        f'SELECT manga_id, status FROM user_manga_status WHERE user_id=? AND manga_id IN ({placeholders})',
+        [user_id] + manga_ids
+    ).fetchall()
+    conn.close()
+    return jsonify({r['manga_id']: r['status'] for r in rows})
+
+
 @app.route('/api/user/reading-list')
 def api_user_reading_list():
     """Список манги пользователя по статусу чтения"""
@@ -6737,6 +6967,7 @@ def upload_avatar():
     conn.commit()
     conn.close()
 
+    schedule_webm_conversion(os.path.join(user_dir, filename))
     return jsonify({'success': True, 'avatar_url': avatar_url})
 
 
@@ -6778,6 +7009,7 @@ def upload_background():
     conn.commit()
     conn.close()
 
+    schedule_webm_conversion(os.path.join(user_dir, filename))
     return jsonify({'success': True, 'background_url': bg_url})
 
 
@@ -7376,7 +7608,7 @@ def api_admin_stats():
     c.execute(f'SELECT COUNT(*) FROM users WHERE {_NO_BOT_USERS}')
     total_users = c.fetchone()[0]
 
-    c.execute(f'SELECT COUNT(*) FROM users WHERE is_active = 0 AND {_NO_BOT_USERS}')
+    c.execute(f'SELECT COUNT(*) FROM users WHERE is_active IS FALSE AND {_NO_BOT_USERS}')
     banned_users = c.fetchone()[0]
 
     c.execute(f'SELECT COUNT(*) FROM users WHERE is_premium = 1 AND {_NO_BOT_USERS}')
@@ -7501,11 +7733,11 @@ def api_admin_ban_user(uid):
     if not row:
         conn.close()
         return jsonify({'error': 'Пользователь не найден'}), 404
-    new_state = 0 if row['is_active'] else 1
+    new_state = not row['is_active']
     c.execute('UPDATE users SET is_active = ? WHERE id = ?', (new_state, uid))
     conn.commit()
     conn.close()
-    return jsonify({'success': True, 'is_active': new_state})
+    return jsonify({'success': True, 'is_active': bool(new_state)})
 
 
 @app.route('/api/admin/users/<int:uid>/premium', methods=['POST'])

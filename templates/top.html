@@ -111,8 +111,18 @@
     /* фоновый слой на всю карточку */
     .top3-bg-layer {
       position: absolute; inset: 0;
-      background-size: cover; background-position: center center;
       z-index: 0;
+    }
+    img.top3-bg-layer, video.top3-bg-layer {
+      width: 100%; height: 100%; object-fit: cover; object-position: center;
+      transform: translateZ(0); display: block;
+    }
+    div.top3-bg-layer {
+      background-size: cover; background-position: center center;
+    }
+    .top3-bg-canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      z-index: 0; transform: translateZ(0); display: block;
     }
     /* затемняющий градиент */
     .top3-card::before {
@@ -164,7 +174,19 @@
       box-shadow: 0 4px 20px rgba(0,0,0,.5);
     }
     .top3-card.rank-1 .top3-av-wrap { width: 88px; height: 88px; }
-    .top3-av-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .top3-av-wrap img, .top3-av-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .av-frame {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140%; height: 140%;
+      pointer-events: none; z-index: 2; object-fit: contain;
+    }
+    .lb-av-frame {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 160%; height: 160%;
+      pointer-events: none; z-index: 2; object-fit: contain;
+    }
 
     .top3-body { width: 100%; text-align: center; }
     .top3-name {
@@ -207,6 +229,8 @@
       padding: .85rem 1.25rem;
       border-bottom: 1px solid rgba(255,255,255,.04);
       transition: background .15s; text-decoration: none; color: inherit;
+      content-visibility: auto;
+      contain-intrinsic-height: 70px;
     }
     /* + chapters column on wider screens */
     @media(min-width:500px) {
@@ -292,15 +316,58 @@ const MY_ID        = {{ user_id | tojson }};
 const MY_RANK_DATA = {{ my_rank_data | tojson }};
 const TOTAL_USERS  = {{ total_users | tojson }};
 
-function Av({url, size=40, fontSize='1rem'}){
+// Возвращает URL миниатюры нужной ширины (только для /static/uploads/)
+function thumb(url, w) {
+  if (!url || !url.startsWith('/static/uploads/')) return url;
+  return `/thumb?src=${encodeURIComponent(url)}&w=${w}`;
+}
+
+// Является ли файл анимированным (GIF или WebP)
+function isAnimated(url) {
+  if (!url) return false;
+  const ext = url.split('?')[0].split('.').pop().toLowerCase();
+  return ext === 'gif' || ext === 'webp';
+}
+
+// URL для предварительно сгенерированного WebM (хранится рядом с оригиналом)
+function animUrl(url) {
+  if (!url || !url.startsWith('/static/uploads/')) return url;
+  return url + '.webm';
+}
+
+// Рендерит изображение или видео в зависимости от типа контента
+// <video> — только для /static/uploads/ (не frames/) файлов с .webm
+// Рамки (frames) всегда <img> — WebM не поддерживает прозрачность в нашей конвертации
+function Media({url, w, style, className, forceImg=false}) {
+  const s = style || {width:'100%', height:'100%', objectFit:'cover', display:'block'};
+  const isLocalUpload = url && url.startsWith('/static/uploads/');
+  const isFrame = url && url.includes('/uploads/frames/');
+  if (!forceImg && isLocalUpload && !isFrame && isAnimated(url)) {
+    return h('video', {autoPlay:true, loop:true, muted:true, playsInline:true, style:s, className},
+      h('source', {src: animUrl(url), type:'video/webm'}),
+      h('source', {src: url})
+    );
+  }
+  const imgSrc = isLocalUpload ? thumb(url, w) : url;
+  return h('img', {src: imgSrc, style:s, alt:'', className});
+}
+
+function Av({url, frameUrl, size=40, fontSize='1rem'}){
   const s = {
     width:size, height:size, borderRadius:'50%',
     background:'linear-gradient(135deg,#667eea,#764ba2)',
     display:'flex', alignItems:'center', justifyContent:'center',
-    fontSize, flexShrink:0, overflow:'hidden'
+    fontSize, flexShrink:0, overflow:'hidden',
+    position:'relative'
   };
   return h('div',{style:s},
-    url ? h('img',{src:url,style:{width:'100%',height:'100%',objectFit:'cover'},alt:''}) : ''
+    url ? h(Media, {url, w:80, style:{width:'100%',height:'100%',objectFit:'cover'}}) : '',
+    frameUrl ? h(Media, {url:frameUrl, w:80, style:{
+      position:'absolute', top:'50%', left:'50%',
+      transform:'translate(-50%,-50%)',
+      width:'160%', height:'160%',
+      pointerEvents:'none', zIndex:2, objectFit:'contain'
+    }}) : null
   );
 }
 
@@ -316,21 +383,27 @@ function TopThree(){
       const rank = ranks[i];
       const name = (u.custom_name||'').trim()||(u.telegram_first_name||'').trim()||(u.telegram_username||'').trim()||`#${u.id}`;
       const betterThan = Math.round((TOTAL_USERS - rank) / TOTAL_USERS * 100);
-      const bgLayerStyle = u.background_url
-        ? {backgroundImage:`url(${u.background_url})`}
-        : {background:'linear-gradient(135deg,#0d0d2b 0%,#1a1040 100%)'};
       const betterThanVal = TOTAL_USERS > 1
         ? ((TOTAL_USERS - rank) / TOTAL_USERS * 100).toFixed(1) + '%'
         : '—';
+      const bgLayer = u.background_url
+        ? h(Media, {url:u.background_url, w:600, className:'top3-bg-layer'})
+        : h('div',{className:'top3-bg-layer',style:{background:'linear-gradient(135deg,#0d0d2b 0%,#1a1040 100%)'}});
       return h('a',{key:u.id, className:`top3-card rank-${rank}`, href:`/profile/${u.id}`},
-        h('div',{className:'top3-bg-layer', style:bgLayerStyle}),
+        bgLayer,
         h('div',{className:'top3-medal'},
           h('div',{className:'top3-medal-circle'}, rank),
           h('div',{className:'top3-medal-ribbon'})
         ),
         h('div',{className:'top3-content'},
-          h('div',{className:'top3-av-wrap'},
-            u.avatar_url ? h('img',{src:u.avatar_url,alt:''}) : ''
+          h('div',{className:'top3-av-wrap', style:{position:'relative', overflow:'visible'}},
+            u.avatar_url ? h(Media, {url:u.avatar_url, w:176, style:{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}) : '',
+            u.frame_preview_url ? h(Media, {url:u.frame_preview_url, w:176, style:{
+              position:'absolute', top:'50%', left:'50%',
+              transform:'translate(-50%,-50%)',
+              width:'150%', height:'150%',
+              pointerEvents:'none', zIndex:2, objectFit:'contain'
+            }}) : null
           ),
           h('div',{className:'top3-body'},
             h('div',{className:'top3-name'}, name),
@@ -366,7 +439,7 @@ function LbRow({u, rank}){
     h('div',{className:`lb-rank${rank<=3?' top3':''}`},
       rank
     ),
-    h('div',{className:'lb-avatar'}, h(Av,{url:u.avatar_url,size:40})),
+    h('div',{className:'lb-avatar'}, h(Av,{url:u.avatar_url,frameUrl:u.frame_preview_url,size:40})),
     h('div',{className:'lb-name'},
       name,
       !!u.is_premium && h('span',{className:'lb-premium-crown',title:'Premium'},'👑'),
@@ -408,6 +481,22 @@ function TopPage(){
 }
 
 createRoot(document.getElementById('top-root')).render(h(TopPage));
+
+
+// Останавливаем анимацию у элементов вне экрана
+const mediaObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    const el = entry.target;
+    if (el.tagName === 'VIDEO') {
+      if (entry.isIntersecting) { el.play().catch(()=>{}); }
+      else { el.pause(); }
+    }
+  });
+}, { rootMargin: '200px' });
+
+setTimeout(() => {
+  document.querySelectorAll('.lb-avatar video').forEach(v => mediaObserver.observe(v));
+}, 50);
 </script>
 
 {%- include 'footer.html' %}
