@@ -5242,8 +5242,6 @@ def api_manga_bulk_refresh():
 def manga_detail(manga_slug):
     """Детальная страница манги"""
 
-    force_refresh = request.args.get('refresh') == 'true'
-
     # Сначала пытаемся получить из БД
     conn = get_db()
     c = conn.cursor()
@@ -5260,30 +5258,22 @@ def manga_detail(manga_slug):
         manga_data = manga_details
     else:
         manga_data = dict(manga_db)
-        # Принудительное обновление по ?refresh=true
-        if force_refresh:
-            logger.info(f"🔄 Принудительное обновление {manga_slug}")
-            threading.Thread(
-                target=get_manga_details_api, args=(manga_slug,), daemon=True
-            ).start()
-        # Если описание пустое — обновляем в фоне, не блокируем рендер
-        elif not (manga_db['description'] or '').strip():
-            logger.info(f"📝 Описание пустое у {manga_slug}, обновляем в фоне")
-            threading.Thread(
-                target=get_manga_details_api, args=(manga_slug,), daemon=True
-            ).start()
-        # Редкое плановое обновление — раз в 7 дней
-        else:
+        # Фоновое обновление: если описание пустое или данные старше 1 дня
+        needs_refresh = not (manga_db['description'] or '').strip()
+        if not needs_refresh:
             last_updated = manga_db['last_updated']
             if last_updated:
                 try:
-                    if datetime.now() - datetime.fromisoformat(last_updated) > timedelta(days=7):
-                        threading.Thread(
-                            target=get_manga_details_api, args=(manga_slug,), daemon=True
-                        ).start()
-                        logger.info(f"🔄 Плановое фоновое обновление {manga_slug}")
+                    needs_refresh = datetime.now() - datetime.fromisoformat(last_updated) > timedelta(days=1)
                 except Exception:
                     pass
+            else:
+                needs_refresh = True
+        if needs_refresh:
+            logger.info(f"🔄 Фоновое обновление {manga_slug}")
+            threading.Thread(
+                target=get_manga_details_api, args=(manga_slug,), daemon=True
+            ).start()
 
     # Десериализуем JSON-поля если они пришли из БД (строки)
     import json as _json
@@ -6630,8 +6620,23 @@ def profile_equip(item_id):
                       (bg_url, user_id))
 
     conn.commit()
+
+    # Для аватара возвращаем новый URL чтобы обновить хедер без перезагрузки
+    extra = {}
+    if item_type == 'avatar':
+        if not now_equipped:
+            c2 = conn.cursor() if False else get_db().cursor()
+            conn2 = get_db()
+            c2 = conn2.cursor()
+            c2.execute('SELECT avatar_url FROM user_profile WHERE user_id = ?', (user_id,))
+            row2 = c2.fetchone()
+            extra['avatar_url'] = row2['avatar_url'] if row2 else None
+            conn2.close()
+        else:
+            extra['avatar_url'] = None  # сброс — нет аватара из магазина
+
     conn.close()
-    return jsonify({'success': True, 'equipped': not now_equipped})
+    return jsonify({'success': True, 'equipped': not now_equipped, **extra})
 
 
 @app.route('/api/profile/update', methods=['POST'])

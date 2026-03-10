@@ -1473,9 +1473,6 @@
                                 <span>Похожие</span>
                             </button>
 
-                            <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn">
-                                <span>Обновить</span>
-                            </a>
                         </div>
 
                         <!-- Строка 2: чтение -->
@@ -1579,10 +1576,6 @@
                 {% else %}
                 <div class="loading">
                     <p>Главы загружаются или пока отсутствуют...</p>
-                    <a href="{{ url_for('manga_detail', manga_slug=manga.manga_slug, refresh='true') }}" class="btn btn-primary">
-                        <span></span>
-                        <span>Обновить страницу</span>
-                    </a>
                 </div>
                 {% endif %}
             </div>

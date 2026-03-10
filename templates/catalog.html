@@ -111,26 +111,7 @@
     .genre-search-input:focus { border-color: var(--primary); }
     .genre-search-input::placeholder { color: var(--text3); }
 
-    /* Genre groups */
-    .genre-group { margin-bottom: .25rem; }
-    .genre-group-title {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: .35rem .5rem; border-radius: 8px; cursor: pointer;
-      font-size: .75rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .04em; color: var(--text3);
-      transition: background .15s;
-    }
-    .genre-group-title:hover { background: var(--card); color: var(--text2); }
-    .genre-group-arrow { transition: transform .2s; flex-shrink: 0; opacity: .6; }
-    .genre-group.open .genre-group-arrow { transform: rotate(180deg); }
-    .genre-group-chips { padding: .4rem .2rem .6rem; gap: .3rem; }
     .genre-chip.hidden-by-search { display: none; }
-    .show-more-genres {
-      margin-top: .5rem; font-size: .75rem; color: var(--primary); cursor: pointer;
-      background: none; border: none; font-family: inherit; padding: 0;
-      display: block;
-    }
-    .show-more-genres:hover { text-decoration: underline; }
 
     /* Reset button */
     .btn-reset-filters {
@@ -609,41 +590,11 @@ function resetFilters() {
 }
 
 // ── Genre search ──────────────────────────────────────────
-function toggleGenreGroup(titleEl) {
-  const group = titleEl.closest('.genre-group');
-  const chips = group.querySelector('.genre-group-chips');
-  const isOpen = group.classList.toggle('open');
-  chips.style.display = isOpen ? 'flex' : 'none';
-}
-
 function filterGenres(q) {
   const norm = q.trim().toLowerCase();
-  const searching = norm.length > 0;
-  const groups = document.querySelectorAll('.genre-group');
-  const searchResults = document.getElementById('genreSearchResults');
-  const searchChips = document.getElementById('genreSearchChips');
-
-  if (searching) {
-    // Скрываем группы, показываем результаты поиска
-    groups.forEach(g => { g.style.display = 'none'; });
-    searchResults.style.display = '';
-
-    // Собираем совпадающие чипы из всех групп
-    const allChips = document.querySelectorAll('.genre-chip');
-    searchChips.innerHTML = '';
-    allChips.forEach(chip => {
-      if (chip.dataset.genre.toLowerCase().includes(norm)) {
-        const clone = chip.cloneNode(true);
-        clone.onclick = () => toggleGenre(chip.dataset.genre);
-        if (state.genres.has(chip.dataset.genre)) clone.classList.add('active');
-        searchChips.appendChild(clone);
-      }
-    });
-  } else {
-    // Восстанавливаем группы
-    groups.forEach(g => { g.style.display = ''; });
-    searchResults.style.display = 'none';
-  }
+  document.querySelectorAll('.genre-chip').forEach(chip => {
+    chip.classList.toggle('hidden-by-search', norm.length > 0 && !chip.dataset.genre.toLowerCase().includes(norm));
+  });
 }
 
 // ── Load more ─────────────────────────────────────────────

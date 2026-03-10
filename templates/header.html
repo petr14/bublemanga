@@ -98,10 +98,11 @@
 .g-search-submit:hover { color: #818cf8; }
 
 /* Right actions */
-.g-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.g-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: 1; }
+.g-actions-icons { display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; }
+.g-user { position: relative; margin-left: auto; }
 
 /* User menu */
-.g-user { position: relative; }
 .g-user-trigger {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 14px 6px 6px; border-radius: 32px;
@@ -216,6 +217,7 @@
 /* ── Bell notifications ──────────────────────────────── */
 .g-bell {
   position: relative; flex-shrink: 0;
+  display: flex; align-items: center;
 }
 .g-bell-btn {
   width: 38px; height: 38px; border-radius: 50%;
@@ -348,27 +350,29 @@
 
     <div class="g-actions">
       {% if session.user_id %}
-      <div class="g-bell" id="gBell">
-        <button class="g-bell-btn" onclick="gToggleBell(event)" type="button" aria-label="Уведомления">
-          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        </button>
-        <span class="g-bell-badge" id="gBellBadge"></span>
-        <div class="g-bell-panel" id="gBellPanel">
-          <div class="g-bell-head">
-            <span>Уведомления</span>
-            <button class="g-bell-read-all" onclick="gBellReadAll()">Прочитать все</button>
-          </div>
-          <div class="g-bell-list" id="gBellList">
-            <div class="g-bell-empty">Нет уведомлений</div>
+      <div class="g-actions-icons">
+        <div class="g-bell" id="gBell">
+          <button class="g-bell-btn" onclick="gToggleBell(event)" type="button" aria-label="Уведомления">
+            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+          <span class="g-bell-badge" id="gBellBadge"></span>
+          <div class="g-bell-panel" id="gBellPanel">
+            <div class="g-bell-head">
+              <span>Уведомления</span>
+              <button class="g-bell-read-all" onclick="gBellReadAll()">Прочитать все</button>
+            </div>
+            <div class="g-bell-list" id="gBellList">
+              <div class="g-bell-empty">Нет уведомлений</div>
+            </div>
           </div>
         </div>
+        <a href="/bookmarks" class="g-icon-btn{% if g_active == 'bookmarks' %} active{% endif %}" aria-label="Закладки">
+          <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </a>
+        <a href="/calendar" class="g-icon-btn g-cal-btn{% if g_active == 'calendar' %} active{% endif %}" aria-label="Календарь">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </a>
       </div>
-      <a href="/bookmarks" class="g-icon-btn{% if g_active == 'bookmarks' %} active{% endif %}" aria-label="Закладки">
-        <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-      </a>
-      <a href="/calendar" class="g-icon-btn g-cal-btn{% if g_active == 'calendar' %} active{% endif %}" aria-label="Календарь">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </a>
       <div class="g-user" id="gUser">
         <button class="g-user-trigger" onclick="gToggleUser(event)" type="button">
           <div class="g-ava">

@@ -2488,8 +2488,14 @@
                         <button class="tab" data-period="WEEK">Неделя</button>
                         <button class="tab" data-period="DAY">Сегодня</button>
                     </div>
-                    <div class="manga-grid" id="trendingGrid">${items}</div>
+                    <div class="manga-grid-outer">
+                        <button class="manga-scroll-btn left" aria-label="Назад">&#8249;</button>
+                        <div class="manga-grid" id="trendingGrid">${items}</div>
+                        <button class="manga-scroll-btn right" aria-label="Вперёд">&#8250;</button>
+                    </div>
                 </section>`;
+
+            initScrollBtns('section-trending');
 
             // Вкладки: загружают популярное по периоду
             document.querySelectorAll('#section-trending .tab').forEach(tab => {
@@ -2508,6 +2514,8 @@
                     try {
                         const data = await fetch(`/api/home/popular?period=${period}`).then(r => r.json());
                         grid.innerHTML = buildSliderItems(data);
+                        grid.scrollLeft = 0;
+                        grid.dispatchEvent(new Event('scroll'));
                     } catch {
                         grid.innerHTML = '<p style="color:#a1a1aa;padding:20px">Не удалось загрузить</p>';
                     }
