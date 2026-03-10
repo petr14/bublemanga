@@ -95,10 +95,10 @@
     .item-body { padding:.7rem .8rem; flex:1; display:flex; flex-direction:column; gap:.28rem; }
     .item-name { font-weight:700; font-size:.83rem; color:#f4f4f5; line-height:1.3; }
     .item-desc { font-size:.7rem; color:var(--text-3); flex:1; line-height:1.5; }
-    .item-footer { display:flex; align-items:center; justify-content:space-between; padding:.45rem .8rem .75rem; gap:6px; }
-    .item-price { display:flex; align-items:center; gap:.22rem; font-weight:700; font-size:.82rem; color:#a5b4fc; flex-shrink:1; min-width:0; }
+    .item-footer { display:flex; flex-direction:column; padding:.45rem .8rem .75rem; gap:.4rem; }
+    .item-price { display:flex; align-items:center; gap:.22rem; font-weight:700; font-size:.82rem; color:#a5b4fc; }
     .item-price.free { color:#4ade80; }
-    .item-footer-btns { display:flex; align-items:center; gap:.35rem; flex-shrink:0; }
+    .item-footer-btns { display:flex; align-items:center; gap:.35rem; }
 
     .btn-buy,.btn-equip,.btn-unequip,.btn-activate,.btn-buy-perm { padding:.3rem .75rem; border-radius:20px; font-size:.76rem; font-weight:700; cursor:pointer; border:none; transition:opacity .2s,transform .1s; font-family:inherit; flex-shrink:0; white-space:nowrap; }
     .btn-buy { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; }
@@ -125,6 +125,9 @@
     .tryon-preview-avatar img { width:100%; height:100%; object-fit:cover; }
     .tryon-preview-frame { width:160px; height:160px; display:flex; align-items:center; justify-content:center; }
     .tryon-preview-frame img { width:100%; height:100%; object-fit:contain; }
+    .tryon-preview-bg { width:100%; height:160px; border-radius:14px; overflow:hidden; position:relative; }
+    .tryon-preview-bg img { width:100%; height:100%; object-fit:cover; }
+    .tryon-preview-bg-css { width:100%; height:160px; border-radius:14px; }
     .tryon-btns { display:flex; gap:.6rem; width:100%; }
 
     .empty-section { text-align:center; padding:3.5rem 1rem; color:var(--text-3); }
@@ -239,7 +242,7 @@
       .item-body { padding:.5rem .6rem; gap:.2rem; }
       .item-name { font-size:.78rem; }
       .item-desc { font-size:.67rem; }
-      .item-footer { padding:.35rem .6rem .55rem; gap:4px; flex-wrap:nowrap; }
+      .item-footer { padding:.35rem .6rem .55rem; gap:.3rem; }
       .item-price { font-size:.75rem; }
       .btn-buy,.btn-equip,.btn-unequip,.btn-activate,.btn-buy-perm { padding:.26rem .45rem; font-size:.68rem; }
       /* Coin packages — compact */
@@ -309,11 +312,12 @@ function toast(msg,type='ok'){
 
 // ── Превью ────────────────────────────────────────────────────────────────────
 function PreviewAvatar({item}){
+  const src = item.is_animated ? (item.full_url || item.preview_url) : item.preview_url;
   return h('div',{className:'item-preview-avatar'},
     !!item.is_animated && h('div',{className:'anim-badge'},'GIF'),
     h('div',{className:'avatar-circle'},
-      item.preview_url
-        ? h('img',{src:item.preview_url,alt:'',loading:'lazy'})
+      src
+        ? h('img',{src,alt:'',loading:'lazy'})
         : h('div',{className:'av-placeholder'},'')
     )
   );
@@ -385,9 +389,11 @@ function TryOnModal({item, coins, eqMap, ownedSet, loanedSet, onBuy, onEquip, on
 
   let preview;
   if(item.type === 'avatar'){
+    // Для анимированных используем full_url (GIF), для обычных — preview_url
+    const src = item.is_animated ? (item.full_url || item.preview_url) : item.preview_url;
     preview = h('div',{className:'tryon-preview-avatar'},
-      item.preview_url
-        ? h('img',{src:item.preview_url, alt:''})
+      src
+        ? h('img',{src, alt:'', loading:'eager'})
         : h('div',{style:{width:'100%',height:'100%',background:'linear-gradient(135deg,#667eea,#764ba2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem'}},'')
     );
   } else if(item.type === 'frame'){
@@ -396,9 +402,15 @@ function TryOnModal({item, coins, eqMap, ownedSet, loanedSet, onBuy, onEquip, on
       : null;
     preview = h('div',{className:'tryon-preview-frame'},
       item.preview_url
-        ? h('img',{src:item.preview_url, alt:''})
+        ? h('img',{src:item.preview_url, alt:'', loading:'eager'})
         : s ? h('div',{style:s}) : null
     );
+  } else if(item.type === 'background'){
+    preview = item.preview_url
+      ? h('div',{className:'tryon-preview-bg'}, h('img',{src:item.full_url||item.preview_url, alt:'', loading:'eager'}))
+      : item.css_value
+        ? h('div',{className:'tryon-preview-bg-css', style:{background:item.css_value}})
+        : h('div',{style:{fontSize:'4rem',textAlign:'center'}},'🌄');
   } else {
     preview = h('div',{style:{fontSize:'5rem',textAlign:'center'}}, item.css_value || '📦');
   }
@@ -471,7 +483,7 @@ function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate,
     );
   }
 
-  const isPreviewable = item.type==='avatar'||item.type==='frame';
+  const isPreviewable = item.type==='avatar'||item.type==='frame'||item.type==='background';
 
   return h('div',{className:cls},
     equipped && h('div',{className:'item-badge-equipped'},'✓ Надето'),

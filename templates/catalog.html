@@ -111,6 +111,18 @@
     .genre-search-input:focus { border-color: var(--primary); }
     .genre-search-input::placeholder { color: var(--text3); }
 
+    /* Genre groups */
+    .genre-group { margin-bottom: .25rem; }
+    .genre-group-title {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .35rem .5rem; border-radius: 8px; cursor: pointer;
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--text3); transition: background .15s;
+    }
+    .genre-group-title:hover { background: var(--card); color: var(--text2); }
+    .genre-group-arrow { transition: transform .2s; flex-shrink: 0; opacity: .6; }
+    .genre-group.open .genre-group-arrow { transform: rotate(180deg); }
+    .genre-group-chips { padding: .4rem .2rem .6rem; gap: .3rem; }
     .genre-chip.hidden-by-search { display: none; }
 
     /* Reset button */
@@ -590,11 +602,37 @@ function resetFilters() {
 }
 
 // ── Genre search ──────────────────────────────────────────
+function toggleGenreGroup(titleEl) {
+  const group = titleEl.closest('.genre-group');
+  const chips = group.querySelector('.genre-group-chips');
+  const isOpen = group.classList.toggle('open');
+  chips.style.display = isOpen ? 'flex' : 'none';
+}
+
 function filterGenres(q) {
   const norm = q.trim().toLowerCase();
-  document.querySelectorAll('.genre-chip').forEach(chip => {
-    chip.classList.toggle('hidden-by-search', norm.length > 0 && !chip.dataset.genre.toLowerCase().includes(norm));
-  });
+  const searching = norm.length > 0;
+  const groups = document.querySelectorAll('.genre-group');
+  const searchResults = document.getElementById('genreSearchResults');
+  const searchChips = document.getElementById('genreSearchChips');
+
+  if (searching) {
+    groups.forEach(g => { g.style.display = 'none'; });
+    searchResults.style.display = '';
+    const allChips = document.querySelectorAll('.genre-group-chips .genre-chip');
+    searchChips.innerHTML = '';
+    allChips.forEach(chip => {
+      if (chip.dataset.genre.toLowerCase().includes(norm)) {
+        const clone = chip.cloneNode(true);
+        clone.onclick = () => toggleGenre(chip.dataset.genre);
+        if (state.genres.has(chip.dataset.genre)) clone.classList.add('active');
+        searchChips.appendChild(clone);
+      }
+    });
+  } else {
+    groups.forEach(g => { g.style.display = ''; });
+    searchResults.style.display = 'none';
+  }
 }
 
 // ── Load more ─────────────────────────────────────────────
