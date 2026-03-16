@@ -337,7 +337,7 @@ def award_xp(user_id, amount, reason, ref_id=None):
     if ref_id:
         c.execute(
             'SELECT id FROM xp_log WHERE user_id = ? AND ref_id = ? AND reason = ? '
-            'AND created_at > datetime("now", "-1 hour")',
+            "AND created_at > datetime('now', '-1 hour')",
             (user_id, str(ref_id), reason)
         )
         if c.fetchone():
@@ -522,7 +522,7 @@ def check_quests(user_id, conn=None):
 
         if current_progress >= q['condition_value']:
             c.execute(
-                '''UPDATE user_quests SET completed_at = datetime("now"), progress = ?
+                '''UPDATE user_quests SET completed_at = datetime('now'), progress = ?
                    WHERE user_id = ? AND quest_id = ?''',
                 (q['condition_value'], user_id, q['id'])
             )
@@ -1334,9 +1334,9 @@ def save_search_history(user_id, query):
     c = conn.cursor()
     
     # Удаляем старые записи если их больше 50
-    c.execute('DELETE FROM search_history WHERE id IN '
-              '(SELECT id FROM search_history WHERE user_id = ? ORDER BY created_at DESC LIMIT -1 OFFSET 50)',
-              (user_id,))
+    c.execute('DELETE FROM search_history WHERE user_id = ? AND id NOT IN '
+              '(SELECT id FROM search_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 50)',
+              (user_id, user_id))
     
     c.execute('INSERT INTO search_history (user_id, query) VALUES (?, ?)',
               (user_id, query))

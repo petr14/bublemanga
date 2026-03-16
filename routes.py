@@ -13,7 +13,7 @@ import asyncio
 import math
 import urllib.parse
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as _date
 from functools import wraps
 from flask import (
     Blueprint, render_template, request, session, jsonify,
@@ -47,7 +47,18 @@ from main import (
     _stats_cache, _stats_cache_lock,
     _suggest_similar_manga,
     _BOT_UA_KEYWORDS, _is_bot_request,
+    save_search_history,
     cache, socketio,
+    # пользователи
+    get_or_create_user_by_telegram, get_user_by_token, get_user_full_profile,
+    # геймификация / квесты / сезоны
+    update_reading_streak, get_or_create_daily_quests, update_daily_quest_progress,
+    get_active_season, update_season_quest_progress, check_achievements,
+    # манга
+    save_manga_details_to_db, get_manga_details_api,
+    search_manga_api, get_cached_spotlights,
+    get_chapter_pages, get_recent_chapters_from_api,
+    get_popular_manga_from_api, toggle_subscription,
 )
 import bot as _bot_module
 
@@ -482,7 +493,7 @@ def login_token(token):
 @bp.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index'))
+    return redirect(url_for('main.index'))
 
 @bp.route('/search')
 def search():
@@ -874,9 +885,21 @@ def subscribe(manga_id):
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Not authenticated'}), 401
-    
+
     subscribed = toggle_subscription(user_id, manga_id)
-    return jsonify({'subscribed': subscribed})
+    # When subscribing, auto-set status to 'reading'; when unsubscribing, clear it
+    conn = get_db()
+    if subscribed:
+        conn.execute(
+            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (?,?,?) '
+            'ON CONFLICT(user_id, manga_id) DO UPDATE SET status=excluded.status, updated_at=CURRENT_TIMESTAMP',
+            (user_id, manga_id, 'reading')
+        )
+    else:
+        conn.execute('DELETE FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'subscribed': subscribed, 'status': 'reading' if subscribed else None})
 
 @bp.route('/read/<manga_slug>/<chapter_slug>')
 def read_chapter(manga_slug, chapter_slug):
@@ -1269,8 +1292,8 @@ def api_chapter_complete(chapter_slug):
     try:
         # Антиспам: не начислять повторно за одну главу в течение 1 часа
         dup = conn.execute(
-            'SELECT id FROM xp_log WHERE user_id=? AND ref_id=? AND reason="chapter_complete"'
-            ' AND created_at > datetime("now", "-1 hour")',
+            "SELECT id FROM xp_log WHERE user_id=? AND ref_id=? AND reason='chapter_complete'"
+            " AND created_at > datetime('now', '-1 hour')",
             (user_id, chapter_slug)
         ).fetchone()
         if dup:
@@ -1628,8 +1651,8 @@ def profile_me():
     """Редирект на свой профиль"""
     user_id = session.get('user_id')
     if not user_id:
-        return redirect(url_for('index'))
-    return redirect(url_for('profile_page', user_id=user_id))
+        return redirect(url_for('main.index'))
+    return redirect(url_for('main.profile_page', user_id=user_id))
 
 
 @bp.route('/profile/<int:user_id>')
@@ -3527,7 +3550,7 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         user_id = session.get('user_id')
         if not user_id:
-            return redirect(url_for('index'))
+            return redirect(url_for('main.index'))
         conn = get_db()
         c = conn.cursor()
         c.execute('SELECT telegram_id FROM users WHERE id = ?', (user_id,))

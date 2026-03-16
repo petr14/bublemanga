@@ -2,2772 +2,786 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/png" href="/static/favicon.png"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="theme-color" content="#667eea">
-    <title>BubbleManga - Читайте мангу онлайн</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#141414">
+    <title>BubbleManga — Читай мангу</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        :root {
-            --primary: #6366f1;
-            --primary-light: #818cf8;
-            --primary-dark: #4f46e5;
-            --accent: #ec4899;
-            --accent-light: #f472b6;
-            --success: #22c55e;
-            --warning: #fbbf24;
-            --bg-dark: #0a0a0a;
-            --bg-card: #141414;
-            --bg-hover: #1f1f1f;
-            --text-primary: #ffffff;
-            --text-secondary: #a1a1aa;
-            --border: rgba(255, 255, 255, 0.1);
-            --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            --gradient-pink: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-        }
-
-        html { overflow-x: hidden; }
-        body {
-            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        /* ==================== УЛУЧШЕННЫЙ АНИМИРОВАННЫЙ ФОН ==================== */
-        .animated-bg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            overflow: hidden;
-            clip-path: inset(0);
-        }
-
-        .animated-bg::before {
-            content: '';
-            position: absolute;
-            width: 150%;
-            height: 150%;
-            background: 
-                radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 40% 90%, rgba(79, 172, 254, 0.15) 0%, transparent 50%);
-            animation: bgFloat 25s ease-in-out infinite;
-        }
-
-        .animated-bg::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(
-                45deg,
-                transparent 30%,
-                rgba(102, 126, 234, 0.03) 50%,
-                transparent 70%
-            );
-            animation: bgRotate 20s linear infinite;
-        }
-
-        @keyframes bgFloat {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            33% { transform: scale(1.1) rotate(5deg); }
-            66% { transform: scale(0.95) rotate(-5deg); }
-        }
-
-        @keyframes bgRotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* ==================== УЛУЧШЕННАЯ ШАПКА С GLASSMORPHISM ==================== */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: rgba(10, 10, 10, 0.85);
-            backdrop-filter: blur(20px) saturate(180%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .header.scrolled {
-            background: rgba(10, 10, 10, 0.95);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6),
-                        0 0 80px rgba(102, 126, 234, 0.1);
-            border-bottom-color: rgba(102, 126, 234, 0.2);
-        }
-
-        .header-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        @media (min-width: 768px) {
-            .header-container {
-                padding: 16px 20px;
-            }
-        }
-
-        .logo {
-            font-size: 20px;
-            font-weight: 800;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-decoration: none;
-            letter-spacing: -0.5px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            position: relative;
-        }
-
-        @media (min-width: 768px) {
-            .logo {
-                font-size: 22px;
-                gap: 8px;
-            }
-        }
-
-        .logo::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 3px;
-            background: var(--gradient-primary);
-            border-radius: 2px;
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .logo:hover::after {
-            width: 100%;
-        }
-
-        .logo-icon {
-            font-size: 24px;
-            filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.6));
-            animation: logoFloat 3s ease-in-out infinite;
-        }
-
-        @media (min-width: 768px) {
-            .logo-icon {
-                font-size: 26px;
-            }
-        }
-
-        @keyframes logoFloat {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-3px) rotate(5deg); }
-        }
-
-        /* Десктопная навигация */
-        .nav {
-            display: none;
-            gap: 30px;
-            align-items: center;
-        }
-
-        .nav-link {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 15px;
-            transition: all 0.3s ease;
-            position: relative;
-            padding: 8px 0;
-        }
-
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 2px;
-            background: var(--gradient-primary);
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            inset: -8px;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
-            border-radius: 12px;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: -1;
-        }
-
-        .nav-link:hover {
-            color: var(--text-primary);
-        }
-
-        .nav-link:hover::before {
-            width: 100%;
-        }
-
-        .nav-link:hover::after {
-            opacity: 1;
-        }
-
-        /* Мобильное меню */
-        .mobile-menu-btn {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            order: 3;
-            transition: transform 0.3s ease;
-        }
-
-        .mobile-menu-btn:active {
-            transform: scale(0.9);
-        }
-
-        .mobile-nav {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            right: 0;
-            background: rgba(10, 10, 10, 0.98);
-            backdrop-filter: blur(30px) saturate(180%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 0;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
-                        padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 999;
-        }
-
-        @media (min-width: 768px) {
-            .mobile-nav {
-                top: 72px;
-            }
-        }
-
-        .mobile-nav.active {
-            max-height: 400px;
-            padding: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-        }
-
-        .mobile-nav-link {
-            color: var(--text-primary);
-            text-decoration: none;
-            font-size: 16px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-radius: 12px;
-            margin-bottom: 6px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .mobile-nav-link:last-child {
-            margin-bottom: 0;
-        }
-
-        .mobile-nav-link:active {
-            background: rgba(102, 126, 234, 0.15);
-            transform: translateX(8px);
-        }
-
-        /* УЛУЧШЕННЫЙ ПОИСК */
-        .search-box {
-            flex: 1;
-            order: 4;
-            width: 100%;
-            position: relative;
-        }
-
-        @media (min-width: 768px) {
-            .search-box {
-                order: initial;
-                width: auto;
-                max-width: 400px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .search-box {
-                max-width: 500px;
-            }
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 10px 90px 10px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 40px;
-            color: var(--text-primary);
-            font-size: 14px;
-            font-family: 'Poppins', sans-serif;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @media (min-width: 768px) {
-            .search-input {
-                padding: 12px 110px 12px 20px;
-            }
-        }
-
-        .search-input::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .search-input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(102, 126, 234, 0.6);
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1),
-                        0 8px 24px rgba(102, 126, 234, 0.2);
-            transform: translateY(-1px);
-        }
-
-        .search-button {
-            position: absolute;
-            right: 4px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--gradient-primary);
-            border: none;
-            padding: 7px 16px;
-            border-radius: 40px;
-            color: white;
-            font-weight: 600;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        @media (min-width: 768px) {
-            .search-button {
-                padding: 9px 20px;
-                font-size: 13px;
-            }
-        }
-
-        .search-button:hover {
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        .search-button:active {
-            transform: translateY(-50%) scale(0.95);
-        }
-
-        /* УЛУЧШЕННЫЕ КНОПКИ */
-        .btn-primary {
-            padding: 8px 16px;
-            background: var(--gradient-primary);
-            border: none;
-            border-radius: 40px;
-            color: white;
-            font-weight: 600;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            white-space: nowrap;
-            order: 2;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        @media (min-width: 768px) {
-            .btn-primary {
-                padding: 10px 20px;
-                font-size: 13px;
-                gap: 8px;
-            }
-        }
-
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .btn-primary:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .btn-primary:hover {
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-            transform: translateY(-2px);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0) scale(0.95);
-        }
-
-        .btn-primary span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ==================== УЛУЧШЕННАЯ ГЛАВНАЯ СЕКЦИЯ ==================== */
-        .hero {
-            margin-top: 0;
-            min-height: auto;
-            display: flex;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-            padding: 40px 16px 60px;
-        }
-
-        @media (min-width: 768px) {
-            .hero {
-                padding: 60px 20px 80px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .hero {
-                min-height: 80vh;
-                padding: 80px 40px 110px;
-            }
-        }
-
-        .hero-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom, rgba(118, 75, 162, 0.15) 0%, transparent 50%);
-            z-index: 0;
-        }
-
-        .hero-background::before {
-            content: '';
-            position: absolute;
-            inset: -60px;
-            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23667eea' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            opacity: 0.5;
-            animation: patternMove 30s linear infinite;
-        }
-
-        @keyframes patternMove {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(60px, 60px); }
-        }
-
-        .hero-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
-            align-items: center;
-            position: relative;
-            z-index: 1;
-        }
-
-        @media (min-width: 1024px) {
-            .hero-container {
-                grid-template-columns: 1fr 1fr;
-                gap: 100px;
-            }
-        }
-
-        .hero-content {
-            animation: fadeInUp 1s cubic-bezier(0.4, 0, 0.2, 1);
-            order: 2;
-        }
-
-        @media (min-width: 1024px) {
-            .hero-content {
-                order: initial;
-            }
-        }
-
-        .hero-title {
-            font-size: 32px;
-            font-weight: 900;
-            line-height: 1.2;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, #ffffff 0%, #b8b8b8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-align: center;
-            letter-spacing: -0.5px;
-            text-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
-        }
-
-        @media (min-width: 768px) {
-            .hero-title {
-                font-size: 36px;
-                letter-spacing: -1px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .hero-title {
-                font-size: 80px;
-                text-align: left;
-                margin-bottom: 30px;
-            }
-        }
-
-        .hero-highlight {
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            display: block;
-            position: relative;
-            animation: gradientShift 3s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% { filter: hue-rotate(0deg) brightness(1); }
-            50% { filter: hue-rotate(10deg) brightness(1.1); }
-        }
-
-        .hero-subtitle {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-            line-height: 1.6;
-            text-align: center;
-        }
-
-        @media (min-width: 768px) {
-            .hero-subtitle {
-                font-size: 15px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .hero-subtitle {
-                font-size: 20px;
-                text-align: left;
-                margin-bottom: 40px;
-            }
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        @media (min-width: 1024px) {
-            .hero-buttons {
-                justify-content: flex-start;
-                gap: 20px;
-            }
-        }
-
-        .btn-secondary {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 40px;
-            color: white;
-            font-weight: 600;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-            .btn-secondary {
-                padding: 10px 20px;
-                font-size: 13px;
-                gap: 8px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .btn-secondary {
-                padding: 12px 28px;
-                font-size: 14px;
-            }
-        }
-
-        .btn-secondary::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .btn-secondary:hover::before {
-            opacity: 0.1;
-        }
-
-        .btn-secondary:hover {
-            border-color: rgba(102, 126, 234, 0.5);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
-        }
-
-        .btn-secondary:active {
-            transform: scale(0.95);
-        }
-
-        .btn-secondary span {
-            position: relative;
-            z-index: 1;
-        }
-
-        .hero-image {
-            position: relative;
-            animation: fadeInRight 1s cubic-bezier(0.4, 0, 0.2, 1);
-            order: 1;
-            max-width: 280px;
-            margin: 0 auto;
-        }
-
-        @media (min-width: 768px) {
-            .hero-image {
-                max-width: 320px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .hero-image {
-                order: initial;
-                max-width: 100%;
-            }
-        }
-
-        .hero-character {
-            width: 100%;
-            height: auto;
-            border-radius: 20px;
-            filter: drop-shadow(0 20px 60px rgba(102, 126, 234, 0.4));
-            animation: float 6s ease-in-out infinite;
-            transition: transform 0.3s ease;
-        }
-
-        @media (min-width: 768px) {
-            .hero-character {
-                border-radius: 24px;
-            }
-        }
-
-        .hero-character:hover {
-            transform: scale(1.05);
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInRight {
-            from {
-                opacity: 0;
-                transform: translateX(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        /* ==================== КОНТЕЙНЕР ==================== */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 16px;
-        }
-
-        @media (min-width: 768px) {
-            .container {
-                padding: 0 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .container {
-                padding: 0 40px;
-            }
-        }
-
-        /* ==================== СЕКЦИЯ ==================== */
-        .section {
-            padding: 24px 0;
-            position: relative;
-        }
-
-        @media (min-width: 768px) {
-            .section {
-                padding: 32px 0;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .section {
-                padding: 44px 0;
-            }
-        }
-
-        .section-header {
-            text-align: left;
-            margin-bottom: 14px;
-            animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        @media (min-width: 768px) {
-            .section-header {
-                margin-bottom: 18px;
-            }
-        }
-
-        .section-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            background: rgba(102, 126, 234, 0.12);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 40px;
-            color: #818cf8;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            flex-shrink: 0;
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin: 0;
-            background: linear-gradient(135deg, #ffffff 0%, #c4c4c4 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.3px;
-            line-height: 1.3;
-            padding: 0;
-        }
-
-        @media (min-width: 768px) {
-            .section-title {
-                font-size: 22px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .section-title {
-                font-size: 26px;
-            }
-        }
-
-        .section-description {
-            display: none;
-        }
-
-        /* ==================== УЛУЧШЕННЫЕ ВКЛАДКИ ==================== */
-        .tabs {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-bottom: 30px;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            overflow-y: visible;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            padding: 6px 16px 0;
-        }
-
-        @media (min-width: 768px) {
-            .tabs {
-                gap: 12px;
-                margin-bottom: 40px;
-                padding: 0 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .tabs {
-                gap: 16px;
-                margin-bottom: 60px;
-                padding: 0;
-                justify-content: center;
-                overflow-x: visible;
-            }
-        }
-
-        .tabs::-webkit-scrollbar {
-            display: none;
-        }
-
-        .tab {
-            padding: 8px 18px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 40px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            white-space: nowrap;
-            flex-shrink: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-            .tab {
-                padding: 12px 24px;
-                font-size: 13px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .tab {
-                padding: 14px 32px;
-                font-size: 14px;
-            }
-        }
-
-        .tab::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .tab:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(102, 126, 234, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .tab.active {
-            background: var(--gradient-primary);
-            border-color: transparent;
-            color: white;
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-            transform: translateY(-2px);
-        }
-
-        .tab span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ==================== СЕТКА МАНГИ (горизонтальная строка) ==================== */
-        .manga-grid {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            scroll-snap-type: x mandatory;
-            touch-action: pan-x pan-y;
-            padding: 4px 4px 12px;
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        .manga-grid::-webkit-scrollbar { display: none; }
-
-        @media (min-width: 768px) {
-            .manga-grid { gap: 16px; }
-        }
-
-        .manga-grid-outer {
-            position: relative;
-        }
-
-
-        /* Scroll arrows — desktop only */
-        .manga-scroll-btn {
-            display: none;
-        }
-        @media (min-width: 768px) {
-            .manga-scroll-btn {
-                position: absolute;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: rgba(20,20,30,.92);
-                border: 1px solid rgba(255,255,255,.15);
-                color: #fff;
-                font-size: 20px;
-                line-height: 1;
-                cursor: pointer;
-                z-index: 10;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 4px 16px rgba(0,0,0,.5);
-                transition: opacity .2s, background .2s, transform .2s;
-                padding: 0;
-                opacity: 0;
-                pointer-events: none;
-            }
-            .manga-scroll-btn.visible {
-                opacity: 1;
-                pointer-events: auto;
-            }
-            .manga-scroll-btn:hover {
-                background: rgba(102,126,234,.8);
-                transform: translateY(-50%) scale(1.08);
-            }
-            .manga-scroll-btn.right { right: -18px; }
-            .manga-scroll-btn.left  { left: -18px; }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .manga-card {
-            background: rgba(20, 20, 20, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-            width: 150px;
-            scroll-snap-align: start;
-        }
-
-        @media (min-width: 500px) {
-            .manga-card { width: 165px; }
-        }
-
-        @media (min-width: 768px) {
-            .manga-card { width: 185px; border-radius: 18px; }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-card { width: 210px; border-radius: 20px; }
-        }
-
-        .manga-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-            border-radius: 16px;
-        }
-
-        @media (min-width: 768px) {
-            .manga-card::before {
-                border-radius: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-card::before {
-                border-radius: 24px;
-            }
-        }
-
-        .manga-card:hover {
-            transform: translateY(-6px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
-            border-color: rgba(102, 126, 234, 0.3);
-        }
-
-        @media (min-width: 1024px) {
-            .manga-card:hover {
-                transform: translateY(-8px) scale(1.02);
-            }
-        }
-
-        .manga-card:active {
-            transform: translateY(-3px) scale(0.98);
-        }
-
-        .manga-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            padding: 4px 10px;
-            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-            border-radius: 30px;
-            font-size: 9px;
-            font-weight: 700;
-            z-index: 10;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.4);
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            animation: badgePulse 2s ease-in-out infinite;
-        }
-
-        @media (min-width: 768px) {
-            .manga-badge {
-                top: 12px;
-                right: 12px;
-                padding: 5px 12px;
-                font-size: 10px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-badge {
-                top: 16px;
-                right: 16px;
-                padding: 8px 16px;
-                font-size: 12px;
-            }
-        }
-
-        .manga-badge.hot {
-            background: linear-gradient(135deg, #ff9966, #ff5e62);
-        }
-
-        .manga-badge.new {
-            background: linear-gradient(135deg, #a8e063, #56ab2f);
-        }
-
-        .manga-badge.update {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }
-
-        @keyframes badgePulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .manga-cover-container {
-            position: relative;
-            overflow: hidden;
-            aspect-ratio: 3/4;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
-            width: 100%;
-        }
-
-        .manga-cover {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: transform;
-        }
-
-        .manga-card:hover .manga-cover {
-            transform: scale(1.1);
-        }
-
-        .manga-info {
-            padding: 10px 8px 8px;
-            position: relative;
-            z-index: 1;
-            background: linear-gradient(to top, rgba(20, 20, 20, 0.95), rgba(20, 20, 20, 0.8));
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        @media (min-width: 768px) {
-            .manga-info {
-                padding: 12px 12px 10px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-info {
-                padding: 20px;
-            }
-        }
-
-        .manga-title {
-            font-weight: 600;
-            font-size: 12px;
-            margin-bottom: 4px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.4;
-            min-height: 2.8em;
-            color: #fff;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-        }
-
-        @media (min-width: 768px) {
-            .manga-title {
-                font-size: 13px;
-                margin-bottom: 6px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-title {
-                font-size: 16px;
-                font-weight: 700;
-                min-height: auto;
-            }
-        }
-
-        .manga-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 10px;
-            color: var(--text-secondary);
-            margin-top: auto;
-        }
-
-        @media (min-width: 768px) {
-            .manga-meta {
-                font-size: 11px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-meta {
-                font-size: 13px;
-            }
-        }
-
-        .manga-type {
-            padding: 2px 8px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 8px;
-            color: #a1a1aa;
-        }
-
-        @media (min-width: 768px) {
-            .manga-type {
-                padding: 3px 10px;
-                font-size: 9px;
-                border-radius: 10px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-type {
-                padding: 5px 14px;
-                font-size: 11px;
-                border-radius: 12px;
-            }
-        }
-
-        .manga-rating {
-            display: flex;
-            align-items: center;
-            gap: 2px;
-            color: #ffb83b;
-        }
-
-        .manga-rating i {
-            font-size: 8px;
-        }
-
-        @media (min-width: 768px) {
-            .manga-rating i {
-                font-size: 9px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .manga-rating i {
-                font-size: 11px;
-            }
-        }
-
-        /* ==================== УЛУЧШЕННЫЙ СЛАЙДЕР ==================== */
-        .slider-container {
-            position: relative;
-            overflow: hidden;
-            margin: 0 -16px;
-            padding: 10px 16px;
-        }
-
-        @media (min-width: 768px) {
-            .slider-container {
-                margin: 0 -20px;
-                padding: 15px 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .slider-container {
-                margin: 0 -40px;
-                padding: 20px 40px;
-            }
-        }
-
-        .slider {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            scroll-snap-type: x mandatory;
-            touch-action: pan-x pan-y;
-            padding: 5px;
-        }
-
-        @media (min-width: 768px) {
-            .slider {
-                gap: 16px;
-            }
-        }
-
-        .slider::-webkit-scrollbar {
-            display: none;
-        }
-
-        .slider-item {
-            min-width: 140px;
-            background: rgba(20, 20, 20, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            scroll-snap-align: start;
-            flex-shrink: 0;
-            position: relative;
-            box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-        }
-
-        @media (min-width: 500px) {
-            .slider-item {
-                min-width: 160px;
-            }
-        }
-
-        @media (min-width: 768px) {
-            .slider-item {
-                min-width: 180px;
-                border-radius: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .slider-item {
-                min-width: calc((100% - 100px) / 6);
-                max-width: 200px;
-                border-radius: 24px;
-            }
-        }
-
-        .slider-item::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-            border-radius: 16px;
-        }
-
-        @media (min-width: 768px) {
-            .slider-item::before {
-                border-radius: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .slider-item::before {
-                border-radius: 24px;
-            }
-        }
-
-        .slider-item:hover {
-            transform: scale(1.03) translateY(-4px);
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
-            border-color: rgba(102, 126, 234, 0.3);
-        }
-
-        @media (min-width: 1024px) {
-            .slider-item:hover {
-                transform: scale(1.05) translateY(-8px);
-            }
-        }
-
-        .slider-item:active {
-            transform: scale(0.98);
-        }
-
-        .slider-item .manga-info {
-            padding: 8px 6px 6px;
-        }
-
-        @media (min-width: 768px) {
-            .slider-item .manga-info {
-                padding: 10px 8px 8px;
-            }
-        }
-
-        .slider-item .manga-title {
-            font-size: 11px;
-            min-height: 2.6em;
-        }
-
-        @media (min-width: 768px) {
-            .slider-item .manga-title {
-                font-size: 12px;
-            }
-        }
-
-        .slider-item .manga-type {
-            font-size: 7px;
-            padding: 2px 6px;
-        }
-
-        @media (min-width: 768px) {
-            .slider-item .manga-type {
-                font-size: 8px;
-                padding: 2px 8px;
-            }
-        }
-
-        /* Индикаторы прокрутки для слайдера */
-        .slider-indicators {
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-            margin-top: 15px;
-        }
-
-        @media (min-width: 1024px) {
-            .slider-indicators {
-                display: none;
-            }
-        }
-
-        .slider-indicator {
-            width: 6px;
-            height: 6px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .slider-indicator.active {
-            width: 20px;
-            background: var(--gradient-primary);
-        }
-
-        /* ==================== УЛУЧШЕННЫЙ СПИСОК ОБНОВЛЕНИЙ ==================== */
-        .updates-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        @media (min-width: 768px) {
-            .updates-list {
-                gap: 16px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .updates-list {
-                gap: 20px;
-            }
-        }
-
-        .update-item {
-            background: rgba(20, 20, 20, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.4);
-        }
-
-        @media (min-width: 768px) {
-            .update-item {
-                padding: 16px;
-                gap: 16px;
-                border-radius: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .update-item {
-                padding: 24px;
-                gap: 24px;
-                border-radius: 24px;
-            }
-        }
-
-        .update-item::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            z-index: 0;
-        }
-
-        .update-item:hover::before {
-            opacity: 0.08;
-        }
-
-        .update-item:hover {
-            background: rgba(31, 31, 31, 0.8);
-            transform: translateX(4px) scale(1.01);
-            border-color: rgba(102, 126, 234, 0.3);
-            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2);
-        }
-
-        @media (min-width: 1024px) {
-            .update-item:hover {
-                transform: translateX(8px) scale(1.02);
-            }
-        }
-
-        .update-item:active {
-            transform: translateX(2px) scale(0.99);
-        }
-
-        .update-cover {
-            width: 50px;
-            height: 70px;
-            object-fit: cover;
-            border-radius: 10px;
-            flex-shrink: 0;
-            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        @media (min-width: 768px) {
-            .update-cover {
-                width: 60px;
-                height: 85px;
-                border-radius: 12px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .update-cover {
-                width: 80px;
-                height: 110px;
-            }
-        }
-
-        .update-info {
-            flex: 1;
-            min-width: 0;
-            position: relative;
-            z-index: 1;
-        }
-
-        .update-title {
-            font-weight: 600;
-            font-size: 13px;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            color: #fff;
-        }
-
-        @media (min-width: 768px) {
-            .update-title {
-                font-size: 14px;
-                margin-bottom: 4px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .update-title {
-                font-size: 18px;
-                margin-bottom: 6px;
-                white-space: normal;
-            }
-        }
-
-        .update-chapter {
-            color: var(--text-secondary);
-            font-size: 11px;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        @media (min-width: 768px) {
-            .update-chapter {
-                font-size: 12px;
-                margin-bottom: 6px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .update-chapter {
-                font-size: 14px;
-                margin-bottom: 8px;
-                white-space: normal;
-            }
-        }
-
-        .update-time {
-            color: #4facfe;
-            font-size: 10px;
-            font-weight: 500;
-            display: inline-block;
-            padding: 3px 8px;
-            background: rgba(79, 172, 254, 0.1);
-            border-radius: 6px;
-            border: 1px solid rgba(79, 172, 254, 0.2);
-        }
-
-        @media (min-width: 768px) {
-            .update-time {
-                font-size: 11px;
-                padding: 4px 10px;
-                border-radius: 8px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .update-time {
-                font-size: 13px;
-            }
-        }
-
-        .update-type {
-            padding: 4px 10px;
-            border-radius: 30px;
-            font-size: 9px;
-            font-weight: 600;
-            background: var(--gradient-primary);
-            white-space: nowrap;
-            flex-shrink: 0;
-            position: relative;
-            z-index: 1;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        @media (min-width: 768px) {
-            .update-type {
-                padding: 6px 14px;
-                font-size: 11px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .update-type {
-                padding: 8px 18px;
-                font-size: 12px;
-            }
-        }
-
-        /* Индикатор нового контента */
-        .new-indicator {
-            width: 8px;
-            height: 8px;
-            background: #ff4757;
-            border-radius: 50%;
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            z-index: 5;
-            box-shadow: 0 0 10px #ff4757;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        /* ==================== УЛУЧШЕННАЯ КНОПКА "ПОКАЗАТЬ ЕЩЕ" ==================== */
-        .show-more-btn {
-            display: block;
-            margin: 30px auto 0;
-            padding: 10px 28px;
-            background: rgba(102, 126, 234, 0.1);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(102, 126, 234, 0.3);
-            border-radius: 40px;
-            color: #667eea;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            width: calc(100% - 32px);
-            max-width: 280px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        @media (min-width: 768px) {
-            .show-more-btn {
-                margin: 40px auto 0;
-                padding: 14px 36px;
-                font-size: 14px;
-                width: calc(100% - 40px);
-                max-width: 320px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .show-more-btn {
-                margin: 50px auto 0;
-                padding: 16px 48px;
-                font-size: 15px;
-                width: auto;
-            }
-        }
-
-        .show-more-btn::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .show-more-btn:hover::before {
-            opacity: 0.15;
-        }
-
-        .show-more-btn:hover {
-            border-color: rgba(102, 126, 234, 0.6);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
-        }
-
-        .show-more-btn:active {
-            transform: scale(0.97);
-        }
-
-        .show-more-btn span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ==================== СКРЫТЫЕ ЭЛЕМЕНТЫ ==================== */
-        .manga-card.hidden,
-        .slider-item.hidden,
-        .update-item.hidden {
-            display: none;
-        }
-
-        .manga-grid.limited .manga-card:nth-child(n+7) {
-            display: none;
-        }
-
-        /* ==================== УЛУЧШЕННАЯ КНОПКА "НАВЕРХ" ==================== */
-        .scroll-top {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 48px;
-            height: 48px;
-            background: var(--gradient-primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 999;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-        }
-
-        @media (min-width: 768px) {
-            .scroll-top {
-                bottom: 30px;
-                right: 30px;
-                width: 56px;
-                height: 56px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .scroll-top {
-                bottom: 40px;
-                right: 40px;
-                width: 64px;
-                height: 64px;
-            }
-        }
-
-        .scroll-top::before {
-            content: '';
-            position: absolute;
-            inset: -3px;
-            background: var(--gradient-primary);
-            border-radius: 50%;
-            opacity: 0;
-            filter: blur(10px);
-            transition: opacity 0.4s ease;
-        }
-
-        .scroll-top:hover::before {
-            opacity: 0.6;
-        }
-
-        .scroll-top.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .scroll-top:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
-        }
-
-        .scroll-top:active {
-            transform: translateY(-2px) scale(0.95);
-        }
-
-        .scroll-top span {
-            position: relative;
-            z-index: 1;
-            font-size: 20px;
-            animation: arrowBounce 2s ease-in-out infinite;
-        }
-
-        @media (min-width: 768px) {
-            .scroll-top span {
-                font-size: 24px;
-            }
-        }
-
-        @keyframes arrowBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
-        }
-
-        /* ==================== АНИМАЦИЯ ЗАГРУЗКИ ==================== */
-        .skeleton {
-            background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s ease-in-out infinite;
-        }
-
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* ==================== УЛУЧШЕННЫЙ СКРОЛЛБАР ==================== */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--bg-dark);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 10px;
-            border: 2px solid var(--bg-dark);
-            transition: background 0.3s ease;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, var(--primary-light), var(--primary));
-        }
-
-        ::-webkit-scrollbar-corner {
-            background: var(--bg-dark);
-        }
-
-        /* ==================== ОПТИМИЗАЦИИ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ ==================== */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-
-        .slider,
-        .tabs {
-            will-change: scroll-position;
-        }
-
-        .manga-card,
-        .slider-item,
-        .update-item {
-            will-change: transform;
-        }
-
-        /* ==================== ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ ==================== */
-        @keyframes fadeInScale {
-            from { 
-                opacity: 0; 
-                transform: scale(0.95);
-            }
-            to { 
-                opacity: 1; 
-                transform: scale(1);
-            }
-        }
-
-        .manga-card {
-            animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
-        }
-
-        .manga-card:nth-child(1) { animation-delay: 0.05s; }
-        .manga-card:nth-child(2) { animation-delay: 0.1s; }
-        .manga-card:nth-child(3) { animation-delay: 0.15s; }
-        .manga-card:nth-child(4) { animation-delay: 0.2s; }
-        .manga-card:nth-child(5) { animation-delay: 0.25s; }
-        .manga-card:nth-child(6) { animation-delay: 0.3s; }
-        .manga-card:nth-child(7) { animation-delay: 0.35s; }
-        .manga-card:nth-child(8) { animation-delay: 0.4s; }
-
-        /* ==================== СКЕЛЕТОН-ЗАГРУЗКА ==================== */
-        @keyframes shimmer {
-            0%   { background-position: -200% 0; }
-            100% { background-position:  200% 0; }
-        }
-        .skeleton-line {
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        .skeleton-slider-card {
-            flex: 0 0 140px;
-            height: 210px;
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 16px;
-        }
-
-        @media (min-width: 500px) {
-            .skeleton-slider-card {
-                flex: 0 0 160px;
-                height: 240px;
-            }
-        }
-
-        .skeleton-update-item {
-            height: 70px;
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 16px;
-            margin-bottom: 12px;
-        }
-
-        @media (min-width: 768px) {
-            .skeleton-update-item {
-                height: 80px;
-            }
-        }
-
-        .skeleton-manga-card {
-            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.4s infinite;
-            border-radius: 16px;
-            aspect-ratio: 3/4;
-        }
-
-        @media (min-width: 768px) {
-            .skeleton-manga-card {
-                border-radius: 20px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .skeleton-manga-card {
-                border-radius: 24px;
-            }
-        }
-
-        /* Улучшенные градиенты для карточек */
-        .manga-card::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.5) 100%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .manga-card:hover::after {
-            opacity: 1;
-        }
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        :root{
+            --bg:#0d0d16; --card:#17172280; --card2:#1e1e2a;
+            --text:#e5e5e5; --muted:#999;
+            --p:#6366f1; --p-light:#818cf8;
+            --border:rgba(255,255,255,.07);
+            --gp:linear-gradient(135deg,#667eea,#764ba2);
+        }
+        html{overflow-x:hidden;}
+        body{
+            font-family:'Inter',system-ui,-apple-system,sans-serif;
+            background:#0d0d16;
+            color:var(--text);
+            -webkit-font-smoothing:antialiased;
+            padding-bottom:calc(70px + env(safe-area-inset-bottom,0px));
+        }
+
+        /* ── Container ── */
+        .wrap{width:100%; padding:0 14px;}
+        @media(min-width:640px){.wrap{padding:0 24px;}}
+        @media(min-width:1200px){.wrap{max-width:1440px; margin:0 auto; padding:0 48px;}}
+
+        /* ── Section ── */
+        .row{padding:28px 0 4px;}
+        @media(min-width:640px){.row{padding:36px 0 4px;}}
+
+        /* ── Scroll arrows (desktop only) ── */
+        .grid-wrap{position:relative;}
+        .scroll-btn{
+            display:none;
+        }
+        @media(min-width:1024px){
+            .scroll-btn{
+                display:flex; align-items:center; justify-content:center;
+                position:absolute; top:50%; transform:translateY(-50%);
+                width:40px; height:72px; z-index:10;
+                background:rgba(13,13,22,.85); border:1px solid rgba(255,255,255,.12);
+                color:#fff; font-size:18px; cursor:pointer;
+                border-radius:10px;
+                opacity:0; pointer-events:none;
+                transition:opacity .2s, background .15s;
+                backdrop-filter:blur(6px);
+                user-select:none;
+            }
+            .scroll-btn.left{ left:-16px; }
+            .scroll-btn.right{ right:-16px; }
+            .grid-wrap:hover .scroll-btn{ opacity:1; pointer-events:auto; }
+            .scroll-btn:hover{ background:rgba(99,102,241,.35); border-color:rgba(99,102,241,.5); }
+            .scroll-btn.hidden{ opacity:0 !important; pointer-events:none !important; }
+        }
+
+        .row-head{
+            display:flex; align-items:baseline; justify-content:space-between;
+            margin-bottom:14px;
+        }
+        @media(min-width:640px){.row-head{margin-bottom:18px;}}
+
+        .row-title{
+            font-size:18px; font-weight:700; letter-spacing:-.3px; color:#fff;
+            line-height:1.2;
+        }
+        @media(min-width:640px){.row-title{font-size:22px;}}
+        @media(min-width:1024px){.row-title{font-size:26px;}}
+
+        .row-link{
+            font-size:13px; font-weight:600; color:var(--p-light);
+            text-decoration:none; white-space:nowrap; flex-shrink:0;
+            transition:color .15s;
+        }
+        .row-link:hover{color:#fff;}
+
+        /* ── Tabs ── */
+        .tabs{
+            display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
+            margin-bottom:14px; padding:2px 0;
+        }
+        .tabs::-webkit-scrollbar{display:none;}
+        .tab{
+            padding:7px 18px; background:rgba(255,255,255,.06);
+            border:1px solid var(--border); border-radius:40px;
+            font-size:13px; font-weight:600; color:var(--muted);
+            white-space:nowrap; cursor:pointer; transition:.15s;
+        }
+        .tab.active{background:var(--gp); color:#fff; border-color:transparent;}
+
+        /* ── Manga grid ── */
+        .manga-grid{
+            display:flex; gap:10px;
+            overflow-x:auto; scrollbar-width:none; padding:4px 0 16px;
+            will-change:scroll-position; -webkit-overflow-scrolling:touch;
+        }
+        .manga-grid::-webkit-scrollbar{display:none;}
+        @media(min-width:640px){.manga-grid{gap:14px;}}
+        @media(min-width:1024px){.manga-grid{gap:18px;}}
+
+        /* ── Card ── */
+        .manga-card{
+            flex:0 0 130px; border-radius:8px; overflow:hidden;
+            cursor:pointer; position:relative; background:#141414;
+            border:1px solid rgba(255,255,255,.07);
+            transition:transform .2s, border-color .2s;
+            display:flex; flex-direction:column;
+        }
+        .manga-card:hover{transform:translateY(-5px); border-color:rgba(102,126,234,.4);}
+        @media(min-width:400px){.manga-card{flex:0 0 145px;}}
+        @media(min-width:640px){.manga-card{flex:0 0 160px;}}
+        @media(min-width:1024px){.manga-card{flex:0 0 185px;}}
+
+        .manga-cover-wrap{aspect-ratio:2/3; width:100%; position:relative; overflow:hidden; flex-shrink:0;}
+        .manga-cover{width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s ease;}
+        .manga-card:hover .manga-cover{transform:scale(1.04);}
+
+        /* badges on cover */
+        .manga-type-badge{
+            position:absolute; top:.4rem; left:.4rem; z-index:5;
+            background:rgba(0,0,0,.72); border:1px solid rgba(255,255,255,.15);
+            border-radius:5px; padding:.18rem .45rem;
+            font-size:.6rem; font-weight:700; letter-spacing:.03em;
+            text-transform:uppercase; color:#ddd;
+            pointer-events:none;
+        }
+        /* chapter/top badge — top-right */
+        .manga-badge{
+            position:absolute; top:.4rem; right:.4rem; z-index:5;
+            padding:.18rem .45rem; border-radius:5px;
+            font-size:.6rem; font-weight:800; letter-spacing:.5px;
+            text-transform:uppercase; color:#fff;
+        }
+        .manga-badge.hot{background:rgba(239,68,68,.85);}
+        .manga-badge.new{background:rgba(34,197,94,.85);}
+        /* status badge — top-right, above chapter badge */
+        .manga-status{
+            position:absolute; z-index:6; right:.4rem;
+            top:.4rem; /* сдвигается JS если есть chapter badge */
+            padding:.18rem .45rem; border-radius:5px;
+            font-size:.6rem; font-weight:700;
+            pointer-events:none;
+        }
+        .manga-status.reading  {background:rgba(99,102,241,.85); color:#fff;}
+        .manga-status.completed{background:rgba(74,222,128,.85);  color:#052e16;}
+        .manga-status.planned  {background:rgba(251,191,36,.85);  color:#1c1400;}
+        .manga-status.dropped  {background:rgba(248,113,113,.85); color:#fff;}
+        .manga-status.paused   {background:rgba(113,113,122,.85); color:#fff;}
+
+        .manga-info{padding:.55rem .65rem .7rem;}
+        .manga-title{
+            font-size:.75rem; font-weight:600; color:#e4e4e7;
+            display:-webkit-box; -webkit-line-clamp:2; line-clamp:2;
+            -webkit-box-orient:vertical; overflow:hidden;
+            line-height:1.4; margin-bottom:.35rem; min-height:2.1em;
+        }
+        .manga-meta{display:flex; align-items:center; justify-content:space-between; gap:4px;}
+        .manga-rating{font-size:.7rem; color:#fbbf24; font-weight:600;}
+
+        /* ── Updates list ── */
+        .updates-list{display:flex; flex-direction:column; gap:1px;}
+
+        .update-item{
+            display:flex; align-items:center; gap:12px;
+            padding:12px 0; cursor:pointer;
+            border-bottom:1px solid var(--border);
+            transition:background .15s;
+            position:relative;
+        }
+        .update-item:first-child{border-top:1px solid var(--border);}
+        .update-item:active{background:rgba(255,255,255,.03);}
+        @media(min-width:640px){.update-item{gap:16px; padding:14px 0;}}
+
+        .update-cover{
+            width:46px; height:62px; object-fit:cover;
+            border-radius:4px; flex-shrink:0; background:#222;
+        }
+        @media(min-width:640px){.update-cover{width:52px; height:70px; border-radius:6px;}}
+
+        .update-info{flex:1; min-width:0;}
+        .update-title{
+            font-size:14px; font-weight:600; color:var(--text);
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            margin-bottom:4px;
+        }
+        .update-chapter{font-size:12px; color:var(--muted); margin-bottom:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+        .update-time{
+            display:inline-block; font-size:11px; color:var(--p-light);
+            font-weight:500;
+        }
+        .update-type{
+            flex-shrink:0; font-size:11px; font-weight:700;
+            color:rgba(255,255,255,.5); white-space:nowrap;
+            text-transform:uppercase; letter-spacing:.3px;
+        }
+
+        /* new dot */
+        .update-new{
+            position:absolute; left:-8px; top:50%; transform:translateY(-50%);
+            width:5px; height:5px; border-radius:50%; background:#ef4444;
+        }
+
+        /* ── Show more ── */
+        .show-more{
+            display:block; width:100%; margin-top:2px;
+            padding:14px; background:none; border:none;
+            color:var(--muted); font-size:13px; font-weight:600;
+            cursor:pointer; text-align:center; letter-spacing:.2px;
+            transition:color .15s;
+        }
+        .show-more:hover{color:#fff;}
+
+        /* ── Subscriptions section ── */
+        .subs-grid{
+            display:flex; gap:10px; overflow-x:auto; scrollbar-width:none; padding:4px 0 16px;
+        }
+        .subs-grid::-webkit-scrollbar{display:none;}
+        @media(min-width:640px){.subs-grid{gap:14px;}}
+
+        /* ── Skeletons ── */
+        .sk{animation:sk 1.4s ease infinite; border-radius:6px;}
+        @keyframes sk{0%,100%{background:#1e1e1e;} 50%{background:#272727;}}
+        .sk-card{flex:0 0 130px; aspect-ratio:2/3;}
+        @media(min-width:400px){.sk-card{flex:0 0 145px;}}
+        .sk-update{height:86px; border-radius:0;}
+
+        /* ── Scroll to top ── */
+        .to-top{
+            position:fixed; bottom:calc(80px + env(safe-area-inset-bottom,0px)); right:16px;
+            width:40px; height:40px; border-radius:50%;
+            background:#333; border:1px solid rgba(255,255,255,.12);
+            color:#fff; font-size:18px;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; z-index:80;
+            opacity:0; visibility:hidden; transition:.2s;
+            box-shadow:0 4px 16px rgba(0,0,0,.5);
+        }
+        .to-top.on{opacity:1; visibility:visible;}
+
+        .hidden{display:none !important;}
+
+        /* ── Hero ── */
+        .hero{
+            position:relative; overflow:hidden;
+            padding:32px 16px 28px;
+        }
+        .hero::before{
+            content:''; position:absolute; inset:0;
+            background:radial-gradient(ellipse 80% 60% at 30% 50%, rgba(99,102,241,.1) 0%, transparent 70%);
+            pointer-events:none;
+        }
+        .hero-text{position:relative; z-index:1;}
+        .hero-label{
+            display:inline-block; width:fit-content; align-self:center;
+            margin-bottom:14px;
+            padding:4px 12px; border-radius:40px;
+            background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.3);
+            font-size:10px; font-weight:700; letter-spacing:1px;
+            text-transform:uppercase; color:var(--p-light);
+        }
+        .hero-title{
+            font-size:30px; font-weight:900; line-height:1.1;
+            letter-spacing:-1px; color:#fff; margin-bottom:12px;
+        }
+        .hero-title span{
+            background:var(--gp);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+            background-clip:text;
+        }
+        .hero-sub{
+            font-size:14px; line-height:1.6; color:rgba(255,255,255,.5);
+            margin-bottom:22px; max-width:500px;
+        }
+        .hero-btns{display:flex; gap:10px; flex-wrap:wrap;}
+        .hero-btn{
+            display:inline-flex; align-items:center; justify-content:center;
+            flex:1; min-width:0;
+            padding:11px 24px; border-radius:40px;
+            font-size:14px; font-weight:700; text-decoration:none;
+            transition:opacity .2s, transform .2s;
+        }
+        .hero-btn:active{transform:scale(.97);}
+        .hero-btn.primary{background:var(--gp); color:#fff; box-shadow:0 6px 20px rgba(99,102,241,.4);}
+        .hero-btn.primary:hover{opacity:.9;}
+        .hero-btn.ghost{
+            background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+            color:var(--text);
+        }
+        .hero-btn.ghost:hover{background:rgba(255,255,255,.1);}
+        @keyframes float{
+            0%,100%{transform:translateY(0);}
+            50%{transform:translateY(-12px);}
+        }
+        /* Hero: flex-column на мобильном — картинка сверху, текст снизу */
+        .hero{
+            max-width:1440px; margin:0 auto;
+            display:flex; flex-direction:column;
+        }
+        .hero-img-wrap{
+            order:-1;
+            display:block; position:relative; overflow:hidden;
+            border-radius:12px; margin:0 16px 20px;
+            aspect-ratio:21/9;
+            box-shadow:0 20px 48px rgba(0,0,0,.6);
+            animation:float 4s ease-in-out infinite;
+        }
+        .hero-img-wrap::after{
+            content:''; position:absolute; inset:0;
+            background:linear-gradient(135deg, rgba(99,102,241,.12) 0%, transparent 60%);
+            pointer-events:none;
+        }
+        .hero-img{width:100%; height:100%; object-fit:cover; display:block;}
+        .hero-text{ text-align:center; }
+        .hero-btns{ justify-content:center; }
+        .hero-btn{ border-radius:40px; }
+        .hero-sub{ margin-left:auto; margin-right:auto; }
+
+        @media(min-width:640px){
+            .hero{padding:28px 24px 0;}
+            .hero-title{font-size:40px;}
+            .hero-sub{font-size:15px;}
+            .hero-img-wrap{margin:0 0 24px; border-radius:16px;}
+        }
+        @media(min-width:1024px){
+            .hero{
+                display:grid; grid-template-columns:1fr 1fr;
+                align-items:stretch; gap:56px;
+                padding:72px 48px 56px;
+            }
+            .hero-text{
+                text-align:left; order:1;
+                display:flex; flex-direction:column; justify-content:center;
+            }
+            .hero-btns{ justify-content:flex-start; }
+            .hero-img-wrap{
+                order:2; margin:0; border-radius:16px;
+                aspect-ratio:21/9; height:auto; min-height:unset;
+                align-self:center;
+                box-shadow:0 32px 80px rgba(0,0,0,.7);
+            }
+            .hero-title{font-size:52px; letter-spacing:-2px; margin-bottom:20px;}
+            .hero-label{margin-bottom:20px; font-size:11px; letter-spacing:1.2px;}
+            .hero-sub{font-size:16px; margin-bottom:32px;}
+            .hero-btns{gap:12px;}
+            .hero-btn{padding:13px 28px; font-size:15px;}
+        }
+        /* ── Orbs ── */
+        .orbs{
+            position:fixed; inset:0; z-index:0;
+            pointer-events:none; overflow:hidden;
+        }
+        .orb{
+            position:absolute; border-radius:50%;
+            filter:blur(80px); opacity:.55;
+            will-change:transform;
+        }
+        .orb1{
+            width:520px; height:520px;
+            background:radial-gradient(circle, rgba(109,60,210,.7) 0%, transparent 70%);
+            top:-10%; left:-8%;
+            animation:orb1move 18s ease-in-out infinite;
+        }
+        .orb2{
+            width:440px; height:440px;
+            background:radial-gradient(circle, rgba(59,90,220,.65) 0%, transparent 70%);
+            bottom:-12%; right:-6%;
+            animation:orb2move 22s ease-in-out infinite;
+        }
+        .orb3{
+            width:360px; height:360px;
+            background:radial-gradient(circle, rgba(160,50,180,.5) 0%, transparent 70%);
+            top:40%; left:55%;
+            animation:orb3move 26s ease-in-out infinite;
+        }
+        .orb4{
+            width:280px; height:280px;
+            background:radial-gradient(circle, rgba(40,100,200,.45) 0%, transparent 70%);
+            top:20%; right:20%;
+            animation:orb4move 20s ease-in-out infinite;
+        }
+        @keyframes orb1move{
+            0%,100%{transform:translate(0,0);}
+            33%{transform:translate(80px,60px);}
+            66%{transform:translate(-40px,100px);}
+        }
+        @keyframes orb2move{
+            0%,100%{transform:translate(0,0);}
+            33%{transform:translate(-100px,-70px);}
+            66%{transform:translate(60px,-120px);}
+        }
+        @keyframes orb3move{
+            0%,100%{transform:translate(0,0);}
+            33%{transform:translate(-80px,80px);}
+            66%{transform:translate(100px,-60px);}
+        }
+        @keyframes orb4move{
+            0%,100%{transform:translate(0,0);}
+            50%{transform:translate(-60px,80px);}
+        }
+        /* всё содержимое поверх орбов */
+        body>*:not(.orbs){ position:relative; z-index:1; }
     </style>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
-        }
-    </script>
+    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
 </head>
 <body>
-    <div class="animated-bg"></div>
+<div class="orbs" aria-hidden="true">
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+    <div class="orb orb4"></div>
+</div>
 
-    <!-- Шапка -->
 {% set g_active = 'home' %}{% include 'header.html' %}
 
-    <!-- Главная секция -->
-    <section class="hero">
-        <div class="hero-background"></div>
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1 class="hero-title">
-                    Откройте свою следующую
-                    <span class="hero-highlight">любимую мангу</span>
-                </h1>
-                <p class="hero-subtitle">
-                    Тысячи манг с регулярными обновлениями. Подписывайтесь на любимые тайтлы и получайте мгновенные уведомления!
-                </p>
-                <div class="hero-buttons">
-                    <a href="https://t.me/hookah_p_bot" target="_blank" class="btn-primary">
-                        <span>Начать в Telegram</span>
-                    </a>
-                    <a href="#trending" class="btn-secondary">
-                        <span>Популярное</span>
-                    </a>
-                    {% if user_id %}
-                    <a href="#subscriptions" class="btn-secondary">
-                        <span>Мои подписки</span>
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="hero-image">
-                <img src="https://i.pinimg.com/originals/04/3c/c7/043cc74e58d17f6715746baecddc99d3.jpg" alt="Персонажи манги" class="hero-character" loading="lazy">
-            </div>
+<!-- Hero — только десктоп -->
+<section class="hero">
+    <div class="hero-text">
+        <span class="hero-label">Читайте мангу онлайн</span>
+        <h1 class="hero-title">
+            Открой свою<br>
+            <span>любимую мангу</span>
+        </h1>
+        <p class="hero-sub">
+            Тысячи тайтлов с регулярными обновлениями.
+            Подписывайтесь и получайте уведомления о новых главах.
+        </p>
+        <div class="hero-btns">
+            <a href="https://t.me/hookah_p_bot" target="_blank" class="hero-btn primary">Начать в Telegram</a>
+            <a href="/catalog" class="hero-btn ghost">Каталог</a>
+            {% if user_id %}<a href="#subscriptions" class="hero-btn ghost">Мои подписки</a>{% endif %}
+        </div>
+    </div>
+    <div class="hero-img-wrap">
+        <img src="https://i.pinimg.com/originals/04/3c/c7/043cc74e58d17f6715746baecddc99d3.jpg"
+             alt="Манга" class="hero-img" loading="lazy">
+    </div>
+</section>
+
+<div class="wrap">
+
+    <!-- Самое читаемое (скелет → JS) -->
+    <section id="section-trending" class="row">
+        <div class="row-head">
+            <h2 class="row-title">Самое читаемое</h2>
+        </div>
+        <div class="tabs">
+            <button class="tab active">Месяц</button>
+            <button class="tab">Неделя</button>
+            <button class="tab">Сегодня</button>
+        </div>
+        <div class="manga-grid">
+            <div class="sk sk-card"></div><div class="sk sk-card"></div>
+            <div class="sk sk-card"></div><div class="sk sk-card"></div>
+            <div class="sk sk-card"></div><div class="sk sk-card"></div>
         </div>
     </section>
 
-    <div class="container">
-        <!-- Скелетон: Самые читаемые (заменяется JS после загрузки) -->
-        <div id="section-trending">
-            <section class="section" id="trending">
-                <div class="section-header">
-                    <span class="section-tag">Самые горячие</span>
-                    <div class="skeleton-line" style="width:220px;height:26px"></div>
-                    <div class="skeleton-line" style="width:300px;height:14px;margin-top:6px"></div>
-                </div>
-                <div class="tabs">
-                    <button class="tab active" data-filter="day">Сегодня</button>
-                    <button class="tab" data-filter="week">Неделя</button>
-                    <button class="tab" data-filter="month">Месяц</button>
-                </div>
-                <div class="manga-grid">
-                    <div class="skeleton-manga-card"></div>
-                    <div class="skeleton-manga-card"></div>
-                    <div class="skeleton-manga-card"></div>
-                    <div class="skeleton-manga-card"></div>
-                    <div class="skeleton-manga-card"></div>
-                    <div class="skeleton-manga-card"></div>
-                </div>
-            </section>
+    <!-- Свежие главы (скелет → JS) -->
+    <section id="section-updates" class="row">
+        <div class="row-head"><h2 class="row-title">Свежие главы</h2></div>
+        <div class="updates-list">
+            <div class="sk sk-update"></div><div class="sk sk-update"></div>
+            <div class="sk sk-update"></div><div class="sk sk-update"></div>
         </div>
+    </section>
 
-        <!-- Скелетон: Последние обновления (заменяется JS после загрузки) -->
-        <div id="section-updates">
-            <section class="section" id="updates">
-                <div class="section-header">
-                    <span class="section-tag">Свежие обновления</span>
-                    <div class="skeleton-line" style="width:200px;height:26px"></div>
-                    <div class="skeleton-line" style="width:280px;height:14px;margin-top:6px"></div>
-                </div>
-                <div class="updates-list">
-                    <div class="skeleton-update-item"></div>
-                    <div class="skeleton-update-item"></div>
-                    <div class="skeleton-update-item"></div>
-                    <div class="skeleton-update-item"></div>
-                    <div class="skeleton-update-item"></div>
-                    <div class="skeleton-update-item"></div>
-                </div>
-            </section>
+    <!-- JS-секции -->
+    <div id="section-last-manga"></div>
+    <div id="section-popular-new"></div>
+    <div id="section-top-manhwa"></div>
+    <div id="section-top-manhua"></div>
+    <div id="section-top-manga"></div>
+
+    <!-- Мои подписки (сервер) -->
+    {% if user_id and subscriptions %}
+    <section class="row" id="subscriptions">
+        <div class="row-head">
+            <h2 class="row-title">Мои подписки</h2>
+            <a href="/bookmarks" class="row-link">Все →</a>
         </div>
-
-        <!-- Динамические секции (рендерятся JS-ом) -->
-        <div id="section-last-manga"></div>
-        <div id="section-popular-new"></div>
-        <div id="section-top-manhwa"></div>
-        <div id="section-top-manhua"></div>
-        <div id="section-top-manga"></div>
-
-        <!-- Подписки пользователя -->
-        {% if user_id and subscriptions %}
-        <section class="section" id="subscriptions">
-            <div class="section-header">
-                <span class="section-tag">Ваша библиотека</span>
-                <h2 class="section-title">Мои подписки</h2>
-                <p class="section-description">Следите за любимыми мангами</p>
-            </div>
-
-            <div class="manga-grid" id="subscriptions-grid">
-                {% for manga in subscriptions %}
-                <div class="manga-card" onclick="location.href='/manga/{{ manga.manga_slug }}'">
-                    <div class="manga-cover-container">
-                        {% if manga.last_chapter_number %}
-                        <span class="manga-badge update">Гл. {{ manga.last_chapter_number }}</span>
-                        {% endif %}
-                        <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
-                    </div>
-                    <div class="manga-info">
-                        <div class="manga-title">{{ manga.manga_title }}</div>
-                        <div class="manga-meta">
-                            <span class="manga-rating">⭐ {{ manga.views or 0 }}</span>
-                            <span class="manga-type">Манга</span>
-                        </div>
-                    </div>
+        <div class="grid-wrap">
+        <button class="scroll-btn left" aria-label="Назад" onclick="scrollGrid(this,-1)">&#8249;</button>
+        <div class="subs-grid">
+            {% for manga in subscriptions %}
+            <div class="manga-card" data-mid="{{ manga.manga_id }}" onclick="location.href='/manga/{{ manga.manga_slug }}'">
+                <div class="manga-cover-wrap">
+                    <span class="manga-type-badge">{{ manga.manga_type or 'Манга' }}</span>
+                    {% if manga.last_chapter_number %}
+                    <span class="manga-badge new">Гл.{{ manga.last_chapter_number }}</span>
+                    {% endif %}
+                    <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
                 </div>
-                {% endfor %}
+                <div class="manga-info">
+                    <div class="manga-title">{{ manga.manga_title }}</div>
+                    <div class="manga-meta"></div>
+                </div>
             </div>
-        </section>
-        {% endif %}
-    </div>
+            {% endfor %}
+        </div>
+        <button class="scroll-btn right" aria-label="Вперёд" onclick="scrollGrid(this,1)">&#8250;</button>
+        </div>
+    </section>
+    {% endif %}
 
-    {% include 'footer.html' %}
+</div><!-- /wrap -->
 
-    <!-- Кнопка "Наверх" -->
-    <div class="scroll-top" id="scrollTop" aria-label="Наверх">
-        <span>↑</span>
-    </div>
+{% include 'footer.html' %}
 
-    <script>
-        // Мобильное меню
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const mobileNav = document.getElementById('mobileNav');
+<div class="to-top" id="toTop">↑</div>
 
-        if (mobileMenuBtn && mobileNav) {
-            mobileMenuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                mobileNav.classList.toggle('active');
-                mobileMenuBtn.textContent = mobileNav.classList.contains('active') ? '✕' : '☰';
-            });
+<script>
+(function(){
+    /* ── утилиты ── */
+    const TYPE_RU={MANGA:'Манга',MANHWA:'Манхва',MANHUA:'Маньхуа',OEL:'Вэб',NOVEL:'Новелла',ONE_SHOT:'Короткие',DOUJINSHI:'Додзинси',COMICS:'Комикс'};
+    function typeRu(v){return TYPE_RU[(v||'').toUpperCase()]||v||'Манга';}
+    function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+    function timeAgo(ts){
+        if(!ts)return 'недавно'; try{
+            let d=new Date(ts.replace('Z','').split('+')[0]);
+            if(isNaN(d))return 'недавно';
+            let s=Math.floor((Date.now()-d)/1000);
+            if(s<60)return 'только что';
+            if(s<3600)return Math.floor(s/60)+' мин. назад';
+            if(s<86400)return Math.floor(s/3600)+' ч. назад';
+            let d2=Math.floor(s/86400);
+            return d2===1?'вчера':d2<7?d2+' дн. назад':d2<30?Math.floor(d2/7)+' нед. назад':d2<365?Math.floor(d2/30)+' мес. назад':Math.floor(d2/365)+' г. назад';
+        }catch{return 'недавно';}
+    }
 
-            document.addEventListener('click', (e) => {
-                if (!mobileNav.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
-                    mobileNav.classList.remove('active');
-                    mobileMenuBtn.textContent = '☰';
+    /* ── карточка ── */
+    const STATUS_LABELS={reading:'Читаю',completed:'Прочитано',planned:'В планах',dropped:'Брошено',paused:'Отложено'};
+    function buildCard(m, badge, badgeCls){
+        const mid=esc(m.id||m.manga_id||'');
+        return `<div class="manga-card" data-slug="${esc(m.slug)}" data-mid="${mid}" onclick="location.href='/manga/${esc(m.slug)}'">
+            <div class="manga-cover-wrap">
+                <span class="manga-type-badge">${esc(typeRu(m.type))}</span>
+                ${badge?`<span class="manga-badge ${badgeCls||''}">${badge}</span>`:''}
+                <img src="${esc(m.cover_url)}" alt="" class="manga-cover" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
+            </div>
+            <div class="manga-info">
+                <div class="manga-title">${esc(m.title)}</div>
+                <div class="manga-meta">
+                    ${m.score?`<span class="manga-rating">★ ${parseFloat(m.score).toFixed(1)}</span>`:''}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    /* ── обёртка грида со стрелками ── */
+    function makeGridWrap(gridHtml, gridId){
+        const id=gridId||('gw'+Math.random().toString(36).slice(2));
+        return `<div class="grid-wrap">
+            <button class="scroll-btn left" aria-label="Назад" onclick="scrollGrid(this,-1)">&#8249;</button>
+            <div class="manga-grid" id="${id}">${gridHtml}</div>
+            <button class="scroll-btn right" aria-label="Вперёд" onclick="scrollGrid(this,1)">&#8250;</button>
+        </div>`;
+    }
+    function scrollGrid(btn,dir){
+        const grid=btn.parentElement.querySelector('.manga-grid,.subs-grid');
+        if(!grid)return;
+        const step=grid.clientWidth*.75;
+        grid.scrollBy({left:dir*step,behavior:'smooth'});
+    }
+    window.scrollGrid=scrollGrid;
+
+    /* ── строка-секция ── */
+    function buildRow(containerId, data, title, badge, badgeCls, link){
+        if(!data?.mangas?.length)return;
+        const cards=data.mangas.slice(0,16).map(m=>buildCard(m,badge,badgeCls)).join('');
+        const linkHtml=link?`<a href="${link}" class="row-link">Все →</a>`:'';
+        document.getElementById(containerId).innerHTML=`
+            <section class="row">
+                <div class="row-head"><h2 class="row-title">${esc(data.title||title)}</h2>${linkHtml}</div>
+                ${makeGridWrap(cards)}
+            </section>`;
+    }
+
+    /* ── тренды ── */
+    function renderTrending(data){
+        if(!data?.mangas?.length)return;
+        const cards=data.mangas.slice(0,14).map(m=>buildCard(m,'ТОП','hot')).join('');
+        document.getElementById('section-trending').innerHTML=`
+            <div class="row-head"><h2 class="row-title">${esc(data.title||'Самое читаемое')}</h2></div>
+            <div class="tabs" id="trendTabs">
+                <button class="tab active" data-p="MONTH">Месяц</button>
+                <button class="tab" data-p="WEEK">Неделя</button>
+                <button class="tab" data-p="DAY">Сегодня</button>
+            </div>
+            ${makeGridWrap(cards,'trendGrid')}`;
+        document.querySelectorAll('#trendTabs .tab').forEach(t=>t.addEventListener('click',async function(){
+            if(this.classList.contains('active'))return;
+            document.querySelectorAll('#trendTabs .tab').forEach(x=>x.classList.remove('active'));
+            this.classList.add('active');
+            const g=document.getElementById('trendGrid');
+            g.innerHTML='<div class="sk sk-card"></div>'.repeat(6);
+            try{
+                const d=await fetch(`/api/home/popular?period=${this.dataset.p}`).then(r=>r.json());
+                const arr=Array.isArray(d)?d:(d.mangas||[]);
+                g.innerHTML=arr.map(m=>buildCard(m,'ТОП','hot')).join('');
+            }catch{g.innerHTML='';}
+        }));
+    }
+
+    /* ── свежие главы ── */
+    function renderRecent(list){
+        if(!list?.length)return;
+        const items=list.slice(0,8).map((ch,i)=>`
+            <div class="update-item${i>=6?' hidden':''}" onclick="location.href='${esc(ch.chapter_url)}'">
+                ${i<2?'<span class="update-new"></span>':''}
+                <img src="${esc(ch.cover_url)}" class="update-cover" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/46x62/1a1a1a/555?text=×'">
+                <div class="update-info">
+                    <div class="update-title">${esc(ch.manga_title)}</div>
+                    <div class="update-chapter">Глава ${esc(ch.chapter_number)}${ch.chapter_name?' — '+esc(ch.chapter_name):''}</div>
+                    <span class="update-time">${timeAgo(ch.created_at)}</span>
+                </div>
+                <span class="update-type">${esc(typeRu(ch.manga_type))}</span>
+            </div>`).join('');
+        const btnHtml=list.length>6
+            ?`<button class="show-more" onclick="toggleUpdates(this)">Показать все (${list.length})</button>`:'';
+        document.getElementById('section-updates').innerHTML=`
+            <div class="row-head">
+                <h2 class="row-title" id="recentTitle">Свежие главы</h2>
+            </div>
+            <div class="updates-list" id="updatesList">${items}</div>${btnHtml}`;
+    }
+    /* экспортируем для Socket.IO */
+    window._renderRecent=renderRecent;
+    window.toggleUpdates=function(btn){
+        const list=document.getElementById('updatesList');
+        const hidden=list.querySelectorAll('.update-item.hidden');
+        if(hidden.length){hidden.forEach(i=>i.classList.remove('hidden')); btn.textContent='Свернуть';}
+        else{list.querySelectorAll('.update-item').forEach((it,i)=>{if(i>=6)it.classList.add('hidden');}); btn.textContent='Показать все';}
+    };
+
+    /* ── статусы чтения ── */
+    function loadStatuses(){
+        const ids=[...new Set([...document.querySelectorAll('[data-mid]')].map(c=>c.dataset.mid).filter(Boolean))];
+        if(!ids.length)return;
+        fetch('/api/manga-statuses?ids='+ids.join(',')).then(r=>r.json()).then(map=>{
+            document.querySelectorAll('[data-mid]').forEach(card=>{
+                const st=map[card.dataset.mid]; if(!st)return;
+                const wrap=card.querySelector('.manga-cover-wrap'); if(!wrap)return;
+                const old=wrap.querySelector('.manga-status'); if(old)old.remove();
+                const sp=document.createElement('span');
+                sp.className='manga-status '+st;
+                sp.textContent=STATUS_LABELS[st]||st;
+                // позиционируем: если есть chapter badge, ставим выше
+                const chBadge=wrap.querySelector('.manga-badge');
+                if(chBadge){
+                    const bh=chBadge.offsetHeight||22;
+                    sp.style.top=(0.4+((bh+4)/16))+'rem';
                 }
+                wrap.appendChild(sp);
             });
+        }).catch(()=>{});
+    }
 
-            mobileNav.querySelectorAll('.mobile-nav-link').forEach(link => {
-                link.addEventListener('click', () => {
-                    mobileNav.classList.remove('active');
-                    mobileMenuBtn.textContent = '☰';
-                });
-            });
-        }
+    /* ── загрузка данных ── */
+    Promise.all([
+        fetch('/api/home/recent').then(r=>r.json()).catch(()=>[]),
+        fetch('/api/home/spotlights').then(r=>r.json()).catch(()=>({}))
+    ]).then(([recent,sp])=>{
+        renderTrending(sp.most_read);
+        renderRecent(recent);
+        buildRow('section-last-manga',   sp.last_manga,    'Новые поступления', '',    '',    '/catalog');
+        buildRow('section-popular-new',  sp.popular_new,   'Популярные новинки','',    '',    '');
+        buildRow('section-top-manhwa',   sp.top_manhwa,    '🇰🇷 Топ манхва',   '',    '',    '');
+        buildRow('section-top-manhua',   sp.top_manhua,    '🇨🇳 Топ маньхуа',  '',    '',    '');
+        buildRow('section-top-manga',    sp.top_manga,     '🇯🇵 Топ манга',    '',    '',    '');
+        setTimeout(loadStatuses, 250);
+        /* bulk meta refresh */
+        const obs=new IntersectionObserver(entries=>{
+            const sl=new Set();
+            entries.forEach(en=>{if(en.isIntersecting&&en.target.dataset.slug){sl.add(en.target.dataset.slug); obs.unobserve(en.target);}});
+            if(sl.size) setTimeout(()=>fetch('/api/manga/bulk-refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slugs:[...sl]})}).catch(()=>{}),1500);
+        },{rootMargin:'150px'});
+        document.querySelectorAll('[data-slug]').forEach(el=>obs.observe(el));
+    });
 
-        // Эффект прокрутки для шапки
-        const header = document.getElementById('header');
-        const scrollTop = document.getElementById('scrollTop');
+    /* ── кнопка наверх ── */
+    const btn=document.getElementById('toTop');
+    window.addEventListener('scroll',()=>btn.classList.toggle('on',scrollY>300),{passive:true});
+    btn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
 
-        window.addEventListener('scroll', () => {
-            const currentScroll = window.pageYOffset;
-            
-            if (currentScroll > 100) {
-                header.classList.add('scrolled');
-                scrollTop.classList.add('visible');
-            } else {
-                header.classList.remove('scrolled');
-                scrollTop.classList.remove('visible');
-            }
-        }, { passive: true });
+    /* ── плавный скролл к якорю ── */
+    document.addEventListener('click',e=>{
+        const a=e.target.closest('a[href^="#"]');
+        if(!a)return;
+        const id=a.getAttribute('href'); if(id==='#')return;
+        const el=document.querySelector(id);
+        if(el){e.preventDefault(); window.scrollTo({top:el.offsetTop-70,behavior:'smooth'});}
+    });
 
-        // Прокрутка наверх
-        scrollTop.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-
-        // Плавная прокрутка для якорей
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                const href = this.getAttribute('href');
-                if (href !== '#' && href.startsWith('#')) {
-                    e.preventDefault();
-                    const target = document.querySelector(href);
-                    if (target) {
-                        const offsetTop = target.offsetTop - 80;
-                        window.scrollTo({
-                            top: offsetTop,
-                            behavior: 'smooth'
-                        });
-                        if (mobileNav && mobileNav.classList.contains('active')) {
-                            mobileNav.classList.remove('active');
-                            mobileMenuBtn.textContent = '☰';
-                        }
-                    }
-                }
-            });
-        });
-
-        // Функциональность вкладок
-        const tabs = document.querySelectorAll('.tab');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                const filter = tab.dataset.filter;
-                // Здесь можно добавить AJAX запрос для обновления контента
-                console.log('Фильтр:', filter);
-            });
-        });
-
-        // ==================== ФУНКЦИИ "ПОКАЗАТЬ ЕЩЕ" ====================
-        function showAllManga(gridId) {
-            const grid = document.getElementById(gridId);
-            const button = event.target;
-            
-            if (grid.classList.contains('limited')) {
-                grid.classList.remove('limited');
-                const hiddenCards = grid.querySelectorAll('.manga-card.hidden');
-                hiddenCards.forEach(card => card.classList.remove('hidden'));
-                button.textContent = 'Свернуть';
-            } else {
-                grid.classList.add('limited');
-                const cards = grid.querySelectorAll('.manga-card');
-                const hiddenCount = Math.max(0, cards.length - 6);
-                cards.forEach((card, index) => {
-                    if (index >= 6) card.classList.add('hidden');
-                });
-                button.textContent = `Показать еще (${hiddenCount})`;
-                // Прокрутка к началу секции
-                grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-
-        function showAllItems(sectionId) {
-            const section = document.getElementById(sectionId);
-            const list = section.querySelector('.updates-list');
-            const button = event.target;
-            const items = list.querySelectorAll('.update-item');
-            const hiddenItems = list.querySelectorAll('.update-item.hidden');
-            
-            if (hiddenItems.length > 0) {
-                hiddenItems.forEach(item => item.classList.remove('hidden'));
-                button.textContent = 'Свернуть';
-            } else {
-                items.forEach((item, index) => {
-                    if (index >= 6) item.classList.add('hidden');
-                });
-                const hiddenCount = Math.max(0, items.length - 6);
-                button.textContent = `Показать все (${items.length})`;
-                list.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-
-        // Оптимизация прокрутки слайдера
-        const slider = document.getElementById('trendingSlider');
-        if (slider && window.innerWidth >= 1024) {
-            let isAutoScrolling = true;
-            let scrollInterval;
-
-            const startAutoScroll = () => {
-                scrollInterval = setInterval(() => {
-                    if (!isAutoScrolling) return;
-                    
-                    if (slider.scrollLeft >= slider.scrollWidth - slider.clientWidth - 10) {
-                        slider.scrollTo({ left: 0, behavior: 'smooth' });
-                    } else {
-                        slider.scrollBy({ left: 332, behavior: 'smooth' });
-                    }
-                }, 5000);
-            };
-
-            slider.addEventListener('mouseenter', () => {
-                isAutoScrolling = false;
-            });
-
-            slider.addEventListener('mouseleave', () => {
-                isAutoScrolling = true;
-            });
-
-            slider.addEventListener('touchstart', () => {
-                isAutoScrolling = false;
-            }, { passive: true });
-
-            startAutoScroll();
-        }
-
-        // Наблюдатель для анимаций
-        if ('IntersectionObserver' in window) {
-            const observerOptions = {
-                threshold: 0.1,
-                rootMargin: '0px 0px -50px 0px'
-            };
-
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, observerOptions);
-
-            window.observeElements = () => {
-                document.querySelectorAll('.manga-card:not(.hidden), .update-item:not(.hidden)').forEach(el => {
-                    if (!el.dataset.observed) {
-                        el.style.opacity = '0';
-                        el.style.transform = 'translateY(20px)';
-                        el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-                        observer.observe(el);
-                        el.dataset.observed = 'true';
-                    }
-                });
-            };
-
-            observeElements();
-            
-            // Повторно наблюдать при показе скрытых элементов
-            window.showAllMangaOriginal = window.showAllManga;
-            window.showAllManga = function(gridId) {
-                showAllMangaOriginal.call(this, gridId);
-                setTimeout(observeElements, 100);
-            };
-
-            window.showAllItemsOriginal = window.showAllItems;
-            window.showAllItems = function(sectionId) {
-                showAllItemsOriginal.call(this, sectionId);
-                setTimeout(observeElements, 100);
-            };
-        }
-
-        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        document.addEventListener('DOMContentLoaded', () => {
-
-            const updatesList = document.querySelector('.updates-list');
-            if (updatesList) {
-                const items = updatesList.querySelectorAll('.update-item');
-                items.forEach((item, index) => {
-                    if (index >= 6) item.classList.add('hidden');
-                });
-            }
-
-            // Lazy loading для изображений
-            if ('loading' in HTMLImageElement.prototype) {
-                const images = document.querySelectorAll('img[loading="lazy"]');
-                images.forEach(img => {
-                    img.src = img.src;
-                });
-            } else {
-                // Fallback для браузеров без поддержки loading="lazy"
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.3.2/lazysizes.min.js';
-                document.body.appendChild(script);
-            }
-        });
-
-        // Debounce для resize
-        let resizeTimer;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                // Обновить layout при необходимости
-            }, 250);
-        }, { passive: true });
-
-        // ==================== AJAX LAZY LOADING ====================
-
-        const TYPE_RU = {
-            'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа',
-            'OEL': 'Всемирная манга', 'NOVEL': 'Новелла', 'ONE_SHOT': 'Короткие истории',
-            'DOUJINSHI': 'Додзинси', 'COMICS': 'Комикс'
-        };
-        function typeRu(v) {
-            return TYPE_RU[(v || '').toUpperCase()] || v || '';
-        }
-
-        function relativeTime(ts) {
-            if (!ts) return 'Недавно';
-            try {
-                const cleaned = ts.split('+')[0].split('Z')[0];
-                const date = new Date(cleaned);
-                if (isNaN(date)) return 'Недавно';
-                const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-                if (diff < 60) return 'Только что';
-                if (diff < 3600) { const m = Math.floor(diff/60); return m === 1 ? '1 минуту назад' : `${m} минут назад`; }
-                if (diff < 86400) { const h = Math.floor(diff/3600); return h === 1 ? '1 час назад' : `${h} часов назад`; }
-                const days = Math.floor(diff/86400);
-                if (days === 1) return 'Вчера';
-                if (days < 7) return `${days} дн. назад`;
-                if (days < 30) { const w = Math.floor(days/7); return `${w} нед. назад`; }
-                if (days < 365) { const mo = Math.floor(days/30); return `${mo} мес. назад`; }
-                return `${Math.floor(days/365)} лет назад`;
-            } catch(e) { return 'Недавно'; }
-        }
-
-        function e(s) {
-            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        function buildSliderItems(mangas) {
-            return mangas.slice(0, 12).map((m) => `
-                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
-                    <div class="manga-cover-container">
-                        <span class="manga-badge hot">Топ</span>
-                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/180x240/1a1a1a/667eea?text=Нет+фото'">
-                    </div>
-                    <div class="manga-info">
-                        <div class="manga-title">${e(m.title)}</div>
-                        <div class="manga-meta">
-                            <span class="manga-rating">⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
-                            <span class="manga-type">${e(typeRu(m.type))}</span>
-                        </div>
-                    </div>
-                </div>`).join('');
-        }
-
-        function initTrendingSlider() {
-            const sl = document.getElementById('trendingSlider');
-            if (!sl || window.innerWidth < 1024) return;
-            let isAuto = true;
-            setInterval(() => {
-                if (!isAuto) return;
-                if (sl.scrollLeft >= sl.scrollWidth - sl.clientWidth - 10) {
-                    sl.scrollTo({ left: 0, behavior: 'smooth' });
-                } else {
-                    sl.scrollBy({ left: 332, behavior: 'smooth' });
-                }
-            }, 5000);
-            sl.addEventListener('mouseenter', () => { isAuto = false; });
-            sl.addEventListener('mouseleave', () => { isAuto = true; });
-            sl.addEventListener('touchstart', () => { isAuto = false; }, { passive: true });
-        }
-
-        function renderTrending(mostRead) {
-            if (!mostRead || !mostRead.mangas || !mostRead.mangas.length) return;
-            const items = buildSliderItems(mostRead.mangas);
-
-            document.getElementById('section-trending').innerHTML = `
-                <section class="section" id="trending">
-                    <div class="section-header">
-                        <span class="section-tag">Самые горячие</span>
-                        <h2 class="section-title">${e(mostRead.title || 'Самое читаемое')}</h2>
-                        <p class="section-description">Самые популярные манги по мнению читателей</p>
-                    </div>
-                    <div class="tabs">
-                        <button class="tab active" data-period="MONTH">Месяц</button>
-                        <button class="tab" data-period="WEEK">Неделя</button>
-                        <button class="tab" data-period="DAY">Сегодня</button>
-                    </div>
-                    <div class="manga-grid-outer">
-                        <button class="manga-scroll-btn left" aria-label="Назад">&#8249;</button>
-                        <div class="manga-grid" id="trendingGrid">${items}</div>
-                        <button class="manga-scroll-btn right" aria-label="Вперёд">&#8250;</button>
-                    </div>
-                </section>`;
-
-            initScrollBtns('section-trending');
-
-            // Вкладки: загружают популярное по периоду
-            document.querySelectorAll('#section-trending .tab').forEach(tab => {
-                tab.addEventListener('click', async () => {
-                    if (tab.classList.contains('active')) return;
-                    document.querySelectorAll('#section-trending .tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-
-                    const period = tab.dataset.period;
-                    const grid = document.getElementById('trendingGrid');
-                    // Скелетон пока грузим
-                    grid.innerHTML = Array(6).fill(
-                        '<div class="skeleton-manga-card"></div>'
-                    ).join('');
-
-                    try {
-                        const data = await fetch(`/api/home/popular?period=${period}`).then(r => r.json());
-                        grid.innerHTML = buildSliderItems(data);
-                        grid.scrollLeft = 0;
-                        grid.dispatchEvent(new Event('scroll'));
-                    } catch {
-                        grid.innerHTML = '<p style="color:#a1a1aa;padding:20px">Не удалось загрузить</p>';
-                    }
-                });
-            });
-        }
-
-        function renderRecent(recent) {
-            if (!recent || !recent.length) return;
-            const items = recent.slice(0, 8).map((ch, i) => `
-                <div class="update-item${i >= 6 ? ' hidden' : ''}" onclick="location.href='${e(ch.chapter_url)}'">
-                    ${i < 3 ? '<span class="new-indicator"></span>' : ''}
-                    <img src="${e(ch.cover_url)}" alt="${e(ch.manga_title)}" class="update-cover" loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/60x85/1a1a1a/667eea?text=Нет'">
-                    <div class="update-info">
-                        <div class="update-title">${e(ch.manga_title)}</div>
-                        <div class="update-chapter">Глава ${e(ch.chapter_number)}${ch.chapter_name ? ' — ' + e(ch.chapter_name) : ''}</div>
-                        <div class="update-time">${relativeTime(ch.created_at)}</div>
-                    </div>
-                    <span class="update-type">${e(typeRu(ch.manga_type) || 'Манга')}</span>
-                </div>`).join('');
-
-            const showMoreBtn = recent.length > 6
-                ? `<button class="show-more-btn" onclick="showAllItems('updates')">Показать все (${recent.length})</button>`
-                : '';
-
-            document.getElementById('section-updates').innerHTML = `
-                <section class="section" id="updates">
-                    <div class="section-header">
-                        <span class="section-tag">Свежие обновления</span>
-                        <h2 class="section-title">Последние главы</h2>
-                        <p class="section-description">Новые главы из ваших любимых манг</p>
-                    </div>
-                    <div class="updates-list">${items}</div>
-                    ${showMoreBtn}
-                </section>`;
-        }
-
-        function renderSliderSection(containerId, data, badge, tag, descr) {
-            if (!data || !data.mangas || !data.mangas.length) return;
-            const mangas = data.mangas.slice(0, 14);
-            const cards = mangas.map(m => `
-                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
-                    <div class="manga-cover-container">
-                        <span class="manga-badge new">${badge}</span>
-                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
-                    </div>
-                    <div class="manga-info">
-                        <div class="manga-title">${e(m.title)}</div>
-                        <div class="manga-meta">
-                            <span class="manga-type">${e(typeRu(m.type))}</span>
-                        </div>
-                    </div>
-                </div>`).join('');
-
-            document.getElementById(containerId).innerHTML = `
-                <section class="section">
-                    <div class="section-header">
-                        <span class="section-tag">${tag}</span>
-                        <h2 class="section-title">${e(data.title || '')}</h2>
-                        <p class="section-description">${descr}</p>
-                    </div>
-                    <div class="manga-grid-outer">
-                        <button class="manga-scroll-btn left" aria-label="Назад">&#8249;</button>
-                        <div class="manga-grid" id="${containerId}-grid">${cards}</div>
-                        <button class="manga-scroll-btn right" aria-label="Вперёд">&#8250;</button>
-                    </div>
-                </section>`;
-            initScrollBtns(containerId);
-        }
-
-        function renderPopularNew(popularNew) {
-            if (!popularNew || !popularNew.mangas || !popularNew.mangas.length) return;
-            const mangas = popularNew.mangas.slice(0, 14);
-            const cards = mangas.map(m => `
-                <div class="manga-card" data-slug="${e(m.slug)}" onclick="location.href='/manga/${e(m.slug)}'">
-                    <div class="manga-cover-container">
-                        <span class="manga-badge hot">Горячее</span>
-                        <img src="${e(m.cover_url)}" alt="${e(m.title)}" class="manga-cover" loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/220x293/1a1a1a/667eea?text=Нет+фото'">
-                    </div>
-                    <div class="manga-info">
-                        <div class="manga-title">${e(m.title)}</div>
-                        <div class="manga-meta">
-                            <span class="manga-rating">⭐ ${m.score ? parseFloat(m.score).toFixed(1) : '—'}</span>
-                            <span class="manga-type">${e(typeRu(m.type))}</span>
-                        </div>
-                    </div>
-                </div>`).join('');
-
-            document.getElementById('section-popular-new').innerHTML = `
-                <section class="section" id="popular">
-                    <div class="section-header">
-                        <span class="section-tag">Восходящие звезды</span>
-                        <h2 class="section-title">${e(popularNew.title || 'Популярные новинки')}</h2>
-                        <p class="section-description">Новые манги, набирающие популярность</p>
-                    </div>
-                    <div class="manga-grid-outer">
-                        <button class="manga-scroll-btn left" aria-label="Назад">&#8249;</button>
-                        <div class="manga-grid" id="popular-manga-grid">${cards}</div>
-                        <button class="manga-scroll-btn right" aria-label="Вперёд">&#8250;</button>
-                    </div>
-                </section>`;
-            initScrollBtns('section-popular-new');
-        }
-
-        function initScrollBtns(containerId) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            const outer = container.querySelector('.manga-grid-outer');
-            if (!outer) return;
-            const grid = outer.querySelector('.manga-grid');
-            const btnL = outer.querySelector('.manga-scroll-btn.left');
-            const btnR = outer.querySelector('.manga-scroll-btn.right');
-            if (!grid || !btnL || !btnR) return;
-
-            const STEP = 450;
-
-            function update() {
-                const atStart = grid.scrollLeft <= 4;
-                const atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 4;
-                btnL.classList.toggle('visible', !atStart);
-                btnR.classList.toggle('visible', !atEnd);
-            }
-
-            grid.addEventListener('scroll', update, { passive: true });
-            update();
-
-            btnL.addEventListener('click', () => grid.scrollBy({ left: -STEP, behavior: 'smooth' }));
-            btnR.addEventListener('click', () => grid.scrollBy({ left: STEP, behavior: 'smooth' }));
-        }
-
-        // ==================== ФОНОВОЕ ОБНОВЛЕНИЕ МЕТАДАННЫХ МАНГИ ====================
-        (function() {
-            const pending = new Set();
-            let timer = null;
-
-            function flush() {
-                if (!pending.size) return;
-                const slugs = Array.from(pending);
-                pending.clear();
-                fetch('/api/manga/bulk-refresh', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ slugs })
-                }).catch(() => {});
-            }
-
-            const io = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
-                    if (!entry.isIntersecting) return;
-                    const slug = entry.target.dataset.slug;
-                    if (slug) pending.add(slug);
-                    io.unobserve(entry.target);
-                });
-                clearTimeout(timer);
-                timer = setTimeout(flush, 1500);
-            }, { rootMargin: '150px' });
-
-            window.observeMangaRefresh = function() {
-                document.querySelectorAll('[data-slug]:not([data-refresh-observed])').forEach(el => {
-                    el.dataset.refreshObserved = '1';
-                    io.observe(el);
-                });
-            };
-        })();
-
-        // Горизонтальный свайп каруселей
-        (function() {
-            var grid = null, startX = 0, startY = 0, decided = false;
-            document.addEventListener('touchstart', function(e) {
-                var el = e.target.closest('.manga-grid, .slider');
-                if (!el || el.scrollWidth <= el.clientWidth + 4) { grid = null; return; }
-                grid = el; decided = false;
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }, { passive: true });
-            document.addEventListener('touchmove', function(e) {
-                if (!grid || decided) return;
-                var dx = Math.abs(e.touches[0].clientX - startX);
-                var dy = Math.abs(e.touches[0].clientY - startY);
-                if (dx > 8 && dx > dy * 1.5) {
-                    decided = true;
-                    e.preventDefault();
-                } else if (dy > 8) {
-                    decided = true;
-                    grid = null;
-                }
-            }, { passive: false });
-            document.addEventListener('touchend', function() {
-                grid = null; decided = false;
-            }, { passive: true });
-        })();
-
-        // Загрузка данных главной страницы
-        Promise.all([
-            fetch('/api/home/recent').then(r => r.json()).catch(() => []),
-            fetch('/api/home/spotlights').then(r => r.json()).catch(() => ({}))
-        ]).then(([recent, spotlights]) => {
-            renderTrending(spotlights.most_read);
-            renderRecent(recent);
-            renderSliderSection('section-last-manga', spotlights.last_manga, ' Новое', ' Новые поступления', 'Свежие манги в коллекции');
-            renderPopularNew(spotlights.popular_new);
-            renderSliderSection('section-top-manhwa', spotlights.top_manhwa, '🇰🇷 Манхва', ' Топ манхв', 'Лучшие корейские манги');
-            renderSliderSection('section-top-manhua', spotlights.top_manhua, '🇨🇳 Маньхуа', ' Топ маньхуа', 'Лучшие китайские манги');
-            renderSliderSection('section-top-manga', spotlights.top_manga, '🇯🇵 Манга', ' Топ манга', 'Лучшие японские манги');
-
-            // Переинициализировать IntersectionObserver для новых элементов
-            if (typeof observeElements === 'function') {
-                setTimeout(observeElements, 100);
-            }
-            // Запустить фоновое обновление метаданных для всех карточек
-            setTimeout(window.observeMangaRefresh, 200);
-        });
-    </script>
-
-    <!-- ── Socket.IO: live-обновление блока «Последние главы» ── -->
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
-            integrity="sha384-2huIOVSHOlM6tFiBDmfUn4AGOG3JHcQZh3oq2YUPB7HUV0ICpAmb6TqCRqSqlkq"
-            crossorigin="anonymous"></script>
-    <script>
+    /* ── горизонтальный свайп (вертикаль → страница, горизонталь → сетка) ── */
     (function(){
-      var socket = io({ transports: ['websocket', 'polling'] });
-
-      /* «Новая точка» — индикатор обновления над блоком */
-      function showUpdateDot() {
-        var header = document.querySelector('#section-updates .section-header');
-        if (!header || header.querySelector('.live-dot')) return;
-        var dot = document.createElement('span');
-        dot.className = 'live-dot';
-        dot.title = 'Обновлено только что';
-        dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;'
-          + 'background:#22c55e;box-shadow:0 0 6px #22c55e;margin-left:8px;vertical-align:middle;'
-          + 'animation:livePulse 1.5s ease-in-out infinite;';
-        header.querySelector('.section-title') && header.querySelector('.section-title').appendChild(dot);
-        setTimeout(function(){ dot && dot.remove(); }, 8000);
-      }
-
-      socket.on('new_chapters', function(data) {
-        if (!data || !data.length) return;
-        renderRecent(data);
-        showUpdateDot();
-        if (window.tgHaptic) window.tgHaptic('light');
-      });
-
-      /* Добавляем CSS-анимацию один раз */
-      var style = document.createElement('style');
-      style.textContent = '@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.35}}';
-      document.head.appendChild(style);
+        let st=null, raf=null;
+        document.addEventListener('touchstart',e=>{
+            const g=e.target.closest('.manga-grid,.subs-grid');
+            if(!g||g.scrollWidth<=g.clientWidth+4)return;
+            if(raf){cancelAnimationFrame(raf);raf=null;}
+            st={g,x0:e.touches[0].clientX,y0:e.touches[0].clientY,
+                sl:g.scrollLeft,decided:false,horiz:false,
+                lastX:e.touches[0].clientX,lastT:Date.now(),vx:0};
+        },{passive:true});
+        document.addEventListener('touchmove',e=>{
+            if(!st)return;
+            const cx=e.touches[0].clientX,cy=e.touches[0].clientY;
+            const dx=st.x0-cx, adx=Math.abs(dx), dy=Math.abs(cy-st.y0);
+            if(!st.decided&&(adx>5||dy>5)){
+                st.decided=true; st.horiz=adx>dy*.7; if(!st.horiz){st=null;return;}
+            }
+            if(!st.horiz)return;
+            e.preventDefault();
+            st.g.scrollLeft=st.sl+dx;
+            const now=Date.now(), dt=now-st.lastT;
+            if(dt>0) st.vx=(st.lastX-cx)/dt;
+            st.lastX=cx; st.lastT=now;
+        },{passive:false});
+        document.addEventListener('touchend',()=>{
+            if(!st||!st.horiz){st=null;return;}
+            const g=st.g;
+            let v=st.vx*14;
+            st=null;
+            if(Math.abs(v)<0.3)return;
+            function step(){
+                g.scrollLeft+=v;
+                v*=0.88;
+                raf=Math.abs(v)>0.3?requestAnimationFrame(step):null;
+            }
+            raf=requestAnimationFrame(step);
+        },{passive:true});
     })();
-    </script>
+
+})();
+</script>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
+        integrity="sha384-2huIOVSHOlM6tFiBDmfUn4AGOG3JHcQZh3oq2YUPB7HUV0ICpAmb6TqCRqSqlkq"
+        crossorigin="anonymous"></script>
+<script>
+(function(){
+    if(typeof io==='undefined')return;
+    const socket=io({transports:['websocket','polling']});
+
+    function addLiveDot(){
+        const t=document.getElementById('recentTitle');
+        if(!t||t.querySelector('[data-live]'))return;
+        const dot=document.createElement('span');
+        dot.dataset.live='1';
+        dot.style.cssText='display:inline-block;width:7px;height:7px;border-radius:50%;'
+            +'background:#22c55e;box-shadow:0 0 6px #22c55e;margin-left:8px;vertical-align:middle;'
+            +'animation:livepulse 1.5s ease-in-out infinite;';
+        t.appendChild(dot);
+    }
+
+    /* обновление списка при новых главах */
+    socket.on('new_chapters',function(data){
+        if(!data||!data.length)return;
+        addLiveDot();
+        if(typeof window._renderRecent==='function') window._renderRecent(data);
+    });
+
+    /* переподключение — перезагружаем список */
+    socket.on('connect',function(){
+        if(socket._wasConnected){
+            fetch('/api/home/recent').then(r=>r.json()).then(function(list){
+                if(typeof window._renderRecent==='function') window._renderRecent(list);
+            }).catch(()=>{});
+        }
+        socket._wasConnected=true;
+    });
+})();
+</script>
+<style>@keyframes livepulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.3);}}</style>
 
 </body>
 </html>
