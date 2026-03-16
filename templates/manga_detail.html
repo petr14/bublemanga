@@ -1142,10 +1142,21 @@
             width: 38px; height: 38px; border-radius: 50%;
             background: linear-gradient(135deg,#e09535,#c07828);
             display: flex; align-items: center; justify-content: center;
-            font-size: 16px; font-weight: 700; flex-shrink: 0; overflow: hidden;
+            font-size: 16px; font-weight: 700; flex-shrink: 0;
             text-decoration: none; color: #fff; cursor: pointer;
+            position: relative; overflow: visible;
         }
-        .comment-avatar img { width:100%; height:100%; object-fit:cover; }
+        .comment-avatar-inner {
+            width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .comment-avatar-inner img { width:100%; height:100%; object-fit:cover; }
+        .comment-avatar-frame {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            width: 160%; height: 160%;
+            pointer-events: none; z-index: 2; object-fit: contain;
+        }
 
         .comment-body { flex: 1; min-width: 0; }
         .comment-header {
@@ -2289,10 +2300,13 @@
                 const name = c.custom_name || c.telegram_first_name || c.telegram_username || '?';
                 const init = name[0].toUpperCase();
                 const avatar = c.custom_avatar_url || c.avatar_url;
-                const style = c.frame_css ? ` style="${escAttr(c.frame_css)}"` : '';
-                if (avatar)
-                    return `<a href="/profile/${c.user_id}" class="comment-avatar"${style}><img src="${escAttr(avatar)}" alt="" onerror="this.style.display='none'"></a>`;
-                return `<a href="/profile/${c.user_id}" class="comment-avatar"${style}>${init}</a>`;
+                const inner = avatar
+                    ? `<div class="comment-avatar-inner"><img src="${escAttr(avatar)}" alt="" onerror="this.style.display='none'"></div>`
+                    : `<div class="comment-avatar-inner">${init}</div>`;
+                const frame = c.frame_preview_url
+                    ? `<img class="comment-avatar-frame" src="${escAttr(c.frame_preview_url)}" alt="">`
+                    : '';
+                return `<a href="/profile/${c.user_id}" class="comment-avatar">${inner}${frame}</a>`;
             }
 
             function buildMetaHTML(c) {

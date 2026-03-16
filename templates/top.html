@@ -167,14 +167,18 @@
     .top3-card.rank-1 .top3-content { padding-top: 3.25rem; }
 
     .top3-av-wrap {
-      width: 72px; height: 72px; border-radius: 50%;
-      border: 3px solid rgba(255,255,255,.35); overflow: hidden;
-      background: linear-gradient(135deg,#e09535,#c07828);
+      width: 72px; height: 72px;
       flex-shrink: 0; margin-bottom: .6rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      position: relative; display: inline-block;
     }
     .top3-card.rank-1 .top3-av-wrap { width: 88px; height: 88px; }
-    .top3-av-wrap img, .top3-av-wrap video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .top3-av-inner {
+      width: 100%; height: 100%; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.35); overflow: hidden;
+      background: linear-gradient(135deg,#e09535,#c07828);
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    }
+    .top3-av-inner img, .top3-av-inner video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .av-frame {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
@@ -367,24 +371,32 @@ function Media({url, w, style, className, forceImg=false, small=false}) {
       h('source', {src: url})
     );
   }
-  const imgSrc = isLocalUpload ? thumb(url, w) : url;
+  // Для рамок (animated WebP) thumb() стрипает анимацию — используем оригинал
+  const imgSrc = (isLocalUpload && !isFrame) ? thumb(url, w) : url;
   return h('img', {src: imgSrc, style:s, alt:'', className});
 }
 
 function Av({url, frameUrl, size=40, fontSize='1rem'}){
-  const s = {
+  // overflow:visible — чтобы рамка выходила за круг и анимация не блокировалась
+  const outer = {
+    width:size, height:size, flexShrink:0,
+    position:'relative', display:'inline-block'
+  };
+  // Внутренний круг клипает аватар без overflow:hidden на родителе
+  const inner = {
     width:size, height:size, borderRadius:'50%',
     background:'linear-gradient(135deg,#e09535,#c07828)',
     display:'flex', alignItems:'center', justifyContent:'center',
-    fontSize, flexShrink:0, overflow:'hidden',
-    position:'relative'
+    fontSize, overflow:'hidden', position:'relative'
   };
-  return h('div',{style:s},
-    url ? h(Media, {url, w:80, style:{width:'100%',height:'100%',objectFit:'cover'}}) : '',
-    frameUrl ? h(Media, {url:frameUrl, w:80, style:{
+  return h('div',{style:outer},
+    h('div',{style:inner},
+      url ? h(Media, {url, w:80, style:{width:'100%',height:'100%',objectFit:'cover'}}) : ''
+    ),
+    frameUrl ? h(Media, {url:frameUrl, w:size*2, style:{
       position:'absolute', top:'50%', left:'50%',
       transform:'translate(-50%,-50%)',
-      width:'160%', height:'160%',
+      width:'175%', height:'175%',
       pointerEvents:'none', zIndex:2, objectFit:'contain'
     }}) : null
   );
@@ -415,12 +427,14 @@ function TopThree(){
           h('div',{className:'top3-medal-ribbon'})
         ),
         h('div',{className:'top3-content'},
-          h('div',{className:'top3-av-wrap', style:{position:'relative', overflow:'visible'}},
-            u.avatar_url ? h(Media, {url:u.avatar_url, w:176, style:{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}) : '',
-            u.frame_preview_url ? h(Media, {url:u.frame_preview_url, w:176, style:{
+          h('div',{className:'top3-av-wrap'},
+            h('div',{className:'top3-av-inner'},
+              u.avatar_url ? h(Media, {url:u.avatar_url, w:176, style:{width:'100%',height:'100%',objectFit:'cover'}}) : ''
+            ),
+            u.frame_preview_url ? h(Media, {url:u.frame_preview_url, w:0, style:{
               position:'absolute', top:'50%', left:'50%',
               transform:'translate(-50%,-50%)',
-              width:'150%', height:'150%',
+              width:'175%', height:'175%',
               pointerEvents:'none', zIndex:2, objectFit:'contain'
             }}) : null
           ),

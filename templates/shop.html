@@ -68,8 +68,8 @@
 
     /* Превью — аватар */
     .item-preview-avatar { height:145px; display:flex; align-items:center; justify-content:center; background:#0e0b08; position:relative; overflow:hidden; }
-    .avatar-circle { width:88px; height:88px; border-radius:50%; overflow:hidden; border:3px solid rgba(224,149,53,.45); box-shadow:0 0 20px rgba(224,149,53,.3); }
-    .avatar-circle img { width:100%; height:100%; object-fit:cover; }
+    .avatar-circle { width:88px; height:88px; border-radius:50%; border:3px solid rgba(224,149,53,.45); box-shadow:0 0 20px rgba(224,149,53,.3); position:relative; }
+    .avatar-circle img, .avatar-circle video { width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
     .avatar-circle .av-placeholder { width:100%; height:100%; background:linear-gradient(135deg,#e09535,#c07828); display:flex; align-items:center; justify-content:center; font-size:2rem; }
 
     /* Превью — рамка */
@@ -131,8 +131,8 @@
     .tryon-name { font-size:1rem; font-weight:800; color:#f4f4f5; }
     .tryon-close { background:rgba(255,255,255,.07); border:none; color:#888; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:1rem; transition:background .15s; }
     .tryon-close:hover { background:rgba(255,255,255,.14); }
-    .tryon-preview-avatar { width:180px; height:180px; border-radius:50%; overflow:hidden; border:4px solid rgba(224,149,53,.5); box-shadow:0 0 40px rgba(224,149,53,.35); }
-    .tryon-preview-avatar img { width:100%; height:100%; object-fit:cover; }
+    .tryon-preview-avatar { width:180px; height:180px; border-radius:50%; border:4px solid rgba(224,149,53,.5); box-shadow:0 0 40px rgba(224,149,53,.35); overflow:hidden; }
+    .tryon-preview-avatar img, .tryon-preview-avatar video { width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; }
     .tryon-preview-frame { width:160px; height:160px; display:flex; align-items:center; justify-content:center; }
     .tryon-preview-frame img { width:100%; height:100%; object-fit:contain; }
     .tryon-preview-bg { width:100%; height:160px; border-radius:14px; overflow:hidden; position:relative; }
@@ -321,12 +321,24 @@ function toast(msg,type='ok'){
 }
 
 // ── Превью ────────────────────────────────────────────────────────────────────
+function isVideoUrl(url){ return url && (url.endsWith('.webm')||url.endsWith('.mp4')); }
+
+function MediaEl({url, style, className}){
+  if(isVideoUrl(url))
+    return h('video',{autoPlay:true,loop:true,muted:true,playsInline:true,style,className},
+      h('source',{src:url,type:url.endsWith('.webm')?'video/webm':'video/mp4'})
+    );
+  return h('img',{src:url,alt:'',style,className,loading:'eager'});
+}
+
 function PreviewAvatar({item}){
+  // full_url = _original.webp (анимированный), preview_url = _thumb.webp (статичный)
+  const src = item.full_url || item.preview_url;
   return h('div',{className:'item-preview-avatar'},
-    !!item.is_animated && h('div',{className:'anim-badge'},'GIF'),
+    !!item.is_animated && h('div',{className:'anim-badge'},'ANIM'),
     h('div',{className:'avatar-circle'},
-      item.preview_url
-        ? h('img',{src:item.preview_url, alt:'', loading:item.is_animated?'eager':'lazy'})
+      src
+        ? h(MediaEl,{url:src,style:{width:'100%',height:'100%',objectFit:'cover'}})
         : h('div',{className:'av-placeholder'},'')
     )
   );
@@ -334,31 +346,43 @@ function PreviewAvatar({item}){
 
 function PreviewFrame({item}){
   if(item.preview_url)
-    return h('div',{className:'item-preview-frame'},h('img',{src:item.preview_url,alt:'',style:{width:'100%',height:'100%',objectFit:'cover'}}));
+    return h('div',{className:'item-preview-frame'},
+      h('div',{style:{position:'relative',width:84,height:84}},
+        h('div',{style:{width:84,height:84,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)'}}),
+        h('img',{src:item.preview_url,alt:'',loading:'eager',style:{
+          position:'absolute',top:'50%',left:'50%',
+          transform:'translate(-50%,-50%)',
+          width:'175%',height:'175%',
+          objectFit:'contain',pointerEvents:'none'
+        }})
+      )
+    );
   const s = item.css_value
     ? {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)',border:`4px solid ${item.css_value}`,boxShadow:`0 0 16px ${item.css_value}99`}
     : {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)'};
   return h('div',{className:'item-preview-frame'},h('div',{style:s}));
 }
 
+function BgFake(){
+  return h('div',{className:'bg-fake'},
+    h('div',{className:'bf-av'}),
+    h('div',{className:'bf-name'},'Профиль')
+  );
+}
+
 function PreviewBackground({item}){
-  if(item.preview_url)
+  const thumbUrl = !isVideoUrl(item.preview_url) ? item.preview_url : null;
+  const smallVid = isVideoUrl(item.preview_url) ? item.preview_url : null;
+  if(thumbUrl||smallVid)
     return h('div',{className:'item-preview-bg'},
-      !!item.is_animated && h('div',{className:'anim-badge'},'GIF'),
-      h('img',{src:item.preview_url,alt:'',loading:'lazy'}),
+      h(MediaEl,{url:thumbUrl||smallVid,style:{width:'100%',height:'100%',objectFit:'cover'}}),
       h('div',{className:'bg-overlay'}),
-      h('div',{className:'bg-fake'},
-        h('div',{className:'bf-av'}),
-        h('div',{className:'bf-name'},'Профиль')
-      )
+      h(BgFake)
     );
   if(item.css_value)
     return h('div',{className:'item-preview-bg',style:{background:item.css_value}},
       h('div',{className:'bg-overlay'}),
-      h('div',{className:'bg-fake'},
-        h('div',{className:'bf-av'}),
-        h('div',{className:'bf-name'},'Профиль')
-      )
+      h(BgFake)
     );
   return h('div',{className:'item-preview',style:{height:115}},'🌄');
 }
@@ -398,23 +422,37 @@ function TryOnModal({item, coins, eqMap, ownedSet, loanedSet, onBuy, onEquip, on
 
   let preview;
   if(item.type === 'avatar'){
+    const avSrc = item.full_url || item.preview_url;
     preview = h('div',{className:'tryon-preview-avatar'},
-      item.preview_url
-        ? h('img',{src:item.preview_url, alt:'', loading:'eager'})
+      avSrc
+        ? h(MediaEl,{url:avSrc, style:{width:'100%',height:'100%',objectFit:'cover'}, loading:'eager'})
         : h('div',{style:{width:'100%',height:'100%',background:'linear-gradient(135deg,#e09535,#c07828)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem'}},'')
     );
   } else if(item.type === 'frame'){
-    const s = item.css_value && !item.preview_url
-      ? {width:140,height:140,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)',border:`6px solid ${item.css_value}`,boxShadow:`0 0 24px ${item.css_value}99`}
-      : null;
-    preview = h('div',{className:'tryon-preview-frame'},
-      item.preview_url
-        ? h('img',{src:item.preview_url, alt:'', loading:'eager'})
-        : s ? h('div',{style:s}) : null
-    );
+    if(item.preview_url){
+      preview = h('div',{className:'tryon-preview-frame'},
+        h('div',{style:{position:'relative',width:140,height:140}},
+          h('div',{style:{width:140,height:140,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)'}}),
+          h('img',{src:item.preview_url,alt:'',loading:'eager',style:{
+            position:'absolute',top:'50%',left:'50%',
+            transform:'translate(-50%,-50%)',
+            width:'175%',height:'175%',
+            objectFit:'contain',pointerEvents:'none'
+          }})
+        )
+      );
+    } else {
+      const s = item.css_value
+        ? {width:140,height:140,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)',border:`6px solid ${item.css_value}`,boxShadow:`0 0 24px ${item.css_value}99`}
+        : null;
+      preview = h('div',{className:'tryon-preview-frame'}, s ? h('div',{style:s}) : null);
+    }
   } else if(item.type === 'background'){
-    preview = item.preview_url
-      ? h('div',{className:'tryon-preview-bg'}, h('img',{src:item.full_url||item.preview_url, alt:'', loading:'eager'}))
+    const bgSrc = item.full_url || item.preview_url;
+    preview = bgSrc
+      ? h('div',{className:'tryon-preview-bg'},
+          h(MediaEl,{url:bgSrc,style:{width:'100%',height:'100%',objectFit:'cover'}})
+        )
       : item.css_value
         ? h('div',{className:'tryon-preview-bg-css', style:{background:item.css_value}})
         : h('div',{style:{fontSize:'4rem',textAlign:'center'}},'🌄');

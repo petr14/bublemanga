@@ -2645,6 +2645,10 @@ _COMMENT_QUERY = '''
             JOIN user_items ui ON si.id = ui.item_id
             WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
             LIMIT 1) as frame_css,
+           (SELECT si.preview_url FROM shop_items si
+            JOIN user_items ui ON si.id = ui.item_id
+            WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
+            LIMIT 1) as frame_preview_url,
            (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = cm.id) as likes_count
     FROM comments cm
     JOIN users u ON cm.user_id = u.id
@@ -2885,6 +2889,12 @@ def profile_equip(item_id):
             extra['avatar_url'] = None  # сброс — нет аватара из магазина
 
     conn.close()
+    # Сбрасываем кеш топа — аватар/рамка пользователя изменились
+    if item_type in ('avatar', 'frame'):
+        try:
+            cache.delete('top_leaders')
+        except Exception:
+            pass
     return jsonify({'success': True, 'equipped': not now_equipped, **extra})
 
 
@@ -2987,6 +2997,10 @@ def upload_avatar():
     conn.close()
 
     schedule_webm_conversion(os.path.join(user_dir, filename))
+    try:
+        cache.delete('top_leaders')
+    except Exception:
+        pass
     return jsonify({'success': True, 'avatar_url': avatar_url})
 
 

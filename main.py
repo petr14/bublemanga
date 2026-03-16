@@ -201,14 +201,18 @@ def inject_g_user():
         c = conn.cursor()
         c.execute('''
             SELECT u.id, u.telegram_username, u.telegram_first_name,
-                   up.custom_name, up.avatar_url, up.custom_avatar_url
+                   up.custom_name, up.avatar_url, up.custom_avatar_url,
+                   (SELECT si.preview_url FROM shop_items si
+                    JOIN user_items ui ON si.id = ui.item_id
+                    WHERE ui.user_id = u.id AND ui.is_equipped = 1 AND si.type = 'frame'
+                    LIMIT 1) as frame_preview_url
             FROM users u
             LEFT JOIN user_profile up ON up.user_id = u.id
             WHERE u.id = ?
         ''', (user_id,))
         row = c.fetchone()
         if not row:
-            return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None}}
+            return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None, 'frame_preview_url': None}}
         display_name = (
             (row['custom_name'] or '').strip() or
             (row['telegram_first_name'] or '').strip() or
@@ -216,7 +220,8 @@ def inject_g_user():
             f'#{user_id}'
         )
         avatar = row['avatar_url'] or None
-        return {'g_user': {'id': row['id'], 'display_name': display_name, 'avatar_url': avatar}}
+        frame = row['frame_preview_url'] or None
+        return {'g_user': {'id': row['id'], 'display_name': display_name, 'avatar_url': avatar, 'frame_preview_url': frame}}
     except Exception as e:
         logger.warning(f'inject_g_user error: {e}')
         return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None}}

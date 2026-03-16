@@ -116,12 +116,25 @@
 }
 .g-user-trigger:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); }
 .g-ava {
-  width: 48px; height: 48px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
   background: linear-gradient(135deg,#e09535,#c07828);
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; font-weight: 700; color: #fff;
+  position: relative; overflow: visible;
 }
-.g-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.g-ava-inner {
+  width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700; color: #fff;
+}
+.g-ava-inner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.g-ava-frame {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 160%; height: 160%;
+  pointer-events: none; z-index: 2;
+  object-fit: contain;
+}
 .g-uname { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .g-caret { font-size: 10px; color: rgba(244,244,245,.4); transition: transform .2s; line-height: 1; }
 .g-user.open .g-caret { transform: rotate(180deg); }
@@ -378,10 +391,15 @@
       <div class="g-user" id="gUser">
         <button class="g-user-trigger" onclick="gToggleUser(event)" type="button">
           <div class="g-ava">
-            {% if g_user and g_user.avatar_url %}
-              <img src="{{ g_user.avatar_url }}" alt="">
-            {% else %}
-              {{ ((g_user.display_name if g_user else session.username) or '?')[0]|upper }}
+            <div class="g-ava-inner">
+              {% if g_user and g_user.avatar_url %}
+                <img src="{{ g_user.avatar_url }}" alt="">
+              {% else %}
+                {{ ((g_user.display_name if g_user else session.username) or '?')[0]|upper }}
+              {% endif %}
+            </div>
+            {% if g_user and g_user.frame_preview_url %}
+              <img class="g-ava-frame" src="{{ g_user.frame_preview_url }}" alt="">
             {% endif %}
           </div>
           <span class="g-uname">{{ g_user.display_name if g_user else session.username }}</span>
