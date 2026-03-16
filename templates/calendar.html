@@ -4,21 +4,21 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/png" href="/static/favicon.png"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
-  <meta name="theme-color" content="#667eea"/>
-  <title>Календарь манги — BubbleManga</title>
+  <meta name="theme-color" content="#e09535"/>
+  <title>Календарь манги — Манговая</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --primary-g: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --bg: #0a0a0a;
-      --card: #141414;
-      --card2: #1a1a1a;
-      --border: rgba(255,255,255,.07);
-      --text: #ffffff;
-      --text-2: #a1a1aa;
+      --primary-g: linear-gradient(135deg, #e09535 0%, #c07828 100%);
+      --bg: #0e0b08;
+      --card: #1c160f;
+      --card2: #231c13;
+      --border: rgba(237,200,140,.08);
+      --text: #f0ebe3;
+      --text-2: #a89880;
       --text-3: #52525b;
     }
     html, body {
@@ -71,7 +71,7 @@
       transition: background .15s, border-color .15s;
       line-height: 1; padding: 0;
     }
-    .cal-nav-btn:hover { background: rgba(102,126,234,.15); border-color: rgba(102,126,234,.4); }
+    .cal-nav-btn:hover { background: rgba(224,149,53,.15); border-color: rgba(224,149,53,.4); }
     .cal-month-label { font-size: 22px; font-weight: 700; letter-spacing: -.4px; }
     .cal-month-label span { color: var(--text-2); font-weight: 400; margin-left: 8px; font-size: 18px; }
 
@@ -119,7 +119,7 @@
     }
     .cal-day-count {
       font-size: 10px; font-weight: 700;
-      color: #818cf8;
+      color: #e09535;
       line-height: 1;
       letter-spacing: .2px;
       white-space: nowrap;
@@ -127,7 +127,7 @@
     }
 
     .cal-day.other-month .cal-day-num { color: var(--text-3); }
-    .cal-day.other-month .cal-day-count { color: rgba(129,140,248,.4); }
+    .cal-day.other-month .cal-day-count { color: rgba(224,149,53,.4); }
 
     /* Today */
     .cal-day.today .cal-day-num { color: #fff; }
@@ -142,11 +142,11 @@
     .cal-day.has-chapters { cursor: pointer; }
     .cal-day.has-chapters .cal-day-num { color: #e4e4e7; }
     .cal-day.has-chapters .cal-day-count { display: block; }
-    .cal-day.has-chapters:hover { background: rgba(102,126,234,.13); transform: translateY(-1px); }
+    .cal-day.has-chapters:hover { background: rgba(224,149,53,.13); transform: translateY(-1px); }
 
     /* Selected */
     .cal-day.selected {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      background: linear-gradient(135deg, #e09535 0%, #c07828 100%) !important;
       cursor: pointer;
     }
     .cal-day.selected .cal-day-num { color: #fff; font-weight: 700; }
@@ -222,7 +222,7 @@
       font-size: 16px; font-weight: 700;
     }
     .cal-modal-sub {
-      font-size: 12px; color: #818cf8;
+      font-size: 12px; color: #e09535;
       margin-top: 2px;
     }
     .cal-modal-close {
@@ -266,7 +266,7 @@
     .cal-spinner {
       width: 16px; height: 16px;
       border: 2px solid rgba(255,255,255,.1);
-      border-top-color: #667eea;
+      border-top-color: #e09535;
       border-radius: 50%;
       animation: spin .7s linear infinite;
     }
@@ -288,7 +288,7 @@
       font-size: 13px; font-weight: 700;
       color: #e4e4e7; text-decoration: none;
     }
-    .cal-group-label a:hover { color: #818cf8; }
+    .cal-group-label a:hover { color: #e09535; }
     .cal-group-chapters { display: flex; flex-direction: column; gap: 5px; padding-left: 40px; }
     .cal-ch {
       display: flex; align-items: center; gap: 8px;
@@ -299,8 +299,8 @@
       text-decoration: none; color: inherit;
       transition: background .14s, border-color .14s;
     }
-    .cal-ch:hover { background: rgba(102,126,234,.08); border-color: rgba(102,126,234,.3); }
-    .cal-ch-num { font-size: 12px; font-weight: 700; color: #818cf8; flex-shrink: 0; }
+    .cal-ch:hover { background: rgba(224,149,53,.08); border-color: rgba(224,149,53,.3); }
+    .cal-ch-num { font-size: 12px; font-weight: 700; color: #e09535; flex-shrink: 0; }
     .cal-ch-name { font-size: 11px; color: var(--text-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cal-ch-arr { color: var(--text-3); font-size: 13px; flex-shrink: 0; }
 

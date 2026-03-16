@@ -5,23 +5,30 @@
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#141414">
-    <title>BubbleManga — Читай мангу</title>
+    <title>Манговая — Читай мангу</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         :root{
-            --bg:#0d0d16; --card:#17172280; --card2:#1e1e2a;
-            --text:#e5e5e5; --muted:#999;
-            --p:#6366f1; --p-light:#818cf8;
-            --border:rgba(255,255,255,.07);
-            --gp:linear-gradient(135deg,#667eea,#764ba2);
+            --bg:#0e0b08; --card:#1c160f; --card2:#231c13;
+            --text:#f0ebe3; --muted:#a89880;
+            --p:#e09535; --p-light:#e8b04a;
+            --border:rgba(237,200,140,.08);
+            --gp:linear-gradient(135deg,#e09535,#c07828);
         }
         html{overflow-x:hidden;}
+        body::before{
+            content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+            background:
+                radial-gradient(ellipse 160% 60% at 50% 0%,   rgba(40,22,6,.9)  0%, transparent 55%),
+                radial-gradient(ellipse 120% 40% at 0%   100%, rgba(25,14,4,.7)  0%, transparent 50%),
+                radial-gradient(ellipse 100% 50% at 100% 80%,  rgba(30,16,5,.6)  0%, transparent 50%);
+        }
         body{
             font-family:'Inter',system-ui,-apple-system,sans-serif;
-            background:#0d0d16;
+            background: linear-gradient(160deg, #130e07 0%, #0e0b08 40%, #0b0806 100%);
             color:var(--text);
             -webkit-font-smoothing:antialiased;
             padding-bottom:calc(70px + env(safe-area-inset-bottom,0px));
@@ -57,7 +64,7 @@
             .scroll-btn.left{ left:-16px; }
             .scroll-btn.right{ right:-16px; }
             .grid-wrap:hover .scroll-btn{ opacity:1; pointer-events:auto; }
-            .scroll-btn:hover{ background:rgba(99,102,241,.35); border-color:rgba(99,102,241,.5); }
+            .scroll-btn:hover{ background:rgba(224,149,53,.35); border-color:rgba(224,149,53,.5); }
             .scroll-btn.hidden{ opacity:0 !important; pointer-events:none !important; }
         }
 
@@ -148,7 +155,7 @@
             font-size:.6rem; font-weight:700;
             pointer-events:none;
         }
-        .manga-status.reading  {background:rgba(99,102,241,.85); color:#fff;}
+        .manga-status.reading  {background:rgba(224,149,53,.85); color:#fff;}
         .manga-status.completed{background:rgba(74,222,128,.85);  color:#052e16;}
         .manga-status.planned  {background:rgba(251,191,36,.85);  color:#1c1400;}
         .manga-status.dropped  {background:rgba(248,113,113,.85); color:#fff;}
@@ -162,7 +169,7 @@
             line-height:1.4; margin-bottom:.35rem; min-height:2.1em;
         }
         .manga-meta{display:flex; align-items:center; justify-content:space-between; gap:4px;}
-        .manga-rating{font-size:.7rem; color:#fbbf24; font-weight:600;}
+        .manga-rating{font-size:.7rem; color:#e8b04a; font-weight:600;}
 
         /* ── Updates list ── */
         .updates-list{display:flex; flex-direction:column; gap:1px;}
@@ -248,20 +255,22 @@
 
         /* ── Hero ── */
         .hero{
-            position:relative; overflow:hidden;
+            position:relative;
             padding:32px 16px 28px;
         }
         .hero::before{
-            content:''; position:absolute; inset:0;
-            background:radial-gradient(ellipse 80% 60% at 30% 50%, rgba(99,102,241,.1) 0%, transparent 70%);
-            pointer-events:none;
+            content:''; position:absolute; inset:-40px;
+            background:
+                radial-gradient(ellipse 90% 70% at 30% 50%, rgba(224,149,53,.10) 0%, transparent 65%),
+                radial-gradient(ellipse 60% 80% at 80% 20%, rgba(200,120,40,.07) 0%, transparent 55%);
+            pointer-events:none; z-index:0;
         }
         .hero-text{position:relative; z-index:1;}
         .hero-label{
             display:inline-block; width:fit-content; align-self:center;
             margin-bottom:14px;
             padding:4px 12px; border-radius:40px;
-            background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.3);
+            background:rgba(224,149,53,.1); border:1px solid rgba(224,149,53,.3);
             font-size:10px; font-weight:700; letter-spacing:1px;
             text-transform:uppercase; color:var(--p-light);
         }
@@ -287,7 +296,7 @@
             transition:opacity .2s, transform .2s;
         }
         .hero-btn:active{transform:scale(.97);}
-        .hero-btn.primary{background:var(--gp); color:#fff; box-shadow:0 6px 20px rgba(99,102,241,.4);}
+        .hero-btn.primary{background:var(--gp); color:#fff; box-shadow:0 6px 20px rgba(224,149,53,.3);}
         .hero-btn.primary:hover{opacity:.9;}
         .hero-btn.ghost{
             background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
@@ -306,14 +315,21 @@
         .hero-img-wrap{
             order:-1;
             display:block; position:relative; overflow:hidden;
-            border-radius:12px; margin:0 16px 20px;
+            margin:0 0 20px;
             aspect-ratio:21/9;
-            box-shadow:0 20px 48px rgba(0,0,0,.6);
             animation:float 4s ease-in-out infinite;
+            -webkit-mask-image:
+                linear-gradient(to bottom, transparent 0%, black 14%, black 72%, transparent 100%),
+                linear-gradient(to right,  transparent 0%, black 8%,  black 92%, transparent 100%);
+            -webkit-mask-composite: destination-in;
+            mask-image:
+                linear-gradient(to bottom, transparent 0%, black 14%, black 72%, transparent 100%),
+                linear-gradient(to right,  transparent 0%, black 8%,  black 92%, transparent 100%);
+            mask-composite: intersect;
         }
         .hero-img-wrap::after{
             content:''; position:absolute; inset:0;
-            background:linear-gradient(135deg, rgba(99,102,241,.12) 0%, transparent 60%);
+            background:linear-gradient(135deg, rgba(224,149,53,.08) 0%, transparent 60%);
             pointer-events:none;
         }
         .hero-img{width:100%; height:100%; object-fit:cover; display:block;}
@@ -340,10 +356,17 @@
             }
             .hero-btns{ justify-content:flex-start; }
             .hero-img-wrap{
-                order:2; margin:0; border-radius:16px;
+                order:2; margin:0;
                 aspect-ratio:21/9; height:auto; min-height:unset;
                 align-self:center;
-                box-shadow:0 32px 80px rgba(0,0,0,.7);
+                -webkit-mask-image:
+                    linear-gradient(to bottom, transparent 0%, black 10%, black 78%, transparent 100%),
+                    linear-gradient(to right,  transparent 0%, black 5%,  black 95%, transparent 100%);
+                -webkit-mask-composite: destination-in;
+                mask-image:
+                    linear-gradient(to bottom, transparent 0%, black 10%, black 78%, transparent 100%),
+                    linear-gradient(to right,  transparent 0%, black 5%,  black 95%, transparent 100%);
+                mask-composite: intersect;
             }
             .hero-title{font-size:52px; letter-spacing:-2px; margin-bottom:20px;}
             .hero-label{margin-bottom:20px; font-size:11px; letter-spacing:1.2px;}
@@ -358,31 +381,31 @@
         }
         .orb{
             position:absolute; border-radius:50%;
-            filter:blur(80px); opacity:.55;
+            filter:blur(90px); opacity:.6;
             will-change:transform;
         }
         .orb1{
-            width:520px; height:520px;
-            background:radial-gradient(circle, rgba(109,60,210,.7) 0%, transparent 70%);
-            top:-10%; left:-8%;
+            width:680px; height:680px;
+            background:radial-gradient(circle, rgba(200,120,40,.55) 0%, transparent 65%);
+            top:-15%; left:-12%;
             animation:orb1move 18s ease-in-out infinite;
         }
         .orb2{
-            width:440px; height:440px;
-            background:radial-gradient(circle, rgba(59,90,220,.65) 0%, transparent 70%);
-            bottom:-12%; right:-6%;
+            width:560px; height:560px;
+            background:radial-gradient(circle, rgba(150,90,30,.5) 0%, transparent 65%);
+            bottom:-15%; right:-8%;
             animation:orb2move 22s ease-in-out infinite;
         }
         .orb3{
-            width:360px; height:360px;
-            background:radial-gradient(circle, rgba(160,50,180,.5) 0%, transparent 70%);
-            top:40%; left:55%;
+            width:420px; height:420px;
+            background:radial-gradient(circle, rgba(224,149,53,.28) 0%, transparent 65%);
+            top:45%; left:50%;
             animation:orb3move 26s ease-in-out infinite;
         }
         .orb4{
-            width:280px; height:280px;
-            background:radial-gradient(circle, rgba(40,100,200,.45) 0%, transparent 70%);
-            top:20%; right:20%;
+            width:340px; height:340px;
+            background:radial-gradient(circle, rgba(180,100,30,.38) 0%, transparent 65%);
+            top:15%; right:15%;
             animation:orb4move 20s ease-in-out infinite;
         }
         @keyframes orb1move{
@@ -404,8 +427,8 @@
             0%,100%{transform:translate(0,0);}
             50%{transform:translate(-60px,80px);}
         }
-        /* всё содержимое поверх орбов */
-        body>*:not(.orbs){ position:relative; z-index:1; }
+        /* контент поверх орбов */
+        .wrap, .hero{ position:relative; z-index:1; }
     </style>
     <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
 </head>
@@ -438,8 +461,10 @@
         </div>
     </div>
     <div class="hero-img-wrap">
-        <img src="https://i.pinimg.com/originals/04/3c/c7/043cc74e58d17f6715746baecddc99d3.jpg"
-             alt="Манга" class="hero-img" loading="lazy">
+        <!-- <img src="https://i.pinimg.com/originals/04/3c/c7/043cc74e58d17f6715746baecddc99d3.jpg"
+             alt="Манга" class="hero-img" loading="lazy"> -->
+        <img src="/static/mango_eye.jpg"
+            alt="Манга" class="hero-img" loading="lazy">
     </div>
 </section>
 

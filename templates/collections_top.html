@@ -4,20 +4,20 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/png" href="/static/favicon.png"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
-  <meta name="theme-color" content="#667eea"/>
-  <title>Топ коллекций — BubbleManga</title>
+  <meta name="theme-color" content="#e09535"/>
+  <title>Топ коллекций — Манговая</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --accent: #667eea;
-      --bg: #0a0a0a;
-      --card: #1a1a1a;
-      --card2: #141414;
-      --border: rgba(255,255,255,.06);
+      --primary: linear-gradient(135deg, #e09535 0%, #c07828 100%);
+      --accent: #e09535;
+      --bg: #0e0b08;
+      --card: #1c160f;
+      --card2: #150f0a;
+      --border: rgba(237,200,140,.08);
       --text: #ffffff;
       --text-2: #b8b8b8;
       --text-3: #71717a;
@@ -33,7 +33,7 @@
     /* ── Hero ── */
     .hero-section {
       text-align: center; padding: 3.5rem 1rem 2.5rem;
-      background: linear-gradient(135deg, #08081a 0%, #0f0c2a 50%, #10091e 100%);
+      background: linear-gradient(135deg, #150f0a 0%, #231c13 50%, #1c160f 100%);
       border-bottom: 1px solid var(--border);
     }
     .hero-section h1 {
@@ -63,11 +63,11 @@
       overflow: hidden; transition: transform .2s, border-color .2s;
       display: flex; flex-direction: column;
     }
-    .coll-card:hover { transform: translateY(-4px); border-color: rgba(102,126,234,.35); }
+    .coll-card:hover { transform: translateY(-4px); border-color: rgba(224,149,53,.35); }
 
     .coll-card-cover {
       width: 100%; height: 140px; position: relative; overflow: hidden;
-      background: linear-gradient(135deg, #0f0c2a 0%, #1a1040 100%);
+      background: linear-gradient(135deg, #150f0a 0%, #231c13 100%);
       flex-shrink: 0;
     }
     .coll-card-cover img {
@@ -112,13 +112,13 @@
     }
     .coll-owner-ava {
       width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: linear-gradient(135deg, #e09535, #c07828);
       display: flex; align-items: center; justify-content: center;
       font-size: .6rem; font-weight: 700;
     }
     .coll-owner-ava img { width: 100%; height: 100%; object-fit: cover; }
     .coll-owner-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .coll-owner:hover { color: #818cf8; }
+    .coll-owner:hover { color: #e09535; }
 
     .coll-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
     .coll-stat { font-size: .75rem; color: var(--text-3); white-space: nowrap; }
@@ -135,11 +135,11 @@
     .btn-open {
       display: inline-flex; align-items: center;
       padding: .28rem .7rem; border-radius: 14px;
-      background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.25);
-      color: #818cf8; font-size: .76rem; font-weight: 600;
+      background: rgba(224,149,53,.12); border: 1px solid rgba(224,149,53,.25);
+      color: #e09535; font-size: .76rem; font-weight: 600;
       cursor: pointer; transition: background .15s; font-family: inherit; text-decoration: none;
     }
-    .btn-open:hover { background: rgba(102,126,234,.22); }
+    .btn-open:hover { background: rgba(224,149,53,.22); }
 
     /* ── Пусто ── */
     .empty-state { text-align: center; padding: 4rem 1rem; color: var(--text-3); }
@@ -148,7 +148,7 @@
     /* ── Toast ── */
     .toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
-      background: #27272a; border: 1px solid rgba(255,255,255,.1); border-radius: 12px;
+      background: #231c13; border: 1px solid rgba(237,200,140,.1); border-radius: 12px;
       padding: 10px 18px; font-size: 13px; font-weight: 600;
       opacity: 0; transition: all .3s; z-index: 9000; pointer-events: none;
       max-width: calc(100vw - 32px); white-space: normal; text-align: center; box-sizing: border-box;

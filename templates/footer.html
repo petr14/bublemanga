@@ -1,7 +1,7 @@
-{# ═══ Общий футер BubbleManga ════════════════════════════════════════════════ #}
+{# ═══ Общий футер Манговая ════════════════════════════════════════════════ #}
 <style>
 .g-footer {
-  background: rgba(10, 10, 10, 0.9);
+  background: rgba(14, 11, 8, 0.9);
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   margin-top: 40px;
   padding: 28px 20px;
@@ -17,14 +17,15 @@
 }
 .g-footer-brand { display: flex; flex-direction: column; gap: 3px; }
 .g-footer-logo {
-  font-size: 17px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
   text-decoration: none;
-  font-family: 'Poppins', sans-serif;
+  display: inline-flex;
+  align-items: center;
+}
+.g-footer-logo img {
+  height: 100px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 .g-footer-tagline {
   font-size: 11px;
@@ -59,11 +60,11 @@
   font-family: 'Poppins', sans-serif;
 }
 .g-footer-copy a {
-  color: rgba(102, 126, 234, 0.65);
+  color: rgba(191, 138, 90, 0.65);
   text-decoration: none;
   transition: color .17s;
 }
-.g-footer-copy a:hover { color: #818cf8; }
+.g-footer-copy a:hover { color: #e09535; }
 @media (max-width: 600px) {
   .g-footer-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
   .g-footer-nav { gap: 0; }
@@ -73,8 +74,10 @@
 <footer class="g-footer">
   <div class="g-footer-inner">
     <div class="g-footer-brand">
-      <a href="/" class="g-footer-logo">BubbleManga</a>
-      <p class="g-footer-tagline">Читайте мангу онлайн</p>
+      <a href="/" class="g-footer-logo">
+        <img src="/static/logo_mobile.png?v=1773669920" alt="Манговая">
+      </a>
+      <p class="g-footer-tagline">Уютное место для чтения манги</p>
     </div>
     <nav class="g-footer-nav">
       <a href="/">Главная</a>
@@ -85,7 +88,7 @@
       <a href="https://t.me/hookah_p_bot" target="_blank">Поддержка</a>
     </nav>
     <div class="g-footer-copy">
-      <span>© 2025 BubbleManga</span>
+      <span>© 2025 Манговая</span>
       <a href="https://t.me/hookah_p_bot" target="_blank">Telegram</a>
     </div>
   </div>

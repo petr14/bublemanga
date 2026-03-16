@@ -773,7 +773,12 @@ tr:hover td{background:var(--glass)}
           <span style="font-size:11px;color:var(--text3)">или укажите URL</span>
           <div style="flex:1;height:1px;background:var(--border)"></div>
         </div>
-        <input class="input" id="sm-preview-url" placeholder="https://example.com/image.jpg" style="margin-top:8px" oninput="onPreviewUrlInput()">
+        <input class="input" id="sm-preview-url" placeholder="https://example.com/image.jpg или /static/wallpaper/name_320x80.webm" style="margin-top:8px" oninput="onPreviewUrlInput()">
+        <!-- Full URL — для видео-фонов (полное качество для профиля) -->
+        <div id="sm-full-url-section" style="margin-top:8px;display:none">
+          <label class="form-label" style="font-size:11px;color:var(--text3);margin-bottom:4px">Полный URL (для профиля — 1920×480)</label>
+          <input class="input" id="sm-full-url" placeholder="/static/wallpaper/name_1920x480.webm">
+        </div>
       </div>
 
       <!-- CSS — для рамок/фонов/значков -->
@@ -1335,6 +1340,9 @@ function onShopTypeChange(){
   if(cfg.fileLabel) $('sm-file-label').textContent = cfg.fileLabel;
   if(cfg.hint !== undefined) $('sm-css-hint').textContent = cfg.hint;
 
+  // full_url — только для background (видео-фоны)
+  $('sm-full-url-section').style.display = type === 'background' ? '' : 'none';
+
   // Аватар — круглое превью
   const box = $('sm-preview-box');
   if(type === 'avatar'){
@@ -1437,10 +1445,11 @@ async function openShopModal(id){
         $('sm-preview-url').value = it.preview_url;
         _setPreviewImg(it.preview_url);
       }
+      $('sm-full-url').value = it.full_url||'';
     }
   } else {
     $('sm-title').textContent = 'Новый товар';
-    ['sm-name','sm-description','sm-css','sm-preview-url'].forEach(id=>$(id).value='');
+    ['sm-name','sm-description','sm-css','sm-preview-url','sm-full-url'].forEach(id=>$(id).value='');
     $('sm-type').value='avatar'; $('sm-price').value=0;
     $('sm-upload').checked=false; $('sm-animated').checked=false; $('sm-duration').value='';
   }
@@ -1457,6 +1466,7 @@ async function saveShopItem(){
     price: parseInt($('sm-price').value)||0,
     css_value: $('sm-css').value.trim(),
     preview_url: $('sm-preview-url').value.trim(),
+    full_url: $('sm-full-url').value.trim() || null,
     is_upload: $('sm-upload').checked,
     is_animated: $('sm-animated').checked,
     duration_days: parseInt($('sm-duration').value) || null,

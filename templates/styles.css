@@ -11,7 +11,7 @@
     --accent: #ec4899;
     --accent-light: #f472b6;
     --success: #22c55e;
-    --warning: #fbbf24;
+    --warning: #e8b04a;
     --bg-dark: #0a0a0a;
     --bg-card: #141414;
     --bg-hover: #1f1f1f;
@@ -652,7 +652,7 @@ body {
 
 /* ==================== ПРОМО PREMIUM ==================== */
 .premium-promo {
-    background: linear-gradient(135deg, var(--warning) 0%, #f59e0b 100%);
+    background: linear-gradient(135deg, var(--warning) 0%, #e09535 100%);
     border-radius: 20px;
     padding: 40px;
     color: #1a1a1a;

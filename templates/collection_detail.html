@@ -4,20 +4,20 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/png" href="/static/favicon.png"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
-  <meta name="theme-color" content="#667eea"/>
-  <title>{{ coll.name }} — BubbleManga</title>
+  <meta name="theme-color" content="#e09535"/>
+  <title>{{ coll.name }} — Манговая</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --accent: #667eea;
-      --bg: #0a0a0a;
-      --card: #1a1a1a;
-      --card2: #141414;
-      --border: rgba(255,255,255,.06);
+      --primary: linear-gradient(135deg, #e09535 0%, #c07828 100%);
+      --accent: #e09535;
+      --bg: #0e0b08;
+      --card: #1c160f;
+      --card2: #150f0a;
+      --border: rgba(237,200,140,.08);
       --text: #ffffff;
       --text-2: #b8b8b8;
       --text-3: #71717a;
@@ -39,7 +39,7 @@
     }
     .coll-hero-bg {
       position: absolute; inset: 0; z-index: 0;
-      background: linear-gradient(135deg, #08081a 0%, #0f0c2a 50%, #10091e 100%);
+      background: linear-gradient(135deg, #150f0a 0%, #231c13 50%, #1c160f 100%);
     }
     .coll-hero-bg img {
       width: 100%; height: 100%; object-fit: cover;
@@ -47,7 +47,7 @@
     }
     .coll-hero-overlay {
       position: absolute; inset: 0; z-index: 1;
-      background: linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,.4) 60%, transparent 100%);
+      background: linear-gradient(to top, rgba(14,11,8,1) 0%, rgba(14,11,8,.4) 60%, transparent 100%);
     }
     .coll-hero-content {
       position: relative; z-index: 2;
@@ -62,10 +62,10 @@
     }
     .coll-cover-placeholder {
       width: 110px; height: 155px; border-radius: 12px; flex-shrink: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #e09535 0%, #c07828 100%);
       display: flex; align-items: center; justify-content: center;
       font-size: 2.8rem;
-      box-shadow: 0 8px 32px rgba(102,126,234,.4);
+      box-shadow: 0 8px 32px rgba(224,149,53,.4);
     }
     .coll-hero-info { flex: 1; min-width: 0; }
     .coll-hero-info h1 {
@@ -85,12 +85,12 @@
     }
     .coll-owner-ava {
       width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
-      background: linear-gradient(135deg, #667eea, #764ba2);
+      background: linear-gradient(135deg, #e09535, #c07828);
       display: flex; align-items: center; justify-content: center;
       font-size: .75rem; font-weight: 700; flex-shrink: 0;
     }
     .coll-owner-ava img { width: 100%; height: 100%; object-fit: cover; }
-    .coll-owner:hover { color: #818cf8; }
+    .coll-owner:hover { color: #e09535; }
     .coll-stat { font-size: .8rem; color: var(--text-3); display: flex; align-items: center; gap: .3rem; }
 
     /* ── Кнопка лайка ── */
@@ -129,7 +129,7 @@
       background: var(--card2); border: 1px solid var(--border);
       cursor: pointer; transition: transform .2s, border-color .2s;
     }
-    .mcard:hover { transform: translateY(-4px); border-color: rgba(102,126,234,.4); }
+    .mcard:hover { transform: translateY(-4px); border-color: rgba(224,149,53,.4); }
     .mcard-img {
       width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block;
     }
@@ -153,13 +153,13 @@
       font-size: .8rem; color: var(--text-3); margin-bottom: 1.2rem;
     }
     .breadcrumbs a { color: var(--text-3); transition: color .15s; }
-    .breadcrumbs a:hover { color: #818cf8; }
+    .breadcrumbs a:hover { color: #e09535; }
     .breadcrumbs span { color: var(--text-2); }
 
     /* ── Toast ── */
     .toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px);
-      background: #27272a; border: 1px solid rgba(255,255,255,.1); border-radius: 12px;
+      background: #231c13; border: 1px solid rgba(237,200,140,.1); border-radius: 12px;
       padding: 10px 18px; font-size: 13px; font-weight: 600;
       opacity: 0; transition: all .3s; z-index: 9000; pointer-events: none;
       max-width: calc(100vw - 32px); white-space: normal; text-align: center; box-sizing: border-box;
@@ -176,7 +176,7 @@
       font-size: .82rem; font-weight: 600; cursor: pointer;
       transition: all .2s; font-family: inherit;
     }
-    .btn-edit-coll:hover { border-color: #818cf8; color: #818cf8; background: rgba(129,140,248,.08); }
+    .btn-edit-coll:hover { border-color: #e09535; color: #e09535; background: rgba(224,149,53,.08); }
 
     /* ── Edit modal ── */
     .emodal-overlay {
@@ -186,7 +186,7 @@
     }
     .emodal-overlay.open { opacity: 1; pointer-events: all; }
     .emodal {
-      background: #18181b; border: 1px solid rgba(255,255,255,.08); border-radius: 20px;
+      background: #1c160f; border: 1px solid rgba(237,200,140,.08); border-radius: 20px;
       padding: 1.5rem; width: 100%; max-width: 440px;
       transform: translateY(20px); transition: transform .2s;
     }
@@ -206,7 +206,7 @@
       border-radius: 10px; padding: .6rem .85rem; color: var(--text); font-family: inherit;
       font-size: .88rem; resize: vertical; outline: none;
     }
-    .emodal input[type="text"]:focus, .emodal textarea:focus { border-color: rgba(129,140,248,.4); }
+    .emodal input[type="text"]:focus, .emodal textarea:focus { border-color: rgba(224,149,53,.4); }
     .emodal .field { margin-bottom: 1rem; }
     .emodal-cover-row {
       display: flex; align-items: center; gap: .65rem; flex-wrap: wrap;
@@ -230,7 +230,7 @@
     }
     .emodal-actions .btn-save {
       padding: .5rem 1.4rem; border-radius: 12px;
-      background: linear-gradient(135deg,#667eea,#764ba2); color: #fff;
+      background: linear-gradient(135deg,#e09535,#c07828); color: #fff;
       border: none; font-family: inherit; font-size: .88rem; font-weight: 600; cursor: pointer;
     }
     .emodal-actions .btn-save:disabled { opacity: .5; cursor: not-allowed; }

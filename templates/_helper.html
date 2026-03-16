@@ -16,38 +16,38 @@
   .hlp-panel    { display: none !important; }
 }
 
-/* ── Мыльный пузырь — маленький кружок ── */
+/* ── Шарик манго ── */
 .hlp-btn {
   display: block; position: relative;
   width: 68px; height: 68px;
   border-radius: 50%;
   border: none; padding: 0; cursor: pointer; overflow: hidden;
   background:
-    radial-gradient(ellipse at 32% 20%, rgba(255,255,255,.50) 0%, transparent 46%),
-    radial-gradient(ellipse at 65% 78%, rgba(162,100,255,.20) 0%, transparent 42%),
-    linear-gradient(150deg, rgba(102,126,234,.22), rgba(118,75,162,.15));
+    radial-gradient(ellipse at 30% 18%, rgba(240,210,155,.55) 0%, transparent 44%),
+    radial-gradient(ellipse at 68% 80%, rgba(175,110,45,.22)   0%, transparent 40%),
+    linear-gradient(150deg, #e09535, #8b5e2a);
   box-shadow:
-    inset 3px 4px 12px rgba(255,255,255,.60),
-    inset -2px -3px 9px  rgba(118,75,162,.30),
-    0 0 0 2px  rgba(255,255,255,.32),
-    0 0 0 4px  rgba(102,126,234,.22),
-    0 10px 36px rgba(102,126,234,.55);
+    inset 3px 4px 12px rgba(242,215,160,.55),
+    inset -2px -3px 9px  rgba(130,82,30,.35),
+    0 0 0 2px  rgba(232,190,90,.35),
+    0 0 0 4px  rgba(224,149,53,.20),
+    0 10px 36px rgba(224,149,53,.50);
   animation: hlp-shimmer 6s ease-in-out infinite;
   transition: transform .2s, box-shadow .2s;
 }
 .hlp-btn:hover {
   transform: scale(1.1);
   box-shadow:
-    inset 3px 4px 12px rgba(255,255,255,.70),
-    inset -2px -3px 9px  rgba(118,75,162,.38),
-    0 0 0 2px rgba(255,255,255,.46),
-    0 0 0 4px rgba(102,126,234,.32),
-    0 14px 44px rgba(102,126,234,.70);
+    inset 3px 4px 12px rgba(242,215,160,.70),
+    inset -2px -3px 9px  rgba(130,82,30,.45),
+    0 0 0 2px rgba(232,190,90,.55),
+    0 0 0 4px rgba(224,149,53,.35),
+    0 14px 44px rgba(224,149,53,.70);
 }
 @keyframes hlp-shimmer {
-  0%,100% { filter: hue-rotate(0deg)   saturate(1);   }
-  33%      { filter: hue-rotate(28deg)  saturate(1.25); }
-  66%      { filter: hue-rotate(-20deg) saturate(1.15); }
+  0%,100% { filter: brightness(1)   saturate(1);    }
+  40%      { filter: brightness(1.1) saturate(1.2);  }
+  70%      { filter: brightness(.95) saturate(1.05); }
 }
 .hlp-char-img {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -58,8 +58,8 @@
   position: absolute; inset: 0; border-radius: 50%; z-index: 2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 34% 18%, rgba(255,255,255,.65) 0%, transparent 38%),
-    radial-gradient(ellipse at 62% 80%, rgba(200,150,255,.15) 0%, transparent 32%);
+    radial-gradient(ellipse at 32% 16%, rgba(255,255,220,.70) 0%, transparent 36%),
+    radial-gradient(ellipse at 64% 82%, rgba(180,90,10,.18)   0%, transparent 30%);
 }
 .hlp-btn-emoji {
   position: absolute; inset: 0; display: none;
@@ -69,7 +69,7 @@
 .hlp-dot {
   position: absolute; top: 2px; right: 2px; z-index: 10;
   width: 12px; height: 12px; border-radius: 50%;
-  background: #ef4444; border: 2px solid #0a0a0a;
+  background: #ef4444; border: 2px solid #0e0b08;
   animation: hlp-pulse 1.5s ease-in-out infinite;
 }
 @keyframes hlp-pulse {
@@ -77,22 +77,22 @@
   50%      { transform: scale(1.3); opacity: .7; }
 }
 
-/* ── Панель (справа-вверху от кнопки) ── */
+/* ── Панель ── */
 .hlp-panel {
   position: fixed; bottom: 100px; left: 20px; z-index: 610;
   width: min(340px, calc(100vw - 48px));
-  background: #111; border: 1px solid rgba(255,255,255,.1);
+  background: #1a1208; border: 1px solid rgba(232,182,92,.12);
   border-radius: 20px; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.7);
+  box-shadow: 0 20px 60px rgba(0,0,0,.8), 0 0 0 1px rgba(224,149,53,.08);
   transform: translateY(12px) scale(.96);
   opacity: 0; pointer-events: none;
   transition: transform .25s, opacity .25s;
 }
 .hlp-panel.open { transform: none; opacity: 1; pointer-events: all; }
 
-/* Шапка панели */
+/* Шапка */
 .hlp-head {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #e09535, #c07828);
   padding: 14px 14px 12px;
   display: flex; align-items: center; gap: 10px;
 }
@@ -105,30 +105,30 @@
 .hlp-head-ava img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .hlp-head-info { flex: 1; min-width: 0; }
 .hlp-head-name { font-weight: 800; font-size: .92rem; color: #fff; }
-.hlp-head-sub  { font-size: .7rem; color: rgba(255,255,255,.65); margin-top: 1px; }
+.hlp-head-sub  { font-size: .7rem; color: rgba(255,255,255,.7); margin-top: 1px; }
 .hlp-close {
   width: 26px; height: 26px; border-radius: 50%;
-  background: rgba(255,255,255,.15); border: none; color: #fff;
+  background: rgba(0,0,0,.18); border: none; color: #fff;
   cursor: pointer; font-size: 13px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s;
 }
-.hlp-close:hover { background: rgba(255,255,255,.28); }
+.hlp-close:hover { background: rgba(0,0,0,.32); }
 
 /* Вкладки */
-.hlp-tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,.07); }
+.hlp-tabs { display: flex; border-bottom: 1px solid rgba(232,182,92,.1); }
 .hlp-tab {
   flex: 1; padding: 10px 6px; background: none; border: none;
-  color: rgba(255,255,255,.45); font-size: .76rem; font-weight: 600;
+  color: rgba(237,200,140,.45); font-size: .76rem; font-weight: 600;
   cursor: pointer; transition: color .15s; font-family: inherit;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
-.hlp-tab.active { color: #818cf8; border-bottom-color: #818cf8; }
+.hlp-tab.active { color: #e8b04a; border-bottom-color: #e8b04a; }
 
 /* Контент */
 .hlp-body {
   padding: 12px 14px; max-height: 260px; overflow-y: auto;
-  scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+  scrollbar-width: thin; scrollbar-color: #3a2a10 transparent;
 }
 .hlp-tab-pane { display: none; }
 .hlp-tab-pane.active { display: block; }
@@ -136,17 +136,17 @@
 /* Советы */
 .hlp-tip {
   padding: 8px 0 8px 10px;
-  border-left: 2px solid rgba(102,126,234,.5);
+  border-left: 2px solid rgba(224,149,53,.5);
   margin-bottom: 8px;
 }
 .hlp-tip:last-child { margin-bottom: 0; }
-.hlp-tip-title { font-weight: 700; color: #e4e4e7; display: block; font-size: .8rem; margin-bottom: 2px; }
-.hlp-tip-body  { font-size: .76rem; color: rgba(255,255,255,.65); line-height: 1.5; }
+.hlp-tip-title { font-weight: 700; color: #f0ebe3; display: block; font-size: .8rem; margin-bottom: 2px; }
+.hlp-tip-body  { font-size: .76rem; color: rgba(240,235,227,.6); line-height: 1.5; }
 
 /* Кнопка тура */
 .hlp-tour-btn {
   width: 100%; padding: 10px; margin-top: 10px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #e09535, #c07828);
   border: none; border-radius: 12px; color: #fff;
   font-size: .82rem; font-weight: 700; cursor: pointer;
   font-family: inherit; transition: opacity .15s;
@@ -157,17 +157,17 @@
 .hlp-faq-item { margin-bottom: 6px; }
 .hlp-faq-q {
   width: 100%; text-align: left; padding: 9px 10px;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
-  border-radius: 10px; color: rgba(255,255,255,.8); font-size: .76rem;
+  background: rgba(232,182,92,.04); border: 1px solid rgba(232,182,92,.1);
+  border-radius: 10px; color: rgba(240,235,227,.8); font-size: .76rem;
   font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s;
   display: flex; justify-content: space-between; align-items: center; gap: 6px;
 }
-.hlp-faq-q:hover { background: rgba(255,255,255,.08); }
+.hlp-faq-q:hover { background: rgba(232,182,92,.08); }
 .hlp-faq-q .arrow { transition: transform .2s; flex-shrink: 0; }
 .hlp-faq-q.open .arrow { transform: rotate(90deg); }
 .hlp-faq-a {
   display: none; padding: 8px 10px;
-  font-size: .74rem; color: rgba(255,255,255,.55); line-height: 1.5;
+  font-size: .74rem; color: rgba(240,235,227,.55); line-height: 1.5;
 }
 .hlp-faq-item.open .hlp-faq-a { display: block; }
 
@@ -198,16 +198,16 @@
 /* Рамка вокруг элемента */
 .hlp-tour-ring {
   position: fixed;
-  border: 2px solid rgba(255,255,255,.9);
+  border: 2px solid rgba(232,190,90,.9);
   border-radius: 10px;
-  box-shadow: 0 0 0 3px rgba(102,126,234,.5), 0 0 32px rgba(102,126,234,.3);
+  box-shadow: 0 0 0 3px rgba(224,149,53,.5), 0 0 32px rgba(224,149,53,.3);
   pointer-events: none;
   transition: all .35s ease;
   animation: hlp-ring-glow 2s ease-in-out infinite;
 }
 @keyframes hlp-ring-glow {
-  0%,100% { box-shadow: 0 0 0 3px rgba(102,126,234,.5), 0 0 32px rgba(102,126,234,.25); }
-  50%      { box-shadow: 0 0 0 6px rgba(102,126,234,.25), 0 0 56px rgba(102,126,234,.45); }
+  0%,100% { box-shadow: 0 0 0 3px rgba(224,149,53,.5), 0 0 32px rgba(224,149,53,.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(224,149,53,.25), 0 0 56px rgba(224,149,53,.45); }
 }
 
 /* ── Контейнер манга-тура (нижний-левый угол) ── */
@@ -222,7 +222,7 @@
 .hlp-manga-char {
   position: absolute; bottom: 0; left: 0;
   width: 170px; z-index: 2;
-  filter: drop-shadow(0 -4px 20px rgba(102,126,234,.5));
+  filter: drop-shadow(0 -4px 20px rgba(224,149,53,.5));
   animation: hlp-char-in .4s cubic-bezier(.34,1.36,.64,1);
 }
 @keyframes hlp-char-in {
@@ -240,12 +240,12 @@
   left: 148px;   /* начинается у правого края персонажа */
   bottom: 200px; /* поднимается выше персонажа */
   width: min(300px, calc(100vw - 164px));
-  background: #fafaf8;
-  border: 2.5px solid #111;
+  background: #1c140a;
+  border: 2.5px solid rgba(224,149,53,.6);
   border-radius: 18px;
   padding: 14px 16px 12px 16px;
   pointer-events: all;
-  box-shadow: 4px 4px 0 #111;
+  box-shadow: 4px 4px 0 rgba(224,149,53,.3), 0 8px 32px rgba(0,0,0,.7);
   animation: hlp-bubble-in .3s cubic-bezier(.34,1.2,.64,1);
 }
 @keyframes hlp-bubble-in {
@@ -260,7 +260,7 @@
   width: 0; height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
-  border-top: 15px solid #111;
+  border-top: 15px solid rgba(224,149,53,.6);
 }
 .hlp-manga-bubble::after {
   content: ''; position: absolute;
@@ -268,7 +268,7 @@
   width: 0; height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-top: 12px solid #fafaf8;
+  border-top: 12px solid #1c140a;
 }
 
 /* Шапка пузыря */
@@ -277,18 +277,18 @@
   margin-bottom: 8px;
 }
 .hlp-bubble-name {
-  background: #111; color: #fff;
+  background: linear-gradient(135deg, #e09535, #c07828); color: #fff;
   font-size: .68rem; font-weight: 800; letter-spacing: .08em;
   padding: 2px 10px; border-radius: 20px;
   text-transform: uppercase; font-family: inherit;
 }
-.hlp-bubble-step { font-size: .68rem; color: #999; font-weight: 600; }
+.hlp-bubble-step { font-size: .68rem; color: rgba(224,149,53,.6); font-weight: 600; }
 .hlp-bubble-title {
-  font-size: .96rem; font-weight: 800; color: #111;
+  font-size: .96rem; font-weight: 800; color: #f0ebe3;
   margin-bottom: 5px; font-family: inherit; line-height: 1.3;
 }
 .hlp-bubble-body {
-  font-size: .8rem; color: #333; line-height: 1.6;
+  font-size: .8rem; color: rgba(240,235,227,.7); line-height: 1.6;
   margin-bottom: 12px; font-family: inherit;
 }
 
@@ -297,29 +297,29 @@
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap; row-gap: 8px;
 }
 .hlp-bubble-skip {
-  font-size: .68rem; color: #aaa; background: none; border: none;
+  font-size: .68rem; color: rgba(240,235,227,.4); background: none; border: none;
   cursor: pointer; font-family: inherit; padding: 4px 2px;
   transition: color .15s; white-space: nowrap; flex-shrink: 0;
 }
-.hlp-bubble-skip:hover { color: #555; }
+.hlp-bubble-skip:hover { color: rgba(240,235,227,.7); }
 .hlp-bubble-dots { display: flex; gap: 4px; align-items: center; flex: 1; justify-content: center; min-width: 32px; }
-.hlp-bdot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; transition: all .2s; }
-.hlp-bdot.cur { background: #111; width: 16px; border-radius: 3px; }
+.hlp-bdot { width: 6px; height: 6px; border-radius: 50%; background: rgba(224,149,53,.25); transition: all .2s; }
+.hlp-bdot.cur { background: #e09535; width: 16px; border-radius: 3px; }
 .hlp-bubble-btns { display: flex; gap: 5px; flex-shrink: 0; margin-left: auto; }
 .hlp-bubble-prev {
   padding: 5px 10px; border-radius: 8px;
-  background: #f0f0ee; border: 1.5px solid #bbb; color: #555;
+  background: rgba(232,182,92,.08); border: 1.5px solid rgba(224,149,53,.3); color: rgba(240,235,227,.7);
   font-size: .73rem; font-weight: 700; cursor: pointer; font-family: inherit;
   transition: background .15s; white-space: nowrap;
 }
-.hlp-bubble-prev:hover { background: #e5e5e3; }
+.hlp-bubble-prev:hover { background: rgba(232,182,92,.15); }
 .hlp-bubble-next {
   padding: 5px 13px; border-radius: 8px;
-  background: #111; border: 1.5px solid #111; color: #fff;
+  background: linear-gradient(135deg, #e09535, #c07828); border: none; color: #fff;
   font-size: .73rem; font-weight: 700; cursor: pointer; font-family: inherit;
-  transition: background .15s; white-space: nowrap;
+  transition: opacity .15s; white-space: nowrap;
 }
-.hlp-bubble-next:hover { background: #2a2a2a; }
+.hlp-bubble-next:hover { opacity: .88; }
 
 /* Адаптив тура */
 @media (max-width: 640px) {
@@ -341,7 +341,7 @@
 <!-- ── Персонаж в мыльном пузыре (скрыт на мобильных) ── -->
 <div class="hlp-btn-wrap">
   <button class="hlp-btn" id="hlpBtn" onclick="hlpToggle()" aria-label="Помощник Мику">
-    <img class="hlp-char-img" src="/static/helper_mini.png" alt="Мику"
+    <img class="hlp-char-img" src="/static/helper_mini.png?v=1773669920" alt="Мику"
          onerror="this.style.display='none';document.getElementById('hlpBtnEmoji').style.display='flex'">
     <span class="hlp-bubble-shine" aria-hidden="true"></span>
     <span class="hlp-btn-emoji" id="hlpBtnEmoji">?</span>
@@ -353,7 +353,7 @@
 <div class="hlp-panel" id="hlpPanel">
   <div class="hlp-head">
     <div class="hlp-head-ava">
-      <img src="/static/helper_mini.png" alt=""
+      <img src="/static/helper_mini.png?v=1773669920" alt=""
            onerror="this.style.display='none'">
     </div>
     <div class="hlp-head-info">
@@ -375,8 +375,8 @@
     </div>
     <div class="hlp-tab-pane" id="hlp-tour">
       <div style="text-align:center;padding:12px 0 8px">
-        <div style="font-size:.88rem;font-weight:700;margin-bottom:6px;color:#e4e4e7">Интерактивный тур</div>
-        <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:14px;line-height:1.5">
+        <div style="font-size:.88rem;font-weight:700;margin-bottom:6px;color:#f0ebe3">Интерактивный тур</div>
+        <div style="font-size:.75rem;color:rgba(240,235,227,.5);margin-bottom:14px;line-height:1.5">
           Мику покажет все возможности страницы шаг за шагом
         </div>
       </div>
@@ -399,7 +399,7 @@
   <div class="hlp-manga-bar" id="hlpMangaBar">
     <!-- Персонаж -->
     <div class="hlp-manga-char">
-      <img src="/static/helper.png" alt="Мику"
+      <img src="/static/helper.png?v=1773669920" alt="Мику"
            onerror="this.style.display='none'">
     </div>
     <!-- Пузырь диалога (правый-верхний угол от персонажа) -->
@@ -435,7 +435,7 @@
         { title: 'Каталог', text: 'Не знаешь что почитать? Загляни в Каталог — там фильтры по жанрам и типам.' },
       ],
       tour: [
-        { sel: '.hero',              title: 'Добро пожаловать!',  text: 'Главная страница BubbleManga. Здесь найдёшь популярное, свежие обновления и свои подписки.' },
+        { sel: '.hero',              title: 'Добро пожаловать!',  text: 'Главная страница Манговая. Здесь найдёшь популярное, свежие обновления и свои подписки.' },
         { sel: '.g-search-form',     title: 'Поиск манги',        text: 'Вводи название — сразу появятся подсказки. Нажми Enter для полного поиска.' },
         { sel: '#section-trending',  title: 'Горячие тайтлы',    text: 'Самые популярные манги прямо сейчас. Переключай вкладки: сегодня, неделя, месяц.' },
         { sel: '#section-updates',   title: 'Свежие обновления',  text: 'Список последних вышедших глав от всех авторов. Обновляется несколько раз в день.' },
@@ -469,7 +469,7 @@
     },
     '/shop': {
       tips: [
-        { title: 'Шарики',      text: 'Основная валюта магазина. Зарабатывай читая главы (+10 за главу), оставляя комментарии (+5) и выполняя задания в профиле.' },
+        { title: 'Манго',      text: 'Основная валюта магазина. Зарабатывай читая главы (+10 за главу), оставляя комментарии (+5) и выполняя задания в профиле.' },
         { title: 'Рамки',       text: 'Рамки украшают аватар — видны на странице профиля и рядом с твоими комментариями под мангой.' },
         { title: 'Фоны',        text: 'Меняют задний план твоего профиля. С Premium можно загрузить собственное изображение.' },
         { title: 'Аватары',     text: 'Готовые аватары из магазина применяются мгновенно. Свой аватар загружается через раздел "Слоты" (требует Premium).' },
@@ -477,12 +477,12 @@
         { title: 'Как надеть?', text: 'Купи предмет → нажми "Надеть". Чтобы снять — нажми ещё раз. Активный предмет подсвечен фиолетовым контуром.' },
       ],
       tour: [
-        { sel: '.shop-hero',      title: 'Магазин BubbleManga', text: 'Здесь тратишь шарики на украшения для профиля: рамки, фоны, аватары и значки!' },
-        { sel: '.balance-chip',   title: 'Твои шарики',         text: 'Текущий баланс шариков. Читай мангу, комментируй и выполняй задания — шарики копятся сами.' },
+        { sel: '.shop-hero',      title: 'Магазин Манговая', text: 'Здесь тратишь манго на украшения для профиля: рамки, фоны, аватары и значки!' },
+        { sel: '.balance-chip',   title: 'Твоё манго',         text: 'Текущий баланс манго. Читай мангу, комментируй и выполняй задания — манго копится само.' },
         { sel: '.shop-tabs-wrap', title: 'Категории',           text: 'Переключайся между вкладками: Рамки, Фоны, Аватары, Значки. Или смотри всё сразу.' },
         { sel: '.items-grid',     title: 'Витрина',             text: 'Карточки всех предметов. Фиолетовый контур — уже куплено или надето.' },
-        { sel: '.item-card',      title: 'Карточка предмета',   text: 'Тип, название и цена в шариках. Если баланса не хватает — кнопка покупки неактивна.' },
-        { sel: '.item-footer',    title: 'Купить и надеть',     text: '"Купить" списывает шарики. "Надеть" мгновенно применяет к профилю — видно всем посетителям.' },
+        { sel: '.item-card',      title: 'Карточка предмета',   text: 'Тип, название и цена в манго. Если баланса не хватает — кнопка покупки неактивна.' },
+        { sel: '.item-footer',    title: 'Купить и надеть',     text: '"Купить" списывает манго. "Надеть" мгновенно применяет к профилю — видно всем посетителям.' },
       ],
     },
     '/top': {
@@ -533,7 +533,7 @@
         { title: 'Подписка',     text: 'Подпишись на мангу — придёт уведомление в Telegram когда выйдет новая глава.' },
         { title: 'Список глав',  text: 'Все главы в хронологическом порядке. Прочитанные главы помечаются галочкой.' },
         { title: 'В коллекцию', text: 'Добавляй мангу в свои коллекции — удобно создавать тематические подборки.' },
-        { title: 'Комментарии', text: 'Обсуждай мангу с другими. За каждый комментарий +5 XP и шарики.' },
+        { title: 'Комментарии', text: 'Обсуждай мангу с другими. За каждый комментарий +5 XP и манго.' },
         { title: 'Жанры',        text: 'Нажми на жанр — откроется каталог с мангами того же жанра.' },
       ],
       tour: [
@@ -594,7 +594,7 @@
 
   const FAQ_GLOBAL = [
     { q: 'Как войти на сайт?', a: 'Нажми "Войти" в шапке и открой бот в Telegram. После авторизации страница обновится.' },
-    { q: 'Как получить шарики?', a: 'Читай главы (+10 XP), оставляй комментарии (+5), выполняй задания в профиле. Шарики начисляются вместе с XP.' },
+    { q: 'Как получить манго?', a: 'Читай главы (+10 XP), оставляй комментарии (+5), выполняй задания в профиле. Манго начисляется вместе с XP.' },
     { q: 'Что даёт Premium?', a: 'Загрузка своего аватара и фона, мгновенные уведомления со ссылкой на главу, особый значок в профиле.' },
     { q: 'Как подписаться на мангу?', a: 'Открой страницу манги и нажми кнопку "Подписаться". После выхода новой главы придёт уведомление в Telegram.' },
     { q: 'Как создать коллекцию?', a: 'Перейди в свой профиль — Библиотека — Коллекции — "Создать". Потом добавляй мангу кнопкой "В коллекцию" на страницах манги.' },

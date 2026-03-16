@@ -1,4 +1,4 @@
-{# ═══ Общий хедер BubbleManga ══════════════════════════════════════════════ #}
+{# ═══ Общий хедер Манговая ══════════════════════════════════════════════ #}
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
 (function(){
@@ -37,7 +37,7 @@
 /* ── Global header ──────────────────────────────── */
 .g-header {
   position: sticky; top: 0; z-index: 200;
-  background: rgba(9,9,11,.92);
+  background: rgba(14,11,8,.92);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border-bottom: 1px solid rgba(255,255,255,.07);
@@ -46,7 +46,7 @@
   max-width: 1400px; margin: 0 auto;
   display: flex; align-items: center; gap: 12px;
 
-  height: 160px; padding: 0 20px;
+  height: 130px; padding: 0 20px;
 }
 
 /* Logo */
@@ -55,10 +55,14 @@
   text-decoration: none; flex-shrink: 0;
 }
 .g-logo-img-desktop {
-  height: 150px; width: auto; display: block; object-fit: contain;
+  height: 115px; width: auto; display: block; object-fit: contain;
 }
 .g-logo-img-mobile {
-  height: 90px; width: auto; display: none; object-fit: contain;
+  height: 54px; width: auto; display: none; object-fit: contain;
+}
+@media (max-width: 700px) {
+  .g-logo-img-desktop { display: none; }
+  .g-logo-img-mobile  { display: block; }
 }
 
 /* Nav links */
@@ -72,7 +76,7 @@
   white-space: nowrap;
 }
 .g-nav-a:hover { background: rgba(255,255,255,.06); color: #f4f4f5; }
-.g-nav-a.active { background: rgba(102,126,234,.15); color: #818cf8; }
+.g-nav-a.active { background: rgba(224,149,53,.15); color: #e09535; }
 
 /* Search form */
 .g-search-form {
@@ -81,7 +85,7 @@
   border-radius: 10px; overflow: hidden; transition: border-color .2s;
   max-width: 340px;
 }
-.g-search-form:focus-within { border-color: rgba(102,126,234,.5); background: rgba(255,255,255,.07); }
+.g-search-form:focus-within { border-color: rgba(224,149,53,.5); background: rgba(255,255,255,.07); }
 .g-search-input {
   flex: 1; background: none; border: none; outline: none;
   color: #f4f4f5; font-size: 13px; font-family: inherit;
@@ -95,7 +99,7 @@
   align-items: center; justify-content: center;
   transition: color .18s;
 }
-.g-search-submit:hover { color: #818cf8; }
+.g-search-submit:hover { color: #e09535; }
 
 /* Right actions */
 .g-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: 1; }
@@ -113,7 +117,7 @@
 .g-user-trigger:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.18); }
 .g-ava {
   width: 48px; height: 48px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
-  background: linear-gradient(135deg,#667eea,#764ba2);
+  background: linear-gradient(135deg,#e09535,#c07828);
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; font-weight: 700; color: #fff;
 }
@@ -125,7 +129,7 @@
 /* Dropdown */
 .g-dropdown {
   position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px;
-  background: #18181b; border: 1px solid rgba(255,255,255,.1);
+  background: #1c160f; border: 1px solid rgba(237,200,140,.08);
   border-radius: 14px; padding: 6px;
   box-shadow: 0 16px 48px rgba(0,0,0,.6);
   opacity: 0; visibility: hidden; transform: translateY(-6px);
@@ -145,7 +149,7 @@
 /* Login button */
 .g-login {
   padding: 7px 18px; border-radius: 20px; text-decoration: none;
-  background: linear-gradient(135deg,#667eea,#764ba2);
+  background: linear-gradient(135deg,#e09535,#c07828);
   color: #fff; font-size: 13px; font-weight: 700;
   transition: opacity .18s; white-space: nowrap; flex-shrink: 0;
 }
@@ -160,7 +164,7 @@
   flex-shrink: 0;
 }
 .g-icon-btn:hover { background: rgba(255,255,255,.1); color: #f4f4f5; }
-.g-icon-btn.active { color: #818cf8; border-color: rgba(102,126,234,.4); background: rgba(102,126,234,.1); }
+.g-icon-btn.active { color: #e09535; border-color: rgba(224,149,53,.4); background: rgba(224,149,53,.1); }
 .g-icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* Calendar icon — hidden on desktop (already in nav), shown on mobile */
 .g-cal-btn { display: none; }
@@ -169,7 +173,7 @@
 .g-search-sticky {
   display: none;
   padding: 7px 12px 8px;
-  background: rgba(9,9,11,.95);
+  background: rgba(14,11,8,.95);
   border-top: 1px solid rgba(255,255,255,.07);
 }
 .g-search-sticky form {
@@ -178,7 +182,7 @@
   border-radius: 10px; overflow: hidden; height: 38px;
   transition: border-color .2s;
 }
-.g-search-sticky form:focus-within { border-color: rgba(102,126,234,.5); }
+.g-search-sticky form:focus-within { border-color: rgba(224,149,53,.5); }
 .g-search-sticky input {
   flex: 1; background: none; border: none; outline: none;
   color: #f4f4f5; font-size: 14px; font-family: inherit; padding: 0 12px;
@@ -189,7 +193,7 @@
   color: rgba(244,244,245,.5); display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.g-search-sticky button:hover { color: #818cf8; }
+.g-search-sticky button:hover { color: #e09535; }
 @media (max-width: 700px) {
   .g-search-sticky { display: block; }
 }
@@ -199,15 +203,13 @@
   .g-search-form { max-width: 200px; }
 }
 @media (max-width: 700px) {
-  .g-inner { height: 100px; }
+  .g-inner { height: 72px; }
   .g-nav { display: none; }
   .g-cal-btn { display: flex; }
   .g-search-form { display: none; }
   .g-uname { display: none; }
 
   .g-user-trigger { padding: 5px; }
-  .g-logo-img-desktop { display: none; }
-  .g-logo-img-mobile  { display: block; }
 
 }
 @media (max-width: 400px) {
@@ -237,7 +239,7 @@
 .g-bell-badge.visible { display: flex; }
 .g-bell-panel {
   position: absolute; top: calc(100% + 10px); right: 0; width: 320px;
-  background: #18181b; border: 1px solid rgba(255,255,255,.1);
+  background: #1c160f; border: 1px solid rgba(237,200,140,.08);
   border-radius: 14px; padding: 0;
   box-shadow: 0 16px 48px rgba(0,0,0,.6);
   opacity: 0; visibility: hidden; transform: translateY(-6px);
@@ -248,11 +250,11 @@
 @media (max-width: 700px) {
   .g-bell-panel {
     position: fixed;
-    top: 108px;
+    top: 128px;
     left: 12px;
     right: 12px;
     width: auto;
-    max-height: calc(100dvh - 128px);
+    max-height: calc(100dvh - 148px);
     border-radius: 16px;
     transform: translateY(-8px);
   }
@@ -265,7 +267,7 @@
 }
 .g-bell-head span { font-size: 13px; font-weight: 700; color: #f4f4f5; }
 .g-bell-read-all {
-  font-size: 11px; color: #818cf8; cursor: pointer; background: none; border: none;
+  font-size: 11px; color: #e09535; cursor: pointer; background: none; border: none;
   font-family: inherit; font-weight: 600; padding: 0;
 }
 .g-bell-read-all:hover { text-decoration: underline; }
@@ -277,8 +279,8 @@
   align-items: flex-start;
 }
 .g-bell-item:hover { background: rgba(255,255,255,.04); }
-.g-bell-item.unread { background: rgba(102,126,234,.06); }
-.g-bell-item.unread:hover { background: rgba(102,126,234,.1); }
+.g-bell-item.unread { background: rgba(224,149,53,.06); }
+.g-bell-item.unread:hover { background: rgba(224,149,53,.1); }
 .g-bell-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
 .g-bell-text { flex: 1; min-width: 0; }
 .g-bell-title { font-size: 12px; font-weight: 600; color: #f4f4f5; line-height: 1.35; }
@@ -289,7 +291,7 @@
 .g-bottom-nav {
   display: none;
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 250;
-  background: rgba(9,9,11,.97);
+  background: rgba(14,11,8,.97);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border-top: 1px solid rgba(255,255,255,.07);
@@ -309,21 +311,21 @@
   transition: color .15s; padding: 6px 4px 4px; letter-spacing: .01em;
 }
 .g-bn-item:hover { color: rgba(244,244,245,.7); }
-.g-bn-item.active { color: #818cf8; }
+.g-bn-item.active { color: #e09535; }
 .g-bn-item svg {
   width: 22px; height: 22px; stroke: currentColor; fill: none;
   stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   flex-shrink: 0;
 }
-.g-bn-item.active svg { stroke: #818cf8; }
+.g-bn-item.active svg { stroke: #e09535; }
 </style>
 
 <header class="g-header" id="gHeader">
   <div class="g-inner">
 
     <a href="/" class="g-logo">
-      <img src="/static/logo_desktop.png" class="g-logo-img-desktop" alt="BubbleManga">
-      <img src="/static/logo_mobile.png"  class="g-logo-img-mobile"  alt="BubbleManga">
+      <img class="g-logo-img-desktop" src="/static/logo_desktop.png?v=1773669920" alt="Манговая">
+      <img class="g-logo-img-mobile"  src="/static/logo_mobile.png?v=1773669920"  alt="Манговая">
     </a>
 
     <nav class="g-nav">

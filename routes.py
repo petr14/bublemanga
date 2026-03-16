@@ -3964,12 +3964,13 @@ def api_admin_shop_create():
     conn = get_db()
     c = conn.cursor()
     c.execute(
-        'INSERT INTO shop_items (name, description, type, preview_url, css_value, price, is_upload, is_animated, duration_days) VALUES (?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO shop_items (name, description, type, preview_url, full_url, css_value, price, is_upload, is_animated, duration_days) VALUES (?,?,?,?,?,?,?,?,?,?)',
         (
             name,
             (data.get('description') or '').strip(),
             (data.get('type') or 'frame').strip(),
             (data.get('preview_url') or '').strip() or None,
+            (data.get('full_url') or '').strip() or None,
             (data.get('css_value') or '').strip(),
             int(data.get('price', 0)),
             int(bool(data.get('is_upload', False))),
@@ -3994,13 +3995,14 @@ def api_admin_shop_update(item_id):
         conn.close()
         return jsonify({'error': 'Товар не найден'}), 404
     c.execute(
-        '''UPDATE shop_items SET name=?, description=?, type=?, preview_url=?,
+        '''UPDATE shop_items SET name=?, description=?, type=?, preview_url=?, full_url=?,
            css_value=?, price=?, is_upload=?, is_animated=?, duration_days=? WHERE id=?''',
         (
             (data.get('name') or '').strip(),
             (data.get('description') or '').strip(),
             (data.get('type') or 'frame').strip(),
             (data.get('preview_url') or '').strip() or None,
+            (data.get('full_url') or '').strip() or None,
             (data.get('css_value') or '').strip(),
             int(data.get('price', 0)),
             int(bool(data.get('is_upload', False))),

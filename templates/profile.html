@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/static/favicon.png"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#e09535">
     <title>{{ profile.display_name }} — Профиль</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,18 +12,18 @@
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         :root {
-            --primary: #667eea;
-            --primary2: #764ba2;
+            --primary: #e09535;
+            --primary2: #c07828;
             --accent: #ec4899;
-            --gold: #fbbf24;
-            --bg: #0a0a0a;
-            --bg2: #111111;
-            --bg3: #1a1a1a;
+            --gold: #e8b04a;
+            --bg: #0e0b08;
+            --bg2: #150f0a;
+            --bg3: #1c160f;
             --glass: rgba(255,255,255,0.05);
             --glass2: rgba(255,255,255,0.08);
-            --border: rgba(255,255,255,0.1);
-            --text: #ffffff;
-            --text2: #a1a1aa;
+            --border: rgba(237,200,140,0.1);
+            --text: #f0ebe3;
+            --text2: #a89880;
             --radius: 16px;
             --shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
@@ -47,7 +47,7 @@
         }
         .hero-bg {
             position: absolute; inset: 0;
-            background: linear-gradient(135deg, #1a0533 0%, #0d1b4b 50%, #0a1a0a 100%);
+            background: linear-gradient(135deg, #1c0f05 0%, #231c13 50%, #150f0a 100%);
             background-size: 400% 400%;
             animation: gradientShift 12s ease infinite;
         }
@@ -56,6 +56,13 @@
             background-size: cover; background-position: center;
             opacity: 0.35;
             transition: opacity .4s;
+        }
+        .hero-bg-video {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.35;
+            pointer-events: none;
         }
         .hero-overlay {
             position: absolute; inset: 0;
@@ -141,7 +148,7 @@
         .hero-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
         .btn-follow {
             padding: 8px 20px; border-radius: 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #e09535, #c07828);
             border: none; color: #fff; font-size: 13px; font-weight: 700;
             cursor: pointer; font-family: inherit; transition: opacity .2s, transform .1s;
         }
@@ -159,7 +166,7 @@
         .btn-bg { padding: 8px 18px; border-radius: 20px; background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; }
         .btn-bg:hover { border-color: var(--primary); color: var(--primary); }
         .level-badge { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--primary), var(--primary2)); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
-        .premium-badge { display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-left: 8px; color: #fff; vertical-align: middle; }
+        .premium-badge { display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #e09535, #c07828); border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 700; margin-left: 8px; color: #fff; vertical-align: middle; }
         .avatar-edit-btn.locked { background: #4b5563; cursor: pointer; }
         .avatar-edit-btn.locked:hover { background: var(--gold); transform: scale(1.1); }
 
@@ -167,17 +174,17 @@
         .avatar-premium-crown {
             position: absolute; bottom: 2px; left: 2px;
             width: 28px; height: 28px; border-radius: 50%;
-            background: linear-gradient(135deg, #f59e0b, #fbbf24, #d97706);
+            background: linear-gradient(135deg, #e09535, #e8b04a, #c07828);
             border: 2px solid var(--bg);
             display: flex; align-items: center; justify-content: center;
             font-size: 14px; line-height: 1;
-            box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(245,158,11,.3);
+            box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(224,149,53,.3);
             animation: crownPulse 3s ease-in-out infinite;
             z-index: 10;
         }
         @keyframes crownPulse {
-            0%, 100% { box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(245,158,11,.3); }
-            50%       { box-shadow: 0 0 16px rgba(251,191,36,.9), 0 0 32px rgba(245,158,11,.5); }
+            0%, 100% { box-shadow: 0 0 10px rgba(251,191,36,.6), 0 0 20px rgba(224,149,53,.3); }
+            50%       { box-shadow: 0 0 16px rgba(251,191,36,.9), 0 0 32px rgba(224,149,53,.5); }
         }
         .btn-bg.locked { color: var(--text2); opacity: 0.7; }
         .btn-bg.locked:hover { border-color: var(--gold); color: var(--gold); opacity: 1; }
@@ -248,7 +255,7 @@
           padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 12px;
           position: relative; transition: border-color .2s, transform .2s; overflow: hidden;
         }
-        .quest-card:hover { border-color: rgba(102,126,234,.4); transform: translateY(-2px); }
+        .quest-card:hover { border-color: rgba(224,149,53,.4); transform: translateY(-2px); }
         .quest-card.done { border-color: rgba(34,197,94,.25); }
         .quest-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
         .quest-card.done::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
@@ -272,7 +279,7 @@
         .quest-reward-badge.coins .quest-reward-icon { background: rgba(251,191,36,.18); }
         .quest-reward-val { font-size: 16px; font-weight: 800; }
         .quest-reward-badge.xp .quest-reward-val { color: #22c55e; }
-        .quest-reward-badge.coins .quest-reward-val { color: #fbbf24; }
+        .quest-reward-badge.coins .quest-reward-val { color: #e8b04a; }
 
         .quest-progress-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 5px; }
         .quest-progress-meta span:last-child { color: var(--text2); font-weight: 600; }
@@ -359,8 +366,8 @@
         .coll-btn { width: 26px; height: 26px; border-radius: 50%; background: var(--glass2); border: 1px solid var(--border); color: var(--text2); font-size: 12px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; }
         .coll-btn:hover { border-color: var(--primary); color: var(--primary); }
         .coll-btn.del:hover { border-color: #ef4444; color: #ef4444; }
-        .coll-btn-link { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 10px; background: rgba(102,126,234,.1); border: 1px solid rgba(102,126,234,.2); color: #818cf8; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s; }
-        .coll-btn-link:hover { background: rgba(102,126,234,.2); }
+        .coll-btn-link { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 10px; background: rgba(224,149,53,.1); border: 1px solid rgba(224,149,53,.2); color: #e09535; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s; }
+        .coll-btn-link:hover { background: rgba(224,149,53,.2); }
         .coll-detail-back { display: flex; align-items: center; gap: 8px; color: var(--text2); cursor: pointer; font-size: 14px; margin-bottom: 20px; width: fit-content; transition: color .2s; }
         .coll-detail-back:hover { color: var(--primary); }
 
@@ -415,8 +422,8 @@
         .shop-items-grid-avatar { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 4px; }
         .shop-items-grid-avatar .sitem { border-radius: 14px; }
         .shop-items-grid-avatar .sitem-preview { height: 90px; }
-        .shop-items-grid-avatar .sitem-preview img { width: 66px; height: 66px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(102,126,234,.4); box-shadow: 0 0 12px rgba(102,126,234,.25); }
-        .shop-items-grid-avatar .sitem.equipped { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 16px rgba(102,126,234,.3); }
+        .shop-items-grid-avatar .sitem-preview img { width: 66px; height: 66px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(224,149,53,.4); box-shadow: 0 0 12px rgba(224,149,53,.25); }
+        .shop-items-grid-avatar .sitem.equipped { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 16px rgba(224,149,53,.3); }
         .sitem-empty { color: var(--text2); font-size: 13px; padding: 24px; text-align: center; grid-column: 1/-1; }
 
         /* XP tooltip */
@@ -457,10 +464,15 @@
 <!-- HERO -->
 <div class="profile-hero">
     <div class="hero-bg"></div>
+    {% set bg_url = profile.profile.background_url if profile.profile else '' %}
+    {% if bg_url and (bg_url.endswith('.webm') or bg_url.endswith('.mp4')) %}
+    <video class="hero-bg-video" id="heroBgImg" autoplay loop muted playsinline>
+        <source src="{{ bg_url }}" type="video/{{ 'webm' if bg_url.endswith('.webm') else 'mp4' }}">
+    </video>
+    {% else %}
     <div class="hero-bg-img" id="heroBgImg"
-         {% if profile.profile and profile.profile.background_url %}
-         style="background-image:url('{{ profile.profile.background_url }}')"
-         {% endif %}></div>
+         {% if bg_url %}style="background-image:url('{{ bg_url }}')"{% endif %}></div>
+    {% endif %}
     <div class="hero-overlay"></div>
     <div class="particles" id="particles"></div>
 
@@ -503,7 +515,7 @@
                 </div>
                 <div class="pstat">
                     <span class="pstat-val"><img src="/static/bubbles.svg" class="bubble-icon" alt="">{{ profile.coins }}</span>
-                    <span class="pstat-lbl">Шарики</span>
+                    <span class="pstat-lbl">Манго</span>
                 </div>
                 <div class="pstat">
                     <span class="pstat-val" id="followers-count">{{ profile.followers_count }}</span>
@@ -541,7 +553,7 @@
         <div class="stat-card"><span class="stat-num">{{ profile.stats.total_chapters_read or 0 }}</span><div class="stat-bottom"><span class="stat-icon">📖</span><span class="stat-name">Глав прочитано</span></div></div>
         <div class="stat-card"><span class="stat-num">{{ profile.stats.total_pages_read or 0 }}</span><div class="stat-bottom"><span class="stat-icon">📄</span><span class="stat-name">Страниц</span></div></div>
         <div class="stat-card"><span class="stat-num">{{ profile.xp }}</span><div class="stat-bottom"><span class="stat-icon">⭐</span><span class="stat-name">Опыт</span></div></div>
-        <div class="stat-card"><span class="stat-num">{{ profile.coins }}</span><div class="stat-bottom"><span class="stat-icon"><img src="/static/bubbles.svg" class="bubble-icon" alt=""></span><span class="stat-name">Шарики</span></div></div>
+        <div class="stat-card"><span class="stat-num">{{ profile.coins }}</span><div class="stat-bottom"><span class="stat-icon">🥭</span><span class="stat-name">Манго</span></div></div>
         <div class="stat-card" style="border-color:rgba(251,146,60,.25)"><span class="stat-num" style="color:#fb923c">{{ profile.reading_streak or 0 }}</span><div class="stat-bottom"><span class="stat-icon">🔥</span><span class="stat-name">Стрик дней{% if profile.max_streak and profile.max_streak > (profile.reading_streak or 0) %} <span style="font-size:10px;color:var(--text2)">(рекорд: {{ profile.max_streak }})</span>{% endif %}</span></div></div>
     </div>
 
@@ -807,7 +819,7 @@
     // Particles
     (function() {
         const wrap = document.getElementById('particles');
-        const colors = ['#667eea','#764ba2','#ec4899','#fbbf24','#22c55e'];
+        const colors = ['#e09535','#c07828','#ec4899','#e8b04a','#22c55e'];
         for (let i = 0; i < 20; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
@@ -957,7 +969,7 @@
                 if (!curators.length) { el.innerHTML = emptyState('👥', 'Нет друзей', 'Добавляй друзей на их страницах профиля!'); return; }
                 el.innerHTML = '<div class="manga-grid-lib friends-grid">' + curators.map(c => `
                     <div class="mcard" onclick="location.href='/profile/${c.id}'">
-                        <div class="mcard-img" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea,#764ba2);font-size:2rem;">
+                        <div class="mcard-img" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e09535,#c07828);font-size:2rem;">
                             ${c.avatar_url ? `<img src="${esc(c.avatar_url)}" style="width:100%;height:100%;object-fit:cover" alt="">` : '👤'}
                         </div>
                         <div class="mcard-info">
@@ -982,7 +994,7 @@
                     const cover = rec.cover_url
                         ? `<img src="${esc(rec.cover_url)}" class="hitem-cover" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
                         : '';
-                    const fallback = `<div class="hitem-cover" style="background:linear-gradient(135deg,#667eea,#764ba2);display:${rec.cover_url ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border-radius:8px">📚</div>`;
+                    const fallback = `<div class="hitem-cover" style="background:linear-gradient(135deg,#e09535,#c07828);display:${rec.cover_url ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border-radius:8px">📚</div>`;
                     return `<a href="${href}" class="hitem">
                         ${cover}${fallback}
                         <div class="hitem-info">
@@ -1292,18 +1304,18 @@
         const el = document.getElementById(gridId);
         if (!el) return;
         const items = OWNED_ITEMS.filter(i => i.type === type);
-        if (!items.length) { el.innerHTML = '<div class="sitem-empty">Нет купленных предметов этого типа.<br>Загляни в <a href="/shop" style="color:#667eea">Магазин</a>!</div>'; return; }
+        if (!items.length) { el.innerHTML = '<div class="sitem-empty">Нет купленных предметов этого типа.<br>Загляни в <a href="/shop" style="color:#e09535">Магазин</a>!</div>'; return; }
         el.innerHTML = items.map(item => {
             let preview = '';
             if (type === 'avatar') {
                 const src = item.preview_url || '';
                 preview = src
                     ? `<img src="${esc(src)}" alt="${esc(item.name)}">`
-                    : `<div style="width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:1.6rem">👤</div>`;
+                    : `<div style="width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,#e09535,#c07828);display:flex;align-items:center;justify-content:center;font-size:1.6rem">👤</div>`;
             } else if (item.preview_url) {
                 preview = `<img src="${esc(item.preview_url)}" style="width:100%;height:100%;object-fit:cover">`;
             } else if (type === 'frame' && item.css_value) {
-                preview = `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);border:3px solid ${esc(item.css_value)};box-shadow:0 0 10px ${esc(item.css_value)}55"></div>`;
+                preview = `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#e09535,#c07828);border:3px solid ${esc(item.css_value)};box-shadow:0 0 10px ${esc(item.css_value)}55"></div>`;
             } else if (type === 'background' && item.css_value) {
                 preview = `<div style="width:100%;height:100%;${esc(item.css_value)}"></div>`;
             } else {
@@ -1346,6 +1358,11 @@
                     avatarEl.innerHTML = `<img src="${esc(item.preview_url)}" alt="Avatar">`;
                 }
             }
+            // Обновляем фон профиля
+            if (type === 'background') {
+                const bgUrl = item ? (item.full_url || item.preview_url || '') : '';
+                setBgEl(bgUrl);
+            }
             // Обновляем рамку поверх аватара
             if (type === 'frame') {
                 const frameEl = document.getElementById('frameEl');
@@ -1364,6 +1381,8 @@
         } else {
             cardEl.classList.remove('equipped');
             OWNED_ITEMS.forEach(i => { if (i.id === itemId) i.is_equipped = 0; });
+            // Снимаем фон
+            if (type === 'background') setBgEl('');
             // Снимаем рамку
             if (type === 'frame') {
                 const frameEl = document.getElementById('frameEl');
@@ -1398,6 +1417,35 @@
         } else toast(d.error || 'Ошибка', 'error');
     }
 
+    function setBgEl(url) {
+        const hero = document.querySelector('.profile-hero');
+        const old = document.getElementById('heroBgImg');
+        const isVid = url && (url.endsWith('.webm') || url.endsWith('.mp4'));
+        if (isVid) {
+            if (old && old.tagName === 'VIDEO') {
+                old.querySelector('source').src = url;
+                old.load();
+            } else {
+                const vid = document.createElement('video');
+                vid.className = 'hero-bg-video'; vid.id = 'heroBgImg';
+                vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+                const src = document.createElement('source');
+                src.src = url; src.type = url.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+                vid.appendChild(src);
+                if (old) old.replaceWith(vid); else hero.prepend(vid);
+            }
+        } else {
+            if (old && old.tagName === 'VIDEO') {
+                const div = document.createElement('div');
+                div.className = 'hero-bg-img'; div.id = 'heroBgImg';
+                if (url) div.style.backgroundImage = `url('${url}')`;
+                old.replaceWith(div);
+            } else if (old) {
+                old.style.backgroundImage = url ? `url('${url}')` : '';
+            }
+        }
+    }
+
     async function uploadBg() {
         const input = document.getElementById('bgFile');
         if (!input.files[0]) { toast('Выбери файл', 'error'); return; }
@@ -1405,8 +1453,7 @@
         const r = await fetch('/upload/background', { method:'POST', body:fd });
         const d = await r.json();
         if (d.background_url) {
-            const el = document.getElementById('heroBgImg');
-            el.style.backgroundImage = `url('${d.background_url}')`;
+            setBgEl(d.background_url);
             toast('Фон обновлён!', 'success');
         } else toast(d.error || 'Ошибка', 'error');
     }

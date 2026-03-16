@@ -4,17 +4,17 @@
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/png" href="/static/favicon.png"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
-  <meta name="theme-color" content="#667eea"/>
-  <title>Магазин — BubbleManga</title>
+  <meta name="theme-color" content="#e09535"/>
+  <title>Магазин — Манговая</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
-      --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --accent: #667eea;
-      --bg: #0a0a0a; --card2: #141414;
+      --primary: linear-gradient(135deg, #e09535 0%, #c07828 100%);
+      --accent: #e09535;
+      --bg: #0e0b08; --card2: #1c160f;
       --border: rgba(255,255,255,.06);
       --text: #ffffff; --text-2: #b8b8b8; --text-3: #71717a;
     }
@@ -22,7 +22,7 @@
     a { color:inherit; }
 
     /* ── Шапка ── */
-    .site-header { position:fixed; top:0; left:0; right:0; z-index:1000; background:rgba(10,10,10,.97); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.08); }
+    .site-header { position:fixed; top:0; left:0; right:0; z-index:1000; background:rgba(14,11,8,.97); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.08); }
     .site-header-inner { max-width:1400px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
     .site-logo { font-size:20px; font-weight:800; text-decoration:none; letter-spacing:-.5px; background:var(--primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; display:flex; align-items:center; gap:7px; }
     .site-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -34,21 +34,21 @@
     .page-wrap { padding-top:0; }
 
     /* ── Hero ── */
-    .shop-hero { text-align:center; padding:1.8rem 1rem 1.4rem; background:linear-gradient(135deg,#08081a 0%,#0f0c2a 50%,#10091e 100%); border-bottom:1px solid var(--border); }
+    .shop-hero { text-align:center; padding:1.8rem 1rem 1.4rem; background:linear-gradient(135deg,#150f0a 0%,#231c13 50%,#1c160f 100%); border-bottom:1px solid var(--border); }
     .shop-hero h1 { font-size:2.1rem; font-weight:800; background:var(--primary); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:.35rem; }
     .shop-hero p { color:var(--text-2); font-size:.88rem; }
     .hero-badges { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:.5rem; margin-top:.75rem; }
-    .balance-chip { display:inline-flex; align-items:center; gap:.4rem; background:rgba(102,126,234,.12); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.9rem; color:#a5b4fc; }
-    .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1)); border:1px solid rgba(245,158,11,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
+    .balance-chip { display:inline-flex; align-items:center; gap:.4rem; background:rgba(224,149,53,.12); border:1px solid rgba(224,149,53,.3); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.9rem; color:#e8b04a; }
+    .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(224,149,53,.15),rgba(217,119,6,.1)); border:1px solid rgba(224,149,53,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
     /* ── Вкладки ── */
-    .shop-tabs-wrap { position:sticky; top:160px; z-index:100; background:rgba(10,10,10,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    .shop-tabs-wrap { position:sticky; top:160px; z-index:100; background:rgba(14,11,8,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
     @media(max-width:700px){ .shop-tabs-wrap { top:100px; } }
     .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; justify-content:center; }
     .shop-tabs::-webkit-scrollbar { display:none; }
     .shop-tab { flex-shrink:0; padding:7px 15px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:50px; color:var(--text-2); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
     .shop-tab:hover { background:rgba(255,255,255,.1); color:#fff; }
-    .shop-tab.active { background:linear-gradient(135deg,#667eea,#764ba2); border-color:transparent; color:#fff; }
+    .shop-tab.active { background:linear-gradient(135deg,#e09535,#c07828); border-color:transparent; color:#fff; }
 
     /* ── Контейнер ── */
     .shop-container { max-width:960px; margin:0 auto; padding:1.4rem 1rem 5rem; }
@@ -60,37 +60,37 @@
 
     /* ── Карточка ── */
     .item-card { background:var(--card2); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:border-color .2s,transform .15s,box-shadow .2s; display:flex; flex-direction:column; position:relative; }
-    .item-card:hover { border-color:rgba(102,126,234,.3); transform:translateY(-2px); }
+    .item-card:hover { border-color:rgba(224,149,53,.3); transform:translateY(-2px); }
     /* GIF в аватарах не должен прерываться при hover-трансформе карточки */
     .items-grid-avatar .avatar-circle img { image-rendering: auto; }
-    .item-card.owned  { border-color:rgba(102,126,234,.35); }
-    .item-card.equipped { border-color:#667eea; box-shadow:0 0 0 1px #667eea,0 0 22px rgba(102,126,234,.22); }
+    .item-card.owned  { border-color:rgba(224,149,53,.35); }
+    .item-card.equipped { border-color:#e09535; box-shadow:0 0 0 1px #e09535,0 0 22px rgba(224,149,53,.22); }
 
     /* Превью — аватар */
-    .item-preview-avatar { height:145px; display:flex; align-items:center; justify-content:center; background:#0a0a0a; position:relative; overflow:hidden; }
-    .avatar-circle { width:88px; height:88px; border-radius:50%; overflow:hidden; border:3px solid rgba(102,126,234,.45); box-shadow:0 0 20px rgba(102,126,234,.3); }
+    .item-preview-avatar { height:145px; display:flex; align-items:center; justify-content:center; background:#0e0b08; position:relative; overflow:hidden; }
+    .avatar-circle { width:88px; height:88px; border-radius:50%; overflow:hidden; border:3px solid rgba(224,149,53,.45); box-shadow:0 0 20px rgba(224,149,53,.3); }
     .avatar-circle img { width:100%; height:100%; object-fit:cover; }
-    .avatar-circle .av-placeholder { width:100%; height:100%; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:2rem; }
+    .avatar-circle .av-placeholder { width:100%; height:100%; background:linear-gradient(135deg,#e09535,#c07828); display:flex; align-items:center; justify-content:center; font-size:2rem; }
 
     /* Превью — рамка */
-    .item-preview-frame { height:130px; display:flex; align-items:center; justify-content:center; background:#0a0a0a; position:relative; overflow:hidden; }
+    .item-preview-frame { height:130px; display:flex; align-items:center; justify-content:center; background:#0e0b08; position:relative; overflow:hidden; }
 
     /* Превью — фон */
-    .item-preview-bg { height:115px; position:relative; overflow:hidden; background:#0a0a0a; }
+    .item-preview-bg { height:115px; position:relative; overflow:hidden; background:#0e0b08; }
     .item-preview-bg img { width:100%; height:100%; object-fit:cover; }
     .item-preview-bg .bg-overlay { position:absolute; inset:0; background:linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.65)); }
     .item-preview-bg .bg-fake { position:absolute; bottom:9px; left:11px; display:flex; align-items:center; gap:6px; }
-    .item-preview-bg .bf-av { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#667eea,#764ba2); border:2px solid rgba(255,255,255,.5); }
+    .item-preview-bg .bf-av { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#e09535,#c07828); border:2px solid rgba(255,255,255,.5); }
     .item-preview-bg .bf-name { font-size:9.5px; font-weight:700; color:rgba(255,255,255,.9); }
 
     /* Превью — generic */
-    .item-preview { height:125px; display:flex; align-items:center; justify-content:center; font-size:3rem; background:#0d0d0d; position:relative; overflow:hidden; }
+    .item-preview { height:125px; display:flex; align-items:center; justify-content:center; font-size:3rem; background:#150f0a; position:relative; overflow:hidden; }
     .item-preview img { width:100%; height:100%; object-fit:cover; }
 
     /* Бейджи на карточках */
-    .anim-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#f59e0b,#ef4444); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:.3px; z-index:2; }
-    .item-badge-equipped { position:absolute; top:.32rem; right:.32rem; background:#667eea; border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:700; color:#fff; z-index:2; }
-    .loan-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#f59e0b,#d97706); border-radius:20px; padding:.1rem .42rem; font-size:.57rem; font-weight:700; color:#fff; z-index:2; }
+    .anim-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#e09535,#ef4444); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:.3px; z-index:2; }
+    .item-badge-equipped { position:absolute; top:.32rem; right:.32rem; background:#e09535; border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:700; color:#fff; z-index:2; }
+    .loan-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#e09535,#c07828); border-radius:20px; padding:.1rem .42rem; font-size:.57rem; font-weight:700; color:#fff; z-index:2; }
     .temp-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#06b6d4,#0891b2); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; z-index:2; }
     .item-countdown { font-size:.62rem; color:#94a3b8; margin-top:.15rem; }
 
@@ -98,7 +98,7 @@
     .item-name { font-weight:700; font-size:.83rem; color:#f4f4f5; line-height:1.3; }
     .item-desc { font-size:.7rem; color:var(--text-3); flex:1; line-height:1.5; }
     .item-footer { display:flex; flex-direction:column; padding:.45rem .8rem .75rem; gap:.4rem; }
-    .item-price { display:flex; align-items:center; gap:.22rem; font-weight:700; font-size:.82rem; color:#a5b4fc; }
+    .item-price { display:flex; align-items:center; gap:.22rem; font-weight:700; font-size:.82rem; color:#e8b04a; }
     .item-price.free { color:#4ade80; }
     .item-footer-btns { display:flex; align-items:center; gap:.35rem; }
 
@@ -111,27 +111,27 @@
     .items-grid-avatar .btn-buy-perm { padding:.22rem .45rem; font-size:.68rem; }
     .items-grid-avatar .item-footer { padding:.4rem .65rem .6rem; }
     .items-grid-avatar .item-footer-btns { gap:.25rem; }
-    .btn-buy { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; }
+    .btn-buy { background:linear-gradient(135deg,#e09535,#c07828); color:#fff; }
     .btn-buy:hover { opacity:.85; transform:scale(1.03); }
     .btn-buy:disabled { opacity:.4; cursor:not-allowed; transform:none; }
-    .btn-equip { background:rgba(102,126,234,.12); color:#a5b4fc; border:1px solid rgba(102,126,234,.3); }
-    .btn-equip:hover { background:rgba(102,126,234,.22); }
+    .btn-equip { background:rgba(224,149,53,.12); color:#e8b04a; border:1px solid rgba(224,149,53,.3); }
+    .btn-equip:hover { background:rgba(224,149,53,.22); }
     .btn-unequip { background:rgba(240,93,176,.1); color:#f9a8d4; border:1px solid rgba(240,93,176,.2); }
     .btn-unequip:hover { background:rgba(240,93,176,.2); }
-    .btn-activate { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+    .btn-activate { background:linear-gradient(135deg,#e09535,#c07828); color:#fff; }
     .btn-activate:hover { opacity:.85; transform:scale(1.03); }
-    .btn-buy-perm { background:rgba(102,126,234,.12); color:#a5b4fc; border:1px solid rgba(102,126,234,.3); }
-    .btn-buy-perm:hover { background:rgba(102,126,234,.22); }
+    .btn-buy-perm { background:rgba(224,149,53,.12); color:#e8b04a; border:1px solid rgba(224,149,53,.3); }
+    .btn-buy-perm:hover { background:rgba(224,149,53,.22); }
     .btn-buy-perm:disabled { opacity:.4; cursor:not-allowed; }
 
     /* ── Примерочная ── */
     .tryon-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:6000; display:flex; align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(10px); animation:pmFadeIn .15s; }
-    .tryon-modal { background:#141414; border:1px solid rgba(255,255,255,.12); border-radius:24px; padding:1.6rem 1.4rem 1.4rem; width:100%; max-width:340px; animation:pmSlide .2s; display:flex; flex-direction:column; align-items:center; gap:1rem; }
+    .tryon-modal { background:#1c160f; border:1px solid rgba(237,200,140,.12); border-radius:24px; padding:1.6rem 1.4rem 1.4rem; width:100%; max-width:340px; animation:pmSlide .2s; display:flex; flex-direction:column; align-items:center; gap:1rem; }
     .tryon-head { width:100%; display:flex; align-items:center; justify-content:space-between; }
     .tryon-name { font-size:1rem; font-weight:800; color:#f4f4f5; }
     .tryon-close { background:rgba(255,255,255,.07); border:none; color:#888; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:1rem; transition:background .15s; }
     .tryon-close:hover { background:rgba(255,255,255,.14); }
-    .tryon-preview-avatar { width:180px; height:180px; border-radius:50%; overflow:hidden; border:4px solid rgba(102,126,234,.5); box-shadow:0 0 40px rgba(102,126,234,.35); }
+    .tryon-preview-avatar { width:180px; height:180px; border-radius:50%; overflow:hidden; border:4px solid rgba(224,149,53,.5); box-shadow:0 0 40px rgba(224,149,53,.35); }
     .tryon-preview-avatar img { width:100%; height:100%; object-fit:cover; }
     .tryon-preview-frame { width:160px; height:160px; display:flex; align-items:center; justify-content:center; }
     .tryon-preview-frame img { width:100%; height:100%; object-fit:contain; }
@@ -145,39 +145,39 @@
     .login-notice { text-align:center; padding:3rem 1rem; color:var(--text-3); }
     .login-notice a { color:var(--accent); text-decoration:none; }
 
-    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(60px); background:#18181b; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .3s; z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; max-width:calc(100vw - 32px); white-space:normal; text-align:center; box-sizing:border-box; }
+    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(60px); background:#1c160f; border:1px solid rgba(237,200,140,.08); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .3s; z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; max-width:calc(100vw - 32px); white-space:normal; text-align:center; box-sizing:border-box; }
     .toast.show { transform:translateX(-50%) translateY(0); }
-    .toast.ok  { border-color:rgba(102,126,234,.4); color:#a5b4fc; }
+    .toast.ok  { border-color:rgba(224,149,53,.4); color:#e8b04a; }
     .toast.err { border-color:rgba(239,68,68,.4); color:#fca5a5; }
 
     /* ── Пакеты монет ── */
     .coins-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-top:1rem; }
     .coin-pkg-card { background:var(--card2); border:1px solid var(--border); border-radius:18px; padding:1.4rem 1.2rem; display:flex; flex-direction:column; align-items:center; gap:.7rem; transition:border-color .2s,transform .15s; text-align:center; }
-    .coin-pkg-card:hover { border-color:rgba(102,126,234,.35); transform:translateY(-2px); }
-    .coin-pkg-amount { font-size:2rem; font-weight:800; color:#a5b4fc; line-height:1; }
+    .coin-pkg-card:hover { border-color:rgba(224,149,53,.35); transform:translateY(-2px); }
+    .coin-pkg-amount { font-size:2rem; font-weight:800; color:#e8b04a; line-height:1; }
     .coin-pkg-label { font-size:.78rem; color:var(--text-2); font-weight:600; }
-    .coin-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(102,126,234,.1); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#a5b4fc; }
-    .btn-stars { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
+    .coin-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(224,149,53,.1); border:1px solid rgba(224,149,53,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#e8b04a; }
+    .btn-stars { background:linear-gradient(135deg,#e09535,#c07828); color:#fff; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
     .btn-stars:hover { opacity:.88; transform:scale(1.03); }
     .btn-stars:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
     /* ── Premium карточки ── */
     .premium-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:1rem; margin-top:1rem; }
     .premium-grid .prem-pkg-card { flex:0 1 240px; max-width:280px; }
-    .prem-pkg-card { background:var(--card2); border:1px solid rgba(102,126,234,.2); border-radius:18px; padding:1.5rem 1.3rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .2s,transform .15s; position:relative; overflow:hidden; }
-    .prem-pkg-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(102,126,234,.07),rgba(118,75,162,.04)); pointer-events:none; }
-    .prem-pkg-card:hover { border-color:rgba(102,126,234,.5); transform:translateY(-2px); }
-    .prem-pkg-card.popular { border-color:#667eea; box-shadow:0 0 0 1px rgba(102,126,234,.3),0 0 24px rgba(102,126,234,.12); }
-    .prem-popular-badge { position:absolute; top:.6rem; right:.6rem; background:linear-gradient(135deg,#667eea,#764ba2); border-radius:20px; padding:.15rem .55rem; font-size:.6rem; font-weight:800; color:#fff; letter-spacing:.3px; }
-    .prem-pkg-name { font-size:1.05rem; font-weight:800; color:#a5b4fc; }
+    .prem-pkg-card { background:var(--card2); border:1px solid rgba(224,149,53,.2); border-radius:18px; padding:1.5rem 1.3rem; display:flex; flex-direction:column; gap:.75rem; transition:border-color .2s,transform .15s; position:relative; overflow:hidden; }
+    .prem-pkg-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(224,149,53,.07),rgba(217,119,6,.04)); pointer-events:none; }
+    .prem-pkg-card:hover { border-color:rgba(224,149,53,.5); transform:translateY(-2px); }
+    .prem-pkg-card.popular { border-color:#e09535; box-shadow:0 0 0 1px rgba(224,149,53,.3),0 0 24px rgba(224,149,53,.12); }
+    .prem-popular-badge { position:absolute; top:.6rem; right:.6rem; background:linear-gradient(135deg,#e09535,#c07828); border-radius:20px; padding:.15rem .55rem; font-size:.6rem; font-weight:800; color:#fff; letter-spacing:.3px; }
+    .prem-pkg-name { font-size:1.05rem; font-weight:800; color:#e8b04a; }
     .prem-pkg-desc { font-size:.75rem; color:var(--text-3); }
     .prem-features { display:flex; flex-direction:column; gap:.32rem; }
-    .prem-feature-main { background:linear-gradient(135deg,rgba(102,126,234,.18),rgba(118,75,162,.12)); border:1px solid rgba(102,126,234,.4); border-radius:10px; padding:.55rem .75rem; font-size:.8rem; font-weight:700; color:#c4b5fd; display:flex; align-items:center; gap:.5rem; margin-bottom:.2rem; }
+    .prem-feature-main { background:linear-gradient(135deg,rgba(224,149,53,.18),rgba(217,119,6,.12)); border:1px solid rgba(224,149,53,.4); border-radius:10px; padding:.55rem .75rem; font-size:.8rem; font-weight:700; color:#fcd34d; display:flex; align-items:center; gap:.5rem; margin-bottom:.2rem; }
     .prem-feature-main-icon { font-size:1rem; flex-shrink:0; }
     .prem-feature { font-size:.74rem; color:var(--text-2); display:flex; align-items:center; gap:.4rem; }
-    .prem-feature::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:#667eea; flex-shrink:0; }
-    .prem-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(102,126,234,.1); border:1px solid rgba(102,126,234,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#a5b4fc; align-self:flex-start; }
-    .btn-premium { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
+    .prem-feature::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:#e09535; flex-shrink:0; }
+    .prem-pkg-price { display:inline-flex; align-items:center; gap:.3rem; background:rgba(224,149,53,.1); border:1px solid rgba(224,149,53,.3); border-radius:20px; padding:.28rem .8rem; font-size:.82rem; font-weight:700; color:#e8b04a; align-self:flex-start; }
+    .btn-premium { background:linear-gradient(135deg,#e09535,#c07828); color:#fff; padding:.5rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:opacity .2s,transform .1s; width:100%; }
     .btn-premium:hover { opacity:.88; transform:scale(1.03); }
     .btn-premium:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 
@@ -192,41 +192,41 @@
     }
 
     /* ── Подарочный Premium ── */
-    .gift-section { background:var(--card2); border:1px solid rgba(102,126,234,.25); border-radius:18px; padding:1.3rem 1.2rem; margin-top:1.5rem; }
-    .gift-section-title { font-size:.92rem; font-weight:800; color:#a5b4fc; margin-bottom:.9rem; display:flex; align-items:center; gap:.4rem; }
+    .gift-section { background:var(--card2); border:1px solid rgba(224,149,53,.25); border-radius:18px; padding:1.3rem 1.2rem; margin-top:1.5rem; }
+    .gift-section-title { font-size:.92rem; font-weight:800; color:#e8b04a; margin-bottom:.9rem; display:flex; align-items:center; gap:.4rem; }
     .gift-row { display:flex; gap:.7rem; flex-wrap:wrap; align-items:flex-end; }
     .gift-field { display:flex; flex-direction:column; gap:.3rem; flex:1; min-width:120px; }
     .gift-field label { font-size:.72rem; color:var(--text-3); font-weight:600; text-transform:uppercase; letter-spacing:.3px; }
     .gift-input { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:.45rem .75rem; color:#fff; font-size:.83rem; font-family:inherit; outline:none; }
-    .gift-input:focus { border-color:rgba(102,126,234,.5); }
-    .gift-select { background:rgba(30,20,60,0.95) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a5b4fc' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center; border:1px solid rgba(102,126,234,.3); border-radius:10px; padding:.5rem 2.2rem .5rem .75rem; color:#c4b5fd; font-size:.83rem; font-family:inherit; outline:none; appearance:none; cursor:pointer; line-height:1.5; overflow:hidden; }
-    .gift-select option { background:#1a1040; color:#c4b5fd; }
-    .btn-gift { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:.46rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; white-space:nowrap; transition:opacity .2s,transform .1s; }
+    .gift-input:focus { border-color:rgba(224,149,53,.5); }
+    .gift-select { background:rgba(28,22,15,0.95) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23fbbf24' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center; border:1px solid rgba(224,149,53,.3); border-radius:10px; padding:.5rem 2.2rem .5rem .75rem; color:#e8b04a; font-size:.83rem; font-family:inherit; outline:none; appearance:none; cursor:pointer; line-height:1.5; overflow:hidden; }
+    .gift-select option { background:#1c160f; color:#e8b04a; }
+    .btn-gift { background:linear-gradient(135deg,#e09535,#c07828); color:#fff; padding:.46rem 1.1rem; border-radius:20px; font-size:.82rem; font-weight:700; cursor:pointer; border:none; font-family:inherit; white-space:nowrap; transition:opacity .2s,transform .1s; }
     .btn-gift:active { transform:scale(.95); }
     .btn-gift:disabled { opacity:.45; cursor:not-allowed; }
 
     /* ── Модальное окно оплаты ── */
     .pay-overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:5000; display:flex; align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(8px); animation:pmFadeIn .15s; }
     @keyframes pmFadeIn { from{opacity:0} to{opacity:1} }
-    .pay-modal { background:#141414; border:1px solid rgba(255,255,255,.1); border-radius:22px; padding:1.6rem 1.4rem 1.4rem; width:100%; max-width:380px; animation:pmSlide .2s; }
+    .pay-modal { background:#1c160f; border:1px solid rgba(237,200,140,.1); border-radius:22px; padding:1.6rem 1.4rem 1.4rem; width:100%; max-width:380px; animation:pmSlide .2s; }
     @keyframes pmSlide { from{transform:translateY(18px);opacity:0} to{transform:none;opacity:1} }
     .pay-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.1rem; }
     .pay-pkg-info { display:flex; align-items:baseline; gap:.35rem; }
-    .pay-pkg-coins { font-size:1.5rem; font-weight:800; color:#a5b4fc; }
+    .pay-pkg-coins { font-size:1.5rem; font-weight:800; color:#e8b04a; }
     .pay-pkg-sub { font-size:.82rem; color:var(--text-2); font-weight:600; }
     .pay-close { background:rgba(255,255,255,.07); border:none; color:#888; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:1rem; line-height:1; transition:background .15s; }
     .pay-close:hover { background:rgba(255,255,255,.14); }
     .pay-subtitle { font-size:.82rem; color:var(--text-3); margin-bottom:.9rem; font-weight:500; }
     .pay-methods { display:flex; flex-direction:column; gap:.55rem; }
     .pay-btn { display:flex; align-items:center; gap:.9rem; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:.85rem 1rem; cursor:pointer; transition:background .15s,border-color .15s,transform .1s; text-align:left; width:100%; font-family:inherit; }
-    .pay-btn:hover:not(:disabled) { background:rgba(255,255,255,.09); border-color:rgba(102,126,234,.4); transform:translateY(-1px); }
+    .pay-btn:hover:not(:disabled) { background:rgba(255,255,255,.09); border-color:rgba(224,149,53,.4); transform:translateY(-1px); }
     .pay-btn:disabled { opacity:.45; cursor:wait; }
     .pay-btn-icon { font-size:1.6rem; width:2.2rem; text-align:center; flex-shrink:0; }
     .pay-btn-info { flex:1; }
     .pay-btn-name { font-size:.86rem; font-weight:700; color:#f4f4f5; }
     .pay-btn-price { font-size:.73rem; color:var(--text-3); margin-top:.1rem; }
     .pay-btn-arrow { color:var(--text-3); font-size:.95rem; flex-shrink:0; transition:transform .15s; }
-    .pay-btn:hover:not(:disabled) .pay-btn-arrow { transform:translateX(3px); color:#a5b4fc; }
+    .pay-btn:hover:not(:disabled) .pay-btn-arrow { transform:translateX(3px); color:#e8b04a; }
     .pay-note { font-size:.72rem; color:var(--text-3); text-align:center; margin-top:.85rem; line-height:1.5; }
 
     @media(max-width:600px){
@@ -294,7 +294,7 @@ const TEMP_EXPIRES    = {{ temp_expires | tojson }};
 const TABS = [
   {id:'all',        label:' Все'},
   {id:'premium',    label:'Премиум'},
-  {id:'buy',        label:'Шарики'},
+  {id:'buy',        label:'Манго'},
   {id:'avatar',     label:' Аватары'},
   {id:'frame',      label:'Рамки'},
   {id:'background', label:'Фоны'},
@@ -336,8 +336,8 @@ function PreviewFrame({item}){
   if(item.preview_url)
     return h('div',{className:'item-preview-frame'},h('img',{src:item.preview_url,alt:'',style:{width:'100%',height:'100%',objectFit:'cover'}}));
   const s = item.css_value
-    ? {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)',border:`4px solid ${item.css_value}`,boxShadow:`0 0 16px ${item.css_value}99`}
-    : {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)'};
+    ? {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)',border:`4px solid ${item.css_value}`,boxShadow:`0 0 16px ${item.css_value}99`}
+    : {width:72,height:72,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)'};
   return h('div',{className:'item-preview-frame'},h('div',{style:s}));
 }
 
@@ -401,11 +401,11 @@ function TryOnModal({item, coins, eqMap, ownedSet, loanedSet, onBuy, onEquip, on
     preview = h('div',{className:'tryon-preview-avatar'},
       item.preview_url
         ? h('img',{src:item.preview_url, alt:'', loading:'eager'})
-        : h('div',{style:{width:'100%',height:'100%',background:'linear-gradient(135deg,#667eea,#764ba2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem'}},'')
+        : h('div',{style:{width:'100%',height:'100%',background:'linear-gradient(135deg,#e09535,#c07828)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'4rem'}},'')
     );
   } else if(item.type === 'frame'){
     const s = item.css_value && !item.preview_url
-      ? {width:140,height:140,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)',border:`6px solid ${item.css_value}`,boxShadow:`0 0 24px ${item.css_value}99`}
+      ? {width:140,height:140,borderRadius:'50%',background:'linear-gradient(135deg,#e09535,#c07828)',border:`6px solid ${item.css_value}`,boxShadow:`0 0 24px ${item.css_value}99`}
       : null;
     preview = h('div',{className:'tryon-preview-frame'},
       item.preview_url
@@ -626,22 +626,22 @@ function BuyCoins(){
       pkg:modal,
       onClose:()=>setModal(null),
       apiEndpoint:'/api/shop/create-payment',
-      title: h(Fragment,null, h('img',{src:'/static/bubbles.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.1em',marginRight:'4px'},alt:''}), modal.coins.toLocaleString()),
-      sub: ' шариков',
+      title: h(Fragment,null, '🥭 ', modal.coins.toLocaleString()),
+      sub: ' манго',
       showStars: true,
     }),
-    h('div',{className:'section-head'},'Купить шарики'),
+    h('div',{className:'section-head'},'Купить манго'),
     h('p',{style:{color:'var(--text-3)',fontSize:'.8rem',marginBottom:'1rem'}},
-      'Шарики тратятся в магазине на аватары, рамки, фоны и другие украшения профиля.'
+      'Манго тратится в магазине на аватары, рамки, фоны и другие украшения профиля.'
     ),
     h('div',{className:'coins-grid'},
       COIN_PACKAGES_STATIC.map(pkg=>
         h('div',{key:pkg.id,className:'coin-pkg-card'},
           h('div',{className:'coin-pkg-amount'},
-            h('img',{src:'/static/bubbles.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.1em',marginRight:'5px'},alt:''}),
+            '🥭 ',
             pkg.coins.toLocaleString()
           ),
-          h('div',{className:'coin-pkg-label'},'шариков'),
+          h('div',{className:'coin-pkg-label'},'манго'),
           h('div',{className:'coin-pkg-price'},'от '+pkg.rub.toLocaleString('ru-RU')+' ₽'),
           h('button',{
             className:'btn-stars',
@@ -678,7 +678,7 @@ function GiftPremium(){
   return h('div',{className:'gift-section'},
     h('div',{className:'gift-section-title'},'Подарить Premium другу'),
     h('p',{style:{fontSize:'.78rem',color:'var(--text-3)',marginBottom:'.9rem',lineHeight:1.5}},
-      'Введите ID пользователя BubbleManga (из адреса его профиля) и выберите период.'
+      'Введите ID пользователя Манговая (из адреса его профиля) и выберите период.'
     ),
     h('div',{className:'gift-row'},
       h('div',{className:'gift-field', style:{maxWidth:100, flexShrink:0, flexGrow:0}},
@@ -856,11 +856,11 @@ function ShopPage(){
     tryOnItem && h(TryOnModal,{item:tryOnItem,coins,eqMap,ownedSet,loanedSet,onBuy:buy,onEquip:equip,onActivate:activate,onClose:()=>setTryOnItem(null)}),
     h('div',{className:'shop-hero'},
       h('h1',null,'Магазин'),
-      h('p',null,'Украшай профиль — покупай за шарики, заработанные чтением'),
+      h('p',null,'Украшай профиль — покупай за манго, заработанные чтением'),
       (USER_ID || (!!IS_PREMIUM&&premiumExpStr)) && h('div',{className:'hero-badges'},
         USER_ID && h('div',{className:'balance-chip'},
-          h('img',{src:'/static/bubbles.svg',style:{width:'1.1em',height:'1.1em',verticalAlign:'-0.2em'},alt:''}),' ',
-          h('span',null,coins.toLocaleString(),' шариков')
+          '🥭 ',
+          h('span',null,coins.toLocaleString(),' манго')
         ),
         !!IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'⭐ Premium активен до ',premiumExpStr)
       )

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/static/favicon.png"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <meta name="theme-color" content="#667eea">
-    <title>{{ manga.manga_title }} - BubbleManga</title>
+    <meta name="theme-color" content="#e09535">
+    <title>{{ manga.manga_title }} - Манговая</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -18,15 +18,15 @@
         }
 
         :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-gradient: linear-gradient(135deg, #e09535 0%, #c07828 100%);
             --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            --dark-gradient: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
-            --text-primary: #ffffff;
-            --text-secondary: #b8b8b8;
-            --bg-dark: #0a0a0a;
-            --bg-card: #1a1a1a;
-            --bg-card-hover: #252525;
+            --dark-gradient: linear-gradient(180deg, #0e0b08 0%, #1c160f 100%);
+            --text-primary: #f0ebe3;
+            --text-secondary: #a89880;
+            --bg-dark: #0e0b08;
+            --bg-card: #1c160f;
+            --bg-card-hover: #231c13;
         }
 
         html { overflow-x: hidden; }
@@ -48,7 +48,7 @@
             height: 100%;
             z-index: -1;
             opacity: 0.15;
-            background: radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.3) 0%, transparent 50%),
+            background: radial-gradient(circle at 20% 50%, rgba(191, 138, 90, 0.3) 0%, transparent 50%),
                         radial-gradient(circle at 80% 80%, rgba(245, 87, 108, 0.3) 0%, transparent 50%),
                         radial-gradient(circle at 40% 90%, rgba(79, 172, 254, 0.3) 0%, transparent 50%);
             animation: bgFloat 20s ease-in-out infinite;
@@ -66,7 +66,7 @@
             left: 0;
             right: 0;
             z-index: 1000;
-            background: rgba(10, 10, 10, 0.98);
+            background: rgba(14, 11, 8, 0.98);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.3s ease;
@@ -158,9 +158,9 @@
         }
 
         .btn-collection {
-            background: rgba(102, 126, 234, 0.12);
-            border-color: rgba(102, 126, 234, 0.3);
-            color: #818cf8;
+            background: rgba(191, 138, 90, 0.12);
+            border-color: rgba(191, 138, 90, 0.3);
+            color: #e09535;
         }
 
         .btn-status-active {
@@ -173,8 +173,8 @@
             position: absolute;
             top: calc(100% + 6px);
             left: 0;
-            background: #1e1e2e;
-            border: 1px solid rgba(255,255,255,0.12);
+            background: #1c160f;
+            border: 1px solid rgba(237,200,140,0.12);
             border-radius: 10px;
             min-width: 150px;
             z-index: 200;
@@ -240,7 +240,7 @@
             aspect-ratio: 3/4;
             object-fit: cover;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 20px 60px rgba(191, 138, 90, 0.3);
         }
 
         .manga-status-badge {
@@ -348,8 +348,8 @@
             100% { transform: scale(1.6) rotate(180deg); opacity:0; }
         }
         @keyframes glowPulse {
-            0%,100% { box-shadow: 0 0 20px rgba(102,126,234,.3), 0 0 60px rgba(118,75,162,.1); }
-            50%      { box-shadow: 0 0 35px rgba(102,126,234,.55), 0 0 80px rgba(118,75,162,.25); }
+            0%,100% { box-shadow: 0 0 20px rgba(224,149,53,.3), 0 0 60px rgba(217,119,6,.1); }
+            50%      { box-shadow: 0 0 35px rgba(224,149,53,.55), 0 0 80px rgba(217,119,6,.25); }
         }
         @keyframes thumbWobble {
             0%,100% { transform: scale(1); }
@@ -368,18 +368,18 @@
 
         .manga-rating-block {
             display: flex; align-items: center; gap: 12px;
-            background: linear-gradient(135deg, rgba(102,126,234,.08), rgba(118,75,162,.08));
-            border: 1px solid rgba(102,126,234,.2);
+            background: linear-gradient(135deg, rgba(224,149,53,.08), rgba(217,119,6,.08));
+            border: 1px solid rgba(224,149,53,.2);
             border-radius: 16px; padding: 14px 18px; margin: 16px 0;
             transition: border-color .3s;
         }
-        .manga-rating-block:hover { border-color: rgba(102,126,234,.4); }
+        .manga-rating-block:hover { border-color: rgba(224,149,53,.4); }
 
         .rating-open-btn {
             flex-shrink: 0; padding: 9px 20px; border-radius: 50px;
-            background: linear-gradient(135deg, rgba(102,126,234,.18), rgba(118,75,162,.18));
-            border: 1px solid rgba(102,126,234,.35);
-            color: #a5b4fc; font-size: 13px; font-weight: 700;
+            background: linear-gradient(135deg, rgba(224,149,53,.18), rgba(217,119,6,.18));
+            border: 1px solid rgba(224,149,53,.35);
+            color: #e8b04a; font-size: 13px; font-weight: 700;
             cursor: pointer; transition: all .25s; font-family: inherit; white-space: nowrap;
             position: relative; overflow: hidden;
         }
@@ -388,11 +388,11 @@
             background: linear-gradient(135deg, rgba(255,255,255,.08), transparent);
             opacity:0; transition: opacity .2s;
         }
-        .rating-open-btn:hover { background: linear-gradient(135deg, rgba(102,126,234,.32), rgba(118,75,162,.32)); border-color: #818cf8; color: #c7d2fe; transform: translateY(-1px); }
+        .rating-open-btn:hover { background: linear-gradient(135deg, rgba(224,149,53,.32), rgba(217,119,6,.32)); border-color: #e09535; color: #e8b04a; transform: translateY(-1px); }
         .rating-open-btn:hover::after { opacity:1; }
-        .rating-open-btn.rated { background: linear-gradient(135deg, rgba(102,126,234,.25), rgba(118,75,162,.25)); border-color: #818cf8; color: #c7d2fe; }
-        .rating-avg-inline { font-size: 13px; color: #b8b8b8; flex: 1; min-width: 0; }
-        .rating-avg-inline strong { background: linear-gradient(135deg,#818cf8,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size: 15px; }
+        .rating-open-btn.rated { background: linear-gradient(135deg, rgba(224,149,53,.25), rgba(217,119,6,.25)); border-color: #e09535; color: #e8b04a; }
+        .rating-avg-inline { font-size: 13px; color: #a89880; flex: 1; min-width: 0; }
+        .rating-avg-inline strong { background: linear-gradient(135deg,#e09535,#e8b04a); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size: 15px; }
 
         /* ── Оверлей ── */
         .rating-modal-overlay {
@@ -406,8 +406,8 @@
         /* ── Модалка ── */
         .rating-modal {
             position: relative; overflow: hidden;
-            background: linear-gradient(160deg, #12121e 0%, #1a1030 50%, #0e1628 100%);
-            border: 1px solid rgba(102,126,234,.25);
+            background: linear-gradient(160deg, #1c160f 0%, #231c13 50%, #1c160f 100%);
+            border: 1px solid rgba(224,149,53,.25);
             border-radius: 28px; padding: 36px 28px 28px;
             width: 100%; max-width: 420px; text-align: center;
             transform: translateY(40px) scale(.93);
@@ -419,8 +419,8 @@
         /* Фоновый градиент */
         .rating-modal::before {
             content:''; position:absolute; inset:0; z-index:0; pointer-events:none;
-            background: radial-gradient(ellipse at 50% 0%, rgba(102,126,234,.18) 0%, transparent 65%),
-                        radial-gradient(ellipse at 80% 100%, rgba(118,75,162,.14) 0%, transparent 60%);
+            background: radial-gradient(ellipse at 50% 0%, rgba(224,149,53,.18) 0%, transparent 65%),
+                        radial-gradient(ellipse at 80% 100%, rgba(217,119,6,.14) 0%, transparent 60%);
         }
         .rating-modal > * { position:relative; z-index:1; }
 
@@ -446,10 +446,10 @@
         .rating-modal-header { margin-bottom: 20px; }
         .rating-modal-tag {
             display: inline-block; padding: 3px 12px; border-radius: 99px; margin-bottom: 10px;
-            background: linear-gradient(135deg, rgba(102,126,234,.2), rgba(118,75,162,.2));
-            border: 1px solid rgba(102,126,234,.3);
+            background: linear-gradient(135deg, rgba(224,149,53,.2), rgba(217,119,6,.2));
+            border: 1px solid rgba(224,149,53,.3);
             font-size: 11px; font-weight: 700; letter-spacing: .8px;
-            color: #a5b4fc; text-transform: uppercase;
+            color: #e8b04a; text-transform: uppercase;
         }
         .rating-modal-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; }
         .rating-modal-manga { font-size: 12px; color: rgba(255,255,255,.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -458,10 +458,10 @@
         .rating-score-wrap { position:relative; display:inline-block; margin-bottom: 2px; }
         .rating-score-display {
             font-size: 88px; font-weight: 900; line-height: 1;
-            background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c084fc 100%);
+            background: linear-gradient(135deg, #e09535 0%, #e8b04a 50%, #fcd34d 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text; display: block;
-            filter: drop-shadow(0 0 20px rgba(129,140,248,.4));
+            filter: drop-shadow(0 0 20px rgba(224,149,53,.4));
         }
         .rating-score-display.pop { animation: scorePop .4s cubic-bezier(.34,1.56,.64,1); }
 
@@ -476,7 +476,7 @@
         /* Фраза */
         .rating-phrase {
             font-size: 15px; font-weight: 700; min-height: 22px; margin-bottom: 28px;
-            background: linear-gradient(135deg, #e0e7ff, #c4b5fd);
+            background: linear-gradient(135deg, #fef3c7, #e8b04a);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text;
         }
@@ -488,22 +488,22 @@
             -webkit-appearance: none; appearance: none;
             width: 100%; height: 6px; border-radius: 99px; outline: none; cursor: pointer;
             background: linear-gradient(to right,
-                #818cf8 var(--pct),
+                #e09535 var(--pct),
                 rgba(255,255,255,.1) var(--pct));
             transition: background .1s;
         }
         .rating-slider::-webkit-slider-thumb {
             -webkit-appearance: none; appearance: none;
             width: 28px; height: 28px; border-radius: 50%;
-            background: linear-gradient(135deg, #818cf8, #a78bfa);
-            box-shadow: 0 0 0 3px rgba(129,140,248,.25), 0 0 16px rgba(167,139,250,.5), 0 4px 12px rgba(0,0,0,.5);
+            background: linear-gradient(135deg, #e09535, #e8b04a);
+            box-shadow: 0 0 0 3px rgba(224,149,53,.25), 0 0 16px rgba(251,191,36,.5), 0 4px 12px rgba(0,0,0,.5);
             cursor: pointer; transition: box-shadow .2s;
         }
         .rating-slider:active::-webkit-slider-thumb { animation: thumbWobble .35s ease; }
         .rating-slider::-moz-range-thumb {
             width: 28px; height: 28px; border-radius: 50%; border: none;
-            background: linear-gradient(135deg, #818cf8, #a78bfa);
-            box-shadow: 0 0 0 3px rgba(129,140,248,.25), 0 0 16px rgba(167,139,250,.5);
+            background: linear-gradient(135deg, #e09535, #e8b04a);
+            box-shadow: 0 0 0 3px rgba(224,149,53,.25), 0 0 16px rgba(251,191,36,.5);
             cursor: pointer;
         }
 
@@ -513,18 +513,18 @@
             font-size: 10px; color: rgba(255,255,255,.22); font-weight: 700;
             transition: color .15s, transform .15s;
         }
-        .rating-ticks span.active { color: #a78bfa; transform: scale(1.3); }
+        .rating-ticks span.active { color: #e8b04a; transform: scale(1.3); }
 
         /* Кнопка */
         .rating-submit-btn {
             width: 100%; padding: 14px; border-radius: 16px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #e09535, #c07828);
             background-size: 200% 200%; animation: shimmerBg 4s ease infinite;
             border: none; color: #fff; font-size: 15px; font-weight: 800;
             cursor: pointer; transition: transform .2s, box-shadow .2s; font-family: inherit;
-            box-shadow: 0 4px 20px rgba(102,126,234,.4);
+            box-shadow: 0 4px 20px rgba(224,149,53,.4);
         }
-        .rating-submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(102,126,234,.6); }
+        .rating-submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(224,149,53,.6); }
         .rating-submit-btn:active { transform: scale(.97); }
         .rating-submit-btn.done { background: linear-gradient(135deg,#22c55e,#16a34a); box-shadow: 0 4px 20px rgba(34,197,94,.4); animation: none; }
 
@@ -559,7 +559,7 @@
         }
 
         .manga-description h3 {
-            color: #667eea;
+            color: #e09535;
             margin-bottom: 16px;
             font-size: 18px;
             font-weight: 700;
@@ -583,9 +583,9 @@
         }
 
         .tag {
-            background: rgba(102, 126, 234, 0.15);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            color: #667eea;
+            background: rgba(191, 138, 90, 0.15);
+            border: 1px solid rgba(191, 138, 90, 0.3);
+            color: #e09535;
             padding: 6px 14px;
             border-radius: 20px;
             font-size: 12px;
@@ -651,11 +651,11 @@
         }
 
         .chapters-list::-webkit-scrollbar-track {
-            background: #1a1a1a;
+            background: #1c160f;
         }
 
         .chapters-list::-webkit-scrollbar-thumb {
-            background: #667eea;
+            background: #e09535;
             border-radius: 3px;
         }
 
@@ -695,7 +695,7 @@
         }
 
         .chapter-number {
-            color: #667eea;
+            color: #e09535;
             font-weight: 800;
         }
 
@@ -734,7 +734,7 @@
         }
 
         .chapter-arrow {
-            color: #667eea;
+            color: #e09535;
             font-size: 20px;
             margin-left: 12px;
             flex-shrink: 0;
@@ -990,9 +990,9 @@
 
         /* ==================== СОРТИРОВКА ==================== */
         .btn-sort {
-            background: rgba(102, 126, 234, 0.12);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            color: #667eea;
+            background: rgba(191, 138, 90, 0.12);
+            border: 1px solid rgba(191, 138, 90, 0.3);
+            color: #e09535;
             padding: 7px 16px;
             border-radius: 50px;
             font-size: 12px;
@@ -1015,7 +1015,7 @@
 
         @media (min-width: 1024px) {
             .btn-sort:hover {
-                background: rgba(102, 126, 234, 0.22);
+                background: rgba(191, 138, 90, 0.22);
             }
             .btn-sort[data-order="asc"]:hover {
                 background: rgba(79, 172, 254, 0.22);
@@ -1084,7 +1084,7 @@
             transition: border-color .2s;
             min-height: 70px;
         }
-        .comment-form textarea:focus { border-color: #667eea; }
+        .comment-form textarea:focus { border-color: #e09535; }
         .comment-form-footer {
             display: flex;
             align-items: center;
@@ -1121,7 +1121,7 @@
             border-radius: 12px;
             margin-bottom: 24px;
         }
-        .comment-login-notice a { color: #667eea; text-decoration: none; }
+        .comment-login-notice a { color: #e09535; text-decoration: none; }
 
         /* Список комментариев */
         .comments-list { display: flex; flex-direction: column; gap: 14px; }
@@ -1140,7 +1140,7 @@
 
         .comment-avatar {
             width: 38px; height: 38px; border-radius: 50%;
-            background: linear-gradient(135deg,#667eea,#764ba2);
+            background: linear-gradient(135deg,#e09535,#c07828);
             display: flex; align-items: center; justify-content: center;
             font-size: 16px; font-weight: 700; flex-shrink: 0; overflow: hidden;
             text-decoration: none; color: #fff; cursor: pointer;
@@ -1156,17 +1156,17 @@
             font-weight: 700; font-size: 13px; color: #e4e4e7;
             text-decoration: none;
         }
-        .comment-name:hover { color: #667eea; }
+        .comment-name:hover { color: #e09535; }
         .comment-premium-crown {
             width: 16px; height: 16px; border-radius: 50%;
-            background: linear-gradient(135deg,#f59e0b,#fbbf24);
+            background: linear-gradient(135deg,#e09535,#e8b04a);
             display: inline-flex; align-items: center; justify-content: center;
             font-size: 9px; flex-shrink: 0;
             box-shadow: 0 0 5px rgba(251,191,36,.5);
         }
         .comment-level {
-            font-size: 11px; color: #667eea; font-weight: 600;
-            background: rgba(102,126,234,.12); border: 1px solid rgba(102,126,234,.25);
+            font-size: 11px; color: #e09535; font-weight: 600;
+            background: rgba(224,149,53,.12); border: 1px solid rgba(224,149,53,.25);
             border-radius: 20px; padding: 1px 7px;
         }
         .comment-date {
@@ -1199,7 +1199,7 @@
             font-family: inherit; font-size: 13px; font-weight: 600;
             cursor: pointer; transition: all .2s;
         }
-        .btn-load-more:hover { border-color: #667eea; color: #667eea; }
+        .btn-load-more:hover { border-color: #e09535; color: #e09535; }
         .btn-load-more:disabled { opacity: .4; cursor: not-allowed; }
         .comments-empty {
             text-align: center; padding: 32px 0;
@@ -1211,11 +1211,11 @@
             display: flex; gap: 14px; margin-top: 8px;
         }
         .btn-reply {
-            background: none; border: none; color: #667eea;
+            background: none; border: none; color: #e09535;
             font-family: inherit; font-size: 12px; font-weight: 600;
             cursor: pointer; padding: 0; transition: color .2s;
         }
-        .btn-reply:hover { color: #a5b4fc; }
+        .btn-reply:hover { color: #e8b04a; }
 
         .comment-replies {
             margin-left: 50px;
@@ -1239,12 +1239,12 @@
         }
         .reply-form-inner {
             display: flex; flex-direction: column; gap: 8px;
-            background: rgba(102,126,234,.06);
-            border: 1px solid rgba(102,126,234,.2);
+            background: rgba(224,149,53,.06);
+            border: 1px solid rgba(224,149,53,.2);
             border-radius: 12px; padding: 12px;
         }
         .reply-to-label {
-            font-size: 12px; color: #a5b4fc; font-weight: 600;
+            font-size: 12px; color: #e8b04a; font-weight: 600;
         }
         .reply-textarea {
             width: 100%; background: rgba(255,255,255,.05);
@@ -1254,7 +1254,7 @@
             padding: 8px 12px; resize: none; outline: none;
             min-height: 60px; transition: border-color .2s;
         }
-        .reply-textarea:focus { border-color: #667eea; }
+        .reply-textarea:focus { border-color: #e09535; }
         .reply-form-footer {
             display: flex; align-items: center; justify-content: space-between; gap: 8px;
         }
@@ -1762,14 +1762,14 @@
                 el.innerHTML = friends.map(f => `
                     <div class="rec-friend-item" data-uid="${f.id}" onclick="selectRecommendFriend(${f.id},this)"
                          style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:all .2s;background:rgba(255,255,255,.03)">
-                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden">
+                        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#e09535,#c07828);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden">
                             ${f.avatar_url ? `<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover">` : f.display_name[0]}
                         </div>
                         <div style="flex:1;min-width:0">
                             <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(f.display_name)}</div>
-                            ${f.is_premium ? '<div style="font-size:11px;color:#f59e0b">👑 Premium</div>' : ''}
+                            ${f.is_premium ? '<div style="font-size:11px;color:#e09535">👑 Premium</div>' : ''}
                         </div>
-                        <div class="rec-check" style="display:none;color:#667eea;font-size:18px">✓</div>
+                        <div class="rec-check" style="display:none;color:#e09535;font-size:18px">✓</div>
                     </div>`).join('');
             } catch(e) {
                 el.innerHTML = '<div style="text-align:center;padding:16px;color:#ef4444;font-size:13px">Ошибка загрузки</div>';
@@ -1782,8 +1782,8 @@
                 item.style.background = 'rgba(255,255,255,.03)';
                 item.querySelector('.rec-check').style.display = 'none';
             });
-            el.style.borderColor = 'rgba(102,126,234,.5)';
-            el.style.background = 'rgba(102,126,234,.08)';
+            el.style.borderColor = 'rgba(224,149,53,.5)';
+            el.style.background = 'rgba(224,149,53,.08)';
             el.querySelector('.rec-check').style.display = 'block';
             _recommendSelectedUser = uid;
             document.getElementById('recommendSendBtn').disabled = false;
@@ -2198,9 +2198,9 @@
                     html += '<div style="background:#161616;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:24px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto">';
                     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:16px;font-weight:800">📁 Добавить в коллекцию</span><button onclick="document.getElementById(\'collPicker\').remove()" style="background:none;border:none;color:#a1a1aa;font-size:18px;cursor:pointer">✕</button></div>';
                     if (!colls.length) {
-                        html += '<p style="color:#a1a1aa;font-size:14px;text-align:center;padding:20px 0">Нет коллекций.<br><a href="/profile/me" style="color:#667eea">Создай на странице профиля</a></p>';
+                        html += '<p style="color:#a89880;font-size:14px;text-align:center;padding:20px 0">Нет коллекций.<br><a href="/profile/me" style="color:#e09535">Создай на странице профиля</a></p>';
                     } else {
-                        html += colls.map(c => `<div onclick="addToCollection(${c.id},'${mangaId}')" style="padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .2s" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)'"><div style="font-weight:600;font-size:14px">${c.name}</div><div style="font-size:12px;color:#a1a1aa">${c.items_count} манг</div></div>`).join('');
+                        html += colls.map(c => `<div onclick="addToCollection(${c.id},'${mangaId}')" style="padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.08);margin-bottom:8px;transition:border-color .2s" onmouseover="this.style.borderColor='#e09535'" onmouseout="this.style.borderColor='rgba(255,255,255,.08)'"><div style="font-weight:600;font-size:14px">${c.name}</div><div style="font-size:12px;color:#a1a1aa">${c.items_count} манг</div></div>`).join('');
                     }
                     html += '</div></div>';
                     document.body.insertAdjacentHTML('beforeend', html);
@@ -2595,7 +2595,7 @@
     </div>
     <div style="display:flex;gap:10px">
       <button onclick="closeRecommendModal()" style="flex:0;padding:10px 16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#a1a1aa;cursor:pointer;font-size:13px">Отмена</button>
-      <button id="recommendSendBtn" onclick="sendRecommendation()" style="flex:1;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:13px;cursor:pointer" disabled>Отправить</button>
+      <button id="recommendSendBtn" onclick="sendRecommendation()" style="flex:1;padding:10px;background:linear-gradient(135deg,#e09535,#c07828);border:none;border-radius:10px;color:#fff;font-weight:700;font-size:13px;cursor:pointer" disabled>Отправить</button>
     </div>
   </div>
 </div>
@@ -2603,8 +2603,8 @@
 
 <!-- ── Модалка похожих ── -->
 <div id="similarOverlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);padding:1rem;overflow-y:auto" onclick="if(event.target===this)closeSimilarModal()">
-  <div style="max-width:860px;margin:0 auto;background:#141414;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;background:linear-gradient(135deg,#667eea,#764ba2)">
+  <div style="max-width:860px;margin:0 auto;background:#1c160f;border:1px solid rgba(237,200,140,.08);border-radius:20px;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;background:linear-gradient(135deg,#e09535,#c07828)">
       <div>
         <div style="font-size:1rem;font-weight:800;color:#fff">Похожие манги</div>
         <div id="similarSubtitle" style="font-size:.75rem;color:rgba(255,255,255,.75);margin-top:2px">3+ совпадающих жанра</div>
@@ -2619,14 +2619,14 @@
 
 <style>
 .sim-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.85rem; }
-.sim-card { background:#1e1e1e; border:1px solid rgba(255,255,255,.07); border-radius:12px; overflow:hidden; cursor:pointer; transition:border-color .2s,transform .15s; text-decoration:none; display:block; }
-.sim-card:hover { border-color:rgba(102,126,234,.5); transform:translateY(-3px); }
-.sim-card-img { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; display:block; }
-.sim-card-img-placeholder { width:100%; aspect-ratio:2/3; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:2rem; }
+.sim-card { background:#1c160f; border:1px solid rgba(237,200,140,.08); border-radius:12px; overflow:hidden; cursor:pointer; transition:border-color .2s,transform .15s; text-decoration:none; display:block; }
+.sim-card:hover { border-color:rgba(224,149,53,.5); transform:translateY(-3px); }
+.sim-card-img { width:100%; aspect-ratio:2/3; object-fit:cover; background:#0e0b08; display:block; }
+.sim-card-img-placeholder { width:100%; aspect-ratio:2/3; background:linear-gradient(135deg,#e09535,#c07828); display:flex; align-items:center; justify-content:center; font-size:2rem; }
 .sim-card-body { padding:.6rem .7rem .75rem; }
 .sim-card-title { font-size:.78rem; font-weight:700; color:#f4f4f5; line-height:1.3; margin-bottom:.35rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .sim-tags { display:flex; flex-wrap:wrap; gap:3px; }
-.sim-tag { font-size:.6rem; background:rgba(102,126,234,.15); border:1px solid rgba(102,126,234,.25); border-radius:20px; padding:1px 7px; color:#a5b4fc; white-space:nowrap; }
+.sim-tag { font-size:.6rem; background:rgba(224,149,53,.15); border:1px solid rgba(224,149,53,.25); border-radius:20px; padding:1px 7px; color:#e8b04a; white-space:nowrap; }
 .sim-count { font-size:.65rem; color:#6b7280; margin-bottom:.3rem; }
 @media(max-width:600px){ .sim-grid { grid-template-columns:repeat(2,1fr); gap:.6rem; } }
 </style>
