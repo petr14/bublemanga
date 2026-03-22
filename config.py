@@ -14,7 +14,7 @@ ADMIN_TELEGRAM_IDS: list = [319026942, 649144994]
 SITE_URL = 'https://bubblemanga.ru:8443'
 
 # ── База данных ───────────────────────────────────────────────────────────────
-DATABASE_URL = os.environ.get('DATABASE_URL', '')   # пусто → SQLite
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://mangauser:Retpoloer2@localhost/mangadb')
 
 # ── Redis / кеш ──────────────────────────────────────────────────────────────
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')

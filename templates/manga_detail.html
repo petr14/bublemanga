@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/static/favicon.png"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta name="theme-color" content="#e09535">
     <title>{{ manga.manga_title }} - Манговая</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
     <style>
         * {
             margin: 0;
@@ -29,7 +30,7 @@
             --bg-card-hover: #231c13;
         }
 
-        html { overflow-x: hidden; }
+        html { overflow-x: clip; }
         body {
             font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--bg-dark);
@@ -324,46 +325,17 @@
         /* ==================== ОЦЕНКА ==================== */
 
         @keyframes ratingIn {
-            0%   { opacity:0; transform: translateY(32px) scale(.93); }
-            60%  { transform: translateY(-5px) scale(1.01); }
-            100% { opacity:1; transform: none; }
+            from { opacity:0; transform: translateY(20px); }
+            to   { opacity:1; transform: none; }
         }
         @keyframes scorePop {
             0%   { transform: scale(1); }
-            40%  { transform: scale(1.28) rotate(-4deg); }
-            70%  { transform: scale(.94) rotate(2deg); }
-            100% { transform: scale(1) rotate(0); }
+            50%  { transform: scale(1.15); }
+            100% { transform: scale(1); }
         }
         @keyframes phraseSlide {
-            0%   { opacity:0; transform: translateY(8px); }
-            100% { opacity:1; transform: none; }
-        }
-        @keyframes sakuraFall {
-            0%   { transform: translateY(-20px) rotate(0deg) translateX(0); opacity:1; }
-            100% { transform: translateY(120px) rotate(360deg) translateX(30px); opacity:0; }
-        }
-        @keyframes starBurst {
-            0%   { transform: scale(0) rotate(0); opacity:1; }
-            70%  { opacity:1; }
-            100% { transform: scale(1.6) rotate(180deg); opacity:0; }
-        }
-        @keyframes glowPulse {
-            0%,100% { box-shadow: 0 0 20px rgba(224,149,53,.3), 0 0 60px rgba(217,119,6,.1); }
-            50%      { box-shadow: 0 0 35px rgba(224,149,53,.55), 0 0 80px rgba(217,119,6,.25); }
-        }
-        @keyframes thumbWobble {
-            0%,100% { transform: scale(1); }
-            30%      { transform: scale(1.3) rotate(-8deg); }
-            60%      { transform: scale(1.1) rotate(4deg); }
-        }
-        @keyframes overlayIn {
-            from { opacity:0; }
-            to   { opacity:1; }
-        }
-        @keyframes shimmerBg {
-            0%   { background-position: 0% 50%; }
-            50%  { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            from { opacity:0; transform: translateY(6px); }
+            to   { opacity:1; transform: none; }
         }
 
         .manga-rating-block {
@@ -394,27 +366,32 @@
         .rating-avg-inline { font-size: 13px; color: #a89880; flex: 1; min-width: 0; }
         .rating-avg-inline strong { background: linear-gradient(135deg,#e09535,#e8b04a); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size: 15px; }
 
+        /* ── Пауза анимаций при открытом модальном окне ── */
+        body.rating-modal-open *:not(#ratingModalOverlay):not(#ratingModalOverlay *) {
+            animation-play-state: paused !important;
+        }
+
         /* ── Оверлей ── */
         .rating-modal-overlay {
             position: fixed; inset: 0; z-index: 500;
-            background: rgba(5,5,15,.82); backdrop-filter: blur(12px) saturate(1.4);
+            background: rgba(5,5,15,.88);
             display: flex; align-items: center; justify-content: center;
-            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .3s;
+            padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s;
         }
-        .rating-modal-overlay.open { opacity: 1; pointer-events: all; animation: overlayIn .3s ease; }
+        .rating-modal-overlay.open { opacity: 1; pointer-events: all; }
 
         /* ── Модалка ── */
         .rating-modal {
             position: relative; overflow: hidden;
-            background: linear-gradient(160deg, #1c160f 0%, #231c13 50%, #1c160f 100%);
+            background: #1c160f;
             border: 1px solid rgba(224,149,53,.25);
+            box-shadow: 0 0 30px rgba(224,149,53,.2);
             border-radius: 28px; padding: 36px 28px 28px;
             width: 100%; max-width: 420px; text-align: center;
-            transform: translateY(40px) scale(.93);
-            transition: transform .4s cubic-bezier(.34,1.56,.64,1);
-            animation: glowPulse 4s ease infinite;
+            opacity: 0; transform: translateY(20px);
+            transition: opacity .25s ease, transform .25s ease;
         }
-        .rating-modal-overlay.open .rating-modal { transform: none; animation: ratingIn .42s cubic-bezier(.34,1.56,.64,1) forwards, glowPulse 4s ease 1s infinite; }
+        .rating-modal-overlay.open .rating-modal { opacity: 1; transform: none; }
 
         /* Фоновый градиент */
         .rating-modal::before {
@@ -461,7 +438,6 @@
             background: linear-gradient(135deg, #e09535 0%, #e8b04a 50%, #fcd34d 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text; display: block;
-            filter: drop-shadow(0 0 20px rgba(224,149,53,.4));
         }
         .rating-score-display.pop { animation: scorePop .4s cubic-bezier(.34,1.56,.64,1); }
 
@@ -519,7 +495,6 @@
         .rating-submit-btn {
             width: 100%; padding: 14px; border-radius: 16px;
             background: linear-gradient(135deg, #e09535, #c07828);
-            background-size: 200% 200%; animation: shimmerBg 4s ease infinite;
             border: none; color: #fff; font-size: 15px; font-weight: 800;
             cursor: pointer; transition: transform .2s, box-shadow .2s; font-family: inherit;
             box-shadow: 0 4px 20px rgba(224,149,53,.4);
@@ -1219,8 +1194,22 @@
 
         /* Ответы */
         .comment-actions {
-            display: flex; gap: 14px; margin-top: 8px;
+            display: flex; gap: 14px; margin-top: 8px; align-items: center; flex-wrap: wrap;
         }
+        .comment-reactions {
+            display: flex; gap: 5px; margin-top: 6px;
+        }
+        .btn-reaction {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 3px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08);
+            background: rgba(255,255,255,.04); color: #aaa;
+            font-size: 13px; cursor: pointer; transition: all .15s;
+            font-family: inherit;
+        }
+        .btn-reaction:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.18); color: #fff; }
+        .btn-reaction.active { background: rgba(224,149,53,.15); border-color: rgba(224,149,53,.4); color: #e09535; }
+        .btn-reaction .rc { font-size: 14px; line-height: 1; }
+        .btn-reaction .rn { font-size: 11px; font-weight: 600; min-width: 8px; }
         .btn-reply {
             background: none; border: none; color: #e09535;
             font-family: inherit; font-size: 12px; font-weight: 600;
@@ -1686,7 +1675,7 @@
                 btn.disabled = false;
             } catch (error) {
                 console.error('Ошибка подписки:', error);
-                alert('Ошибка при изменении подписки');
+                (window.tgAlert||alert)('Ошибка при изменении подписки');
                 document.getElementById('subscribeBtn').disabled = false;
             }
         }
@@ -1866,37 +1855,9 @@
         };
 
         // Создаём сакуру один раз при открытии
-        function spawnSakura() {
-            const wrap = document.getElementById('ratingSakura');
-            if (!wrap || wrap.children.length) return;
-            const petals = ['🌸','✨','⭐','💫','🌟'];
-            for (let i = 0; i < 10; i++) {
-                const el = document.createElement('span');
-                el.className = 'sakura-petal';
-                el.textContent = petals[i % petals.length];
-                el.style.cssText = `left:${Math.random()*90+5}%;--dur:${3+Math.random()*4}s;--delay:${Math.random()*4}s;font-size:${10+Math.random()*10}px`;
-                wrap.appendChild(el);
-            }
-        }
+        function spawnSakura() { /* упрощено */ }
 
-        // Взрыв эмодзи вокруг цифры
-        function fireBurst(v) {
-            const wrap = document.getElementById('ratingBurst');
-            if (!wrap) return;
-            wrap.innerHTML = '';
-            const emoji = _BURST_EMOJIS[v] || '✨';
-            const count = v >= 8 ? 7 : 4;
-            for (let i = 0; i < count; i++) {
-                const s = document.createElement('span');
-                s.textContent = emoji;
-                const angle = (360 / count) * i;
-                const dist = 38 + Math.random() * 14;
-                s.style.cssText = `transform:rotate(${angle}deg) translateX(${dist}px) rotate(-${angle}deg) scale(0);`;
-                s.style.animationDelay = (i * 0.04) + 's';
-                wrap.appendChild(s);
-                requestAnimationFrame(() => s.classList.add('fire'));
-            }
-        }
+        function fireBurst(v) { /* упрощено */ }
 
         function onSliderInput(el) {
             const v = parseInt(el.value);
@@ -1923,9 +1884,38 @@
             });
         }
 
+        function _pauseAnimatedImages() {
+            let count = 0;
+            document.querySelectorAll('img').forEach(img => {
+                if (img.closest('#ratingModalOverlay')) return;
+                if (!img.naturalWidth) return;
+                try {
+                    const c = document.createElement('canvas');
+                    c.width = img.naturalWidth; c.height = img.naturalHeight;
+                    c.getContext('2d').drawImage(img, 0, 0);
+                    img.dataset.pausedSrc = img.src;
+                    img.src = c.toDataURL();
+                    count++;
+                } catch(e) { console.warn('[rating] could not pause img:', img.src, e); }
+            });
+            console.log(`[rating] paused ${count} image(s)`);
+        }
+
+        function _resumeAnimatedImages() {
+            let count = 0;
+            document.querySelectorAll('img[data-paused-src]').forEach(img => {
+                img.src = img.dataset.pausedSrc;
+                delete img.dataset.pausedSrc;
+                count++;
+            });
+            console.log(`[rating] resumed ${count} image(s)`);
+        }
+
         function openRatingModal() {
             const overlay = document.getElementById('ratingModalOverlay');
             overlay.classList.add('open');
+            document.body.classList.add('rating-modal-open');
+            _pauseAnimatedImages();
             spawnSakura();
             const slider = document.getElementById('ratingSlider');
             const v = parseInt(slider.value);
@@ -1938,6 +1928,8 @@
         function closeRatingModal(e) {
             if (e && e.target !== document.getElementById('ratingModalOverlay')) return;
             document.getElementById('ratingModalOverlay').classList.remove('open');
+            document.body.classList.remove('rating-modal-open');
+            _resumeAnimatedImages();
         }
 
         async function submitRating(mangaId) {
@@ -1968,6 +1960,8 @@
                     overlay.classList.remove('open');
                     overlay.style.transition = '';
                     overlay.style.opacity = '';
+                    document.body.classList.remove('rating-modal-open');
+                    _resumeAnimatedImages();
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Сохранить оценку';
                     submitBtn.classList.remove('done');
@@ -2217,7 +2211,7 @@
                     document.body.insertAdjacentHTML('beforeend', html);
                     document.getElementById('collPicker').addEventListener('click', e => { if (e.target.id === 'collPicker') e.target.remove(); });
                 })
-                .catch(() => alert('Войдите в аккаунт'));
+                .catch(() => (window.tgAlert||alert)('Войдите в аккаунт'));
         }
 
         async function addToCollection(collId, mangaId) {
@@ -2364,6 +2358,7 @@
                                 ♥ <span id="like-count-${c.id}">${c.likes_count || 0}</span>
                             </button>
                         </div>
+                        ${buildReactionsHTML(c)}
                     </div>
                     <button class="btn-comment-delete${isOwn ? ' visible' : ''}"
                             onclick="deleteComment(${c.id})" title="Удалить">✕</button>`;
@@ -2410,6 +2405,40 @@
                 offset = 0;
                 document.getElementById('comments-list').innerHTML = '';
                 loadComments();
+            };
+
+            const REACTIONS = ['👍','❤️','😂'];
+            function buildReactionsHTML(c) {
+                if (!MY_USER_ID) return '';
+                const myR = c.my_reactions || [];
+                const counts = c.reactions || {};
+                const btns = REACTIONS.map(r => {
+                    const cnt = counts[r] || 0;
+                    const active = myR.includes(r) ? ' active' : '';
+                    return `<button class="btn-reaction${active}" data-comment-id="${c.id}" data-reaction="${r}" onclick="reactComment(${c.id},'${r}',this)">
+                        <span class="rc">${r}</span>${cnt > 0 ? `<span class="rn">${cnt}</span>` : ''}
+                    </button>`;
+                }).join('');
+                return `<div class="comment-reactions" id="reactions-${c.id}">${btns}</div>`;
+            }
+
+            window.reactComment = async function(id, reaction, btn) {
+                try {
+                    const d = await fetch(`/api/comments/${id}/react`, {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({reaction})
+                    }).then(r => r.json());
+                    const container = document.getElementById(`reactions-${id}`);
+                    if (!container) return;
+                    REACTIONS.forEach(r => {
+                        const b = container.querySelector(`[data-reaction="${r}"]`);
+                        if (!b) return;
+                        const cnt = d.counts[r] || 0;
+                        b.className = 'btn-reaction' + (r === reaction && d.active ? ' active' : b.classList.contains('active') && r !== reaction ? ' active' : '');
+                        b.innerHTML = `<span class="rc">${r}</span>${cnt > 0 ? `<span class="rn">${cnt}</span>` : ''}`;
+                    });
+                } catch {}
             };
 
             window.likeComment = async function(id, el) {
@@ -2469,7 +2498,7 @@
                         body: JSON.stringify({text})
                     });
                     const data = await r.json();
-                    if (!r.ok) { alert(data.error || 'Ошибка'); return; }
+                    if (!r.ok) { (window.tgAlert||alert)(data.error || 'Ошибка'); return; }
                     if (ta) { ta.value = ''; onCommentInput(ta); }
                     total += 1; offset += 1;
                     updateCount();
@@ -2478,7 +2507,7 @@
                     if (empty) empty.style.display = 'none';
                     data.comment.replies = [];
                     list.insertBefore(buildCommentEl(data.comment), list.firstChild);
-                } catch(e) { alert('Ошибка отправки'); }
+                } catch(e) { (window.tgAlert||alert)('Ошибка отправки'); }
                 if (btn) btn.disabled = false;
             };
 
@@ -2536,7 +2565,7 @@
                         body: JSON.stringify({text, parent_id: parentId})
                     });
                     const data = await r.json();
-                    if (!r.ok) { alert(data.error || 'Ошибка'); if (btn) btn.disabled = false; return; }
+                    if (!r.ok) { (window.tgAlert||alert)(data.error || 'Ошибка'); if (btn) btn.disabled = false; return; }
                     const repliesDiv = document.getElementById(`replies-${parentId}`);
                     if (repliesDiv) {
                         repliesDiv.style.display = '';
@@ -2545,12 +2574,12 @@
                     total += 1;
                     updateCount();
                     cancelReply(parentId);
-                } catch(e) { alert('Ошибка отправки'); if (btn) btn.disabled = false; }
+                } catch(e) { (window.tgAlert||alert)('Ошибка отправки'); if (btn) btn.disabled = false; }
             };
 
             /* ── Удаление ── */
             window.deleteComment = async function(id) {
-                if (!confirm('Удалить комментарий?')) return;
+                if (typeof window.tgConfirm !== 'undefined') { tgConfirm('Удалить комментарий?', function(ok){ if(ok) deleteComment(commentId); }); return; } if (!confirm('Удалить комментарий?')) return;
                 const r = await fetch(`/api/comments/${id}`, {method: 'DELETE'});
                 if (!r.ok) return;
 

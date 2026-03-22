@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/static/favicon.png"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#e09535">
     <title>{{ profile.display_name }} — Профиль</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"></noscript>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -28,7 +30,7 @@
             --shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
-        html { overflow-x: hidden; }
+        html { overflow-x: clip; }
         body {
             font-family: 'Poppins', sans-serif;
             background: var(--bg);
@@ -1195,7 +1197,7 @@
     }
 
     async function deleteColl(id) {
-        if (!confirm('Удалить коллекцию?')) return;
+        if (typeof window.tgConfirm !== 'undefined') { tgConfirm('Удалить коллекцию?', function(ok){ if(!ok) return; deleteCollection(); }); return; } if (!confirm('Удалить коллекцию?')) return;
         const r = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
         if (r.ok) { toast('Коллекция удалена', 'success'); libLoaded['collections'] = false; fetchColls(); }
         else toast('Ошибка удаления', 'error');

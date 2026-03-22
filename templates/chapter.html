@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/static/favicon.png"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
     <title>{{ chapter.manga_title }} - Глава {{ chapter.chapter_number }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
     <style>
         * {
             margin: 0;
@@ -155,6 +156,40 @@
             background: #000;
             line-height: 0;
             padding-top: 3px;
+        }
+
+        /* Разделитель между главами */
+        .chapter-divider {
+            display: flex; align-items: center; justify-content: center;
+            padding: 28px 20px; background: #0d0d0d; line-height: 1;
+            position: relative;
+        }
+        .chapter-divider::before, .chapter-divider::after {
+            content: ''; flex: 1; height: 1px;
+            background: linear-gradient(to right, transparent, rgba(224,149,53,.3));
+        }
+        .chapter-divider::after {
+            background: linear-gradient(to left, transparent, rgba(224,149,53,.3));
+        }
+        .chapter-divider-label {
+            padding: 8px 20px; margin: 0 16px;
+            background: rgba(224,149,53,.1); border: 1px solid rgba(224,149,53,.25);
+            border-radius: 20px; font-size: 13px; font-weight: 600;
+            color: #e09535; letter-spacing: .3px; white-space: nowrap;
+        }
+        .chapter-loading {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; padding: 40px 20px; color: rgba(255,255,255,.4); font-size: 13px;
+        }
+        .chapter-loading-spinner {
+            width: 20px; height: 20px; border: 2px solid rgba(224,149,53,.2);
+            border-top-color: #e09535; border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .infinite-end {
+            text-align: center; padding: 40px 20px;
+            color: rgba(255,255,255,.3); font-size: 13px;
         }
 
         .page-image {
@@ -828,9 +863,11 @@
             data-src="{{ page_url }}"
             {% endif %}
             alt="Страница {{ loop.index }}"
-            class="page-image{% if loop.index > 3 %} loading{% endif %}"
+            class="page-image loading"
             data-page="{{ loop.index }}"
-            onerror="if(this.dataset.src||this.src.length>100)this.style.display='none'"
+            data-chapter="{{ chapter.chapter_slug }}"
+            onload="this.classList.remove('loading')"
+            onerror="this.classList.remove('loading');if(this.dataset.src||this.src.length>100)this.style.display='none'"
         >
         {% endfor %}
     </div>
@@ -1050,6 +1087,10 @@
         let lastScrollTop = 0;
         let isReadingMode = false;
 
+        // Текущая активная глава (меняется в режиме "все главы подряд")
+        let _activeChapterSlug = chapterSlug;
+        let _activeProgressKey = 'reading_' + mangaSlug + '_ch_' + chapterSlug;
+
         const header           = document.getElementById('header');
         const progressBar      = document.getElementById('progressBar');
         const scrollTopBtn     = document.getElementById('scrollTop');
@@ -1101,14 +1142,23 @@
             if (!imgs.length) return;
             const center = window.innerHeight * 0.5;
             let page = 1;
+            let visibleChapter = chapterSlug;
             for (let i = 0; i < imgs.length; i++) {
                 const rect = imgs[i].getBoundingClientRect();
                 if (rect.height === 0) continue;
                 if (rect.top < center) {
                     page = parseInt(imgs[i].dataset.page) || (i + 1);
+                    if (imgs[i].dataset.chapter) visibleChapter = imgs[i].dataset.chapter;
                 } else {
                     break;
                 }
+            }
+            // Смена главы в режиме "все подряд"
+            if (visibleChapter !== _activeChapterSlug) {
+                _activeChapterSlug = visibleChapter;
+                _activeProgressKey = 'reading_' + mangaSlug + '_ch_' + visibleChapter;
+                chapterCompleted = false;
+                maxPageSeen = 0;
             }
             if (page !== currentPage) {
                 currentPage = page;
@@ -1120,6 +1170,23 @@
 
         // ==================== ПРОГРЕСС-БАР ====================
         function updateProgressBar() {
+            // В режиме "все главы подряд" — считаем прогресс только по текущей главе
+            if (readerSettings.consecutive) {
+                const chImgs = document.querySelectorAll(`.page-image[data-chapter="${_activeChapterSlug}"]`);
+                if (chImgs.length >= 2) {
+                    const firstRect = chImgs[0].getBoundingClientRect();
+                    const lastRect  = chImgs[chImgs.length - 1].getBoundingClientRect();
+                    const chStart   = window.pageYOffset + firstRect.top;
+                    const chEnd     = window.pageYOffset + lastRect.bottom;
+                    const chHeight  = chEnd - chStart;
+                    if (chHeight > 0) {
+                        const scrolled = window.pageYOffset - chStart + window.innerHeight;
+                        const pct = (scrolled / chHeight) * 100;
+                        progressBar.style.width = Math.min(Math.max(pct, 0), 100) + '%';
+                        return;
+                    }
+                }
+            }
             const pct = (window.pageYOffset / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
             progressBar.style.width = Math.min(pct, 100) + '%';
         }
@@ -1230,10 +1297,8 @@
         // ==================== СОХРАНЕНИЕ ПРОГРЕССА ====================
         function saveReadingProgress(page) {
             try {
-                localStorage.setItem(PROGRESS_KEY, page);
-            } catch (e) {
-                console.log('Не удалось сохранить прогресс:', e);
-            }
+                localStorage.setItem(_activeProgressKey, page);
+            } catch (e) {}
         }
 
         // ==================== ВОССТАНОВЛЕНИЕ ПРОГРЕССА ====================
@@ -1241,7 +1306,7 @@
         // и имеют высоту-заглушку min-height:100vh → позиция предсказуема
         (function restoreProgress() {
             try {
-                const savedPage = parseInt(localStorage.getItem(PROGRESS_KEY), 10);
+                const savedPage = parseInt(localStorage.getItem(_activeProgressKey), 10);
                 if (!savedPage || savedPage <= 1) return;
                 // Первые 3 картинки загружаются сразу, остальные — заглушка 100vh
                 // Скролл до нужной страницы = (savedPage - 1) * 100vh
@@ -1289,8 +1354,6 @@
                         if (img.dataset.src) {
                             img.src = img.dataset.src;
                             delete img.dataset.src;
-                            img.addEventListener('load',  () => img.classList.remove('loading'), { once: true });
-                            img.addEventListener('error', () => { img.classList.remove('loading'); img.style.display = 'none'; }, { once: true });
                         }
                         observer.unobserve(img);
                     });
@@ -1372,7 +1435,7 @@
 
         async function _sendChapterComplete() {
             try {
-                const r = await fetch('/api/chapter/' + chapterSlug + '/complete', {
+                const r = await fetch('/api/chapter/' + _activeChapterSlug + '/complete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pages_count: totalPages })
@@ -1624,17 +1687,101 @@
         }
 
         // ==================== ВСЕ ГЛАВЫ ПОДРЯД ====================
-        let _consecutiveTimer = null;
+        // ==================== БЕСКОНЕЧНАЯ ЧИТАЛКА ====================
+        let _infiniteNextSlug = {{ (next_chapter.chapter_slug | tojson) if next_chapter else 'null' }};
+        let _infiniteLoading  = false;
+        let _infiniteEnd      = false;
+        let _mangaSlug        = {{ chapter.manga_slug | tojson }};
+
+        function _makeLoadingEl() {
+            const d = document.createElement('div');
+            d.className = 'chapter-loading'; d.id = '_infLoad';
+            d.innerHTML = '<div class="chapter-loading-spinner"></div><span>Загрузка следующей главы…</span>';
+            return d;
+        }
+
+        function _lazyObserveImg(img) {
+            if (!img.dataset.src) return;
+            const ob = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    img.classList.remove('loading');
+                    ob.disconnect();
+                }
+            }, { rootMargin: '400px' });
+            ob.observe(img);
+        }
+
+        async function loadNextChapterInfinite() {
+            if (_infiniteLoading || _infiniteEnd || !_infiniteNextSlug) return;
+            _infiniteLoading = true;
+
+            const loadEl = _makeLoadingEl();
+            document.getElementById('pagesContainer').appendChild(loadEl);
+
+            try {
+                const data = await fetch(`/api/chapter/${_mangaSlug}/${_infiniteNextSlug}/json`).then(r => r.json());
+                loadEl.remove();
+
+                if (data.error || !data.pages || !data.pages.length) {
+                    _infiniteEnd = true;
+                    return;
+                }
+
+                const container = document.getElementById('pagesContainer');
+
+                // Разделитель
+                const div = document.createElement('div');
+                div.className = 'chapter-divider';
+                const chNum = data.chapter_number ? `Глава ${data.chapter_number}` : data.chapter_slug;
+                const chName = data.chapter_name ? ` — ${data.chapter_name}` : '';
+                div.innerHTML = `<span class="chapter-divider-label">${chNum}${chName}</span>`;
+                container.appendChild(div);
+
+                // Страницы
+                data.pages.forEach((url, i) => {
+                    const img = document.createElement('img');
+                    img.alt = `Страница ${i + 1}`;
+                    img.className = 'page-image loading';
+                    img.dataset.page = i + 1;
+                    img.dataset.chapter = data.chapter_slug;
+                    img.onerror = function() { this.style.display = 'none'; };
+                    if (i < 2) {
+                        img.src = url;
+                        img.classList.remove('loading');
+                    } else {
+                        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                        img.dataset.src = url;
+                        _lazyObserveImg(img);
+                    }
+                    container.appendChild(img);
+                });
+
+                _infiniteNextSlug = data.next_chapter ? data.next_chapter.chapter_slug : null;
+                if (!_infiniteNextSlug) {
+                    _infiniteEnd = true;
+                    const endEl = document.createElement('div');
+                    endEl.className = 'infinite-end';
+                    endEl.textContent = '— Это последняя доступная глава —';
+                    container.appendChild(endEl);
+                }
+
+                // Обновляем URL
+                history.replaceState(null, '', `/read/${_mangaSlug}/${data.chapter_slug}`);
+
+            } catch(e) {
+                loadEl.remove();
+            } finally {
+                _infiniteLoading = false;
+            }
+        }
 
         function checkConsecutive() {
             if (!readerSettings.consecutive) return;
-            const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 30;
-            if (atBottom && nextChapterUrl) {
-                if (!_consecutiveTimer) {
-                    _consecutiveTimer = setTimeout(() => { window.location.href = nextChapterUrl; }, 1800);
-                }
-            } else {
-                if (_consecutiveTimer) { clearTimeout(_consecutiveTimer); _consecutiveTimer = null; }
+            const atBottom = window.innerHeight + window.pageYOffset >= document.documentElement.scrollHeight - 200;
+            if (atBottom && _infiniteNextSlug && !_infiniteLoading && !_infiniteEnd) {
+                loadNextChapterInfinite();
             }
         }
 

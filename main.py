@@ -59,6 +59,25 @@ else:
         _f.write(app.secret_key)
 
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+@app.after_request
+def _set_security_headers(resp):
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    resp.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://telegram.org https://esm.sh; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "img-src 'self' data: blob: https:; "
+        "media-src 'self' blob: https:; "
+        "connect-src 'self' https://api.senkuro.com https://esm.sh; "
+        "frame-ancestors 'self' https://web.telegram.org;"
+    )
+    return resp
 app.config['COMPRESS_MIMETYPES'] = [
     'text/html', 'text/css', 'application/json',
     'application/javascript', 'text/javascript'
@@ -1863,15 +1882,15 @@ def get_user_subscriptions(user_id, limit=12):
 def get_user_reading(user_id, limit=12):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT m.*, rh_agg.last_read_time
-                 FROM manga m
-                 JOIN (
-                     SELECT manga_id, MAX(last_read) as last_read_time
-                     FROM reading_history
-                     WHERE user_id = ?
-                     GROUP BY manga_id
-                 ) rh_agg ON m.manga_id = rh_agg.manga_id
-                 ORDER BY rh_agg.last_read_time DESC
+    c.execute('''SELECT m.manga_id, m.manga_title, m.manga_slug, m.cover_url, m.manga_type,
+                        rh.last_read as last_read_time,
+                        ch.chapter_number as last_chapter_number,
+                        ch.chapter_slug   as last_chapter_slug
+                 FROM reading_history rh
+                 JOIN manga m ON m.manga_id = rh.manga_id
+                 LEFT JOIN chapters ch ON ch.chapter_id = rh.chapter_id
+                 WHERE rh.user_id = ?
+                 ORDER BY rh.last_read DESC
                  LIMIT ?''', (user_id, limit))
     manga = c.fetchall()
     conn.close()
@@ -2003,32 +2022,6 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
     chapter_id = chapter_info.get("id")
     chapter_url = f"{SITE_URL}/read/{manga_slug}/{chapter_slug}"
 
-    pages = get_chapter_pages(chapter_slug)
-    if not pages:
-        return
-
-    page_urls = [p.get("image", {}).get("compress", {}).get("url", "") 
-                 for p in pages if p.get("image", {}).get("compress", {}).get("url")]
-
-    # Сохранить мангу в БД
-    conn = get_db()
-    c = conn.cursor()
-    try:
-        c.execute('''INSERT OR REPLACE INTO manga 
-                     (manga_id, manga_slug, manga_title, cover_url, 
-                      last_chapter_id, last_chapter_number, last_chapter_volume,
-                      last_chapter_name, last_chapter_slug, last_updated) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                  (manga_id, manga_slug, manga_title, cover_url,
-                   chapter_id, chapter_number, chapter_volume,
-                   chapter_name, chapter_slug, datetime.now()))
-        conn.commit()
-    except Exception as e:
-        print(f"❌ Ошибка сохранения манги: {e}")
-    finally:
-        conn.close()
-
-    # Сохранить главу
     chapter_data = {
         'manga_id': manga_id,
         'chapter_id': chapter_id,
@@ -2037,11 +2030,10 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
         'chapter_volume': chapter_volume,
         'chapter_name': chapter_name,
         'chapter_url': chapter_url,
-        'pages': page_urls
+        'pages': []
     }
-    save_chapter_to_db(chapter_data)
 
-    # Уведомить подписанных пользователей
+    # Уведомить подписанных пользователей (не зависит от загрузки страниц)
     conn = get_db()
     c = conn.cursor()
     c.execute(
@@ -2056,14 +2048,14 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
 
     for sub in subscribers:
         uid = sub['user_id']
-        if sub['notifications_enabled'] == 0:
-            continue
-        # Уведомление на сайте для всех подписчиков
+        # Уведомление на сайте — всегда для подписчиков
         create_site_notification(uid, 'new_chapter', f'Новая глава: {manga_title}',
                                  f'Глава {chapter_number}' if chapter_number else None,
                                  chapter_url, ref_id=str(chapter_id))
+        if sub['notifications_enabled'] == 0:
+            continue
         if sub['is_premium']:
-            # Премиум: мгновенное уведомление со ссылкой на чтение
+            # Премиум: мгновенное Telegram-уведомление
             coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
             if _bot_loop and _bot_loop.is_running():
                 asyncio.run_coroutine_threadsafe(coro, _bot_loop)
@@ -2087,6 +2079,36 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
                 conn2.close()
             except Exception as e:
                 print(f"❌ Ошибка добавления в очередь: {e}")
+
+    # Сохранить мангу в БД
+    conn = get_db()
+    c = conn.cursor()
+    try:
+        c.execute('''INSERT OR REPLACE INTO manga
+                     (manga_id, manga_slug, manga_title, cover_url,
+                      last_chapter_id, last_chapter_number, last_chapter_volume,
+                      last_chapter_name, last_chapter_slug, last_updated)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (manga_id, manga_slug, manga_title, cover_url,
+                   chapter_id, chapter_number, chapter_volume,
+                   chapter_name, chapter_slug, datetime.now()))
+        conn.commit()
+    except Exception as e:
+        print(f"❌ Ошибка сохранения манги: {e}")
+    finally:
+        conn.close()
+
+    # Загрузить и сохранить страницы главы (опционально, не блокирует уведомления)
+    try:
+        pages = get_chapter_pages(chapter_slug)
+        if pages:
+            chapter_data['pages'] = [
+                p.get("image", {}).get("compress", {}).get("url", "")
+                for p in pages if p.get("image", {}).get("compress", {}).get("url")
+            ]
+            save_chapter_to_db(chapter_data)
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось загрузить страницы для {chapter_slug}: {e}")
 
 def check_new_chapters():
     """Проверка новых глав и обновление БД всеми 21 главой из API"""

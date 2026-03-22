@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="/static/favicon.png"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Поиск манги</title>
     <style>
         * {
@@ -388,6 +388,16 @@
 .load-more-btn:hover { opacity: .88; transform: translateY(-2px); }
 .load-more-btn:disabled { opacity: .4; cursor: default; transform: none; }
 .load-more-counter { font-size: 13px; color: #666; }
+/* ── History ── */
+#search-history { padding: 18px 0 4px; }
+#search-history .sh-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+#search-history .sh-clear { font-size: 11px; color: #555; background: none; border: none; cursor: pointer; padding: 0; }
+#search-history .sh-clear:hover { color: #e09535; }
+#search-history .sh-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+#search-history .sh-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; font-size: 13px; color: #ccc; cursor: pointer; transition: border-color .15s, color .15s; }
+#search-history .sh-chip:hover { border-color: #e09535; color: #fff; }
+#search-history .sh-chip .sh-del { color: #555; font-size: 11px; line-height: 1; margin-left: 2px; }
+#search-history .sh-chip .sh-del:hover { color: #e09535; }
 </style>
 <body>
 {% set g_active = 'search' %}{% include 'header.html' %}
@@ -395,11 +405,14 @@
 <div class="container">
 <div class="search-results">
 
+<div id="search-history" style="display:none"></div>
+<input type="hidden" id="current-query" value="{{ query | e }}">
+
     {% if query %}
     <div class="search-info">
         <h1>Результаты поиска</h1>
         <p>
-            По запросу <span class="search-query">"{{ query }}"</span>
+            По запросу <span class="search-query">"{{ query | e }}"</span>
             {% if total %}
                 — <span class="results-count" id="total-count">{{ total }} манг</span>
             {% else %}
@@ -644,8 +657,49 @@
     window.chooseSuggestion = function(val) {
         if (searchInput) { searchInput.value = val; }
         if (suggestionsBox) suggestionsBox.style.display = 'none';
+        saveSearchHistory(val);
         if (searchInput && searchInput.form) searchInput.form.submit();
     };
+
+    // ── История поиска ────────────────────────────────────────────────
+    const HISTORY_KEY = 'manga_search_history';
+    function getHistory() { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]'); } catch{ return []; } }
+    function saveSearchHistory(q) {
+        if (!q || q.length < 2) return;
+        let h = getHistory().filter(x => x !== q);
+        h.unshift(q);
+        h = h.slice(0, 5);
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch{}
+    }
+    function removeHistoryItem(q) {
+        const h = getHistory().filter(x => x !== q);
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch{}
+        renderHistory();
+    }
+    function renderHistory() {
+        const el = document.getElementById('search-history');
+        if (!el) return;
+        const h = getHistory();
+        if (!h.length) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.innerHTML = `<div class="sh-label"><span>🕐 История поиска</span><button class="sh-clear" onclick="clearHistory()">Очистить</button></div>
+        <div class="sh-chips">${h.map(q=>`<span class="sh-chip" onclick="chooseHistory(${JSON.stringify(q)})">
+            ${esc(q)}<span class="sh-del" onclick="event.stopPropagation();removeHistoryItem(${JSON.stringify(q)})">✕</span>
+        </span>`).join('')}</div>`;
+    }
+    window.chooseHistory = function(q) {
+        if (searchInput) { searchInput.value = q; }
+        if (searchInput && searchInput.form) searchInput.form.submit();
+    };
+    window.removeHistoryItem = removeHistoryItem;
+    window.clearHistory = function() {
+        try { localStorage.removeItem(HISTORY_KEY); } catch{}
+        renderHistory();
+    };
+
+    const _CUR_QUERY = (document.getElementById('current-query') || {}).value || null;
+    if (_CUR_QUERY) saveSearchHistory(_CUR_QUERY);
+    else renderHistory();
 
     // ── Фоновый refresh видимых карточек ─────────────────────────────────
     (function() {

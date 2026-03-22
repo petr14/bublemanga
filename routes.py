@@ -16,7 +16,7 @@ import threading
 from datetime import datetime, timedelta, date as _date
 from functools import wraps
 from flask import (
-    Blueprint, render_template, request, session, jsonify,
+    Blueprint, render_template, render_template_string, request, session, jsonify,
     redirect, url_for, Response, make_response,
     send_from_directory, send_file
 )
@@ -1062,6 +1062,69 @@ def read_chapter(manga_slug, chapter_slug):
                           user_id=user_id,
                           prev_chapter=prev_chapter,
                           next_chapter=next_chapter)
+
+
+@bp.route('/api/chapter/<manga_slug>/<chapter_slug>/json')
+def chapter_json(manga_slug, chapter_slug):
+    """Возвращает данные главы (страницы + навигация) для бесконечной читалки."""
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''SELECT c.*, m.manga_title, m.manga_id, m.manga_slug
+                 FROM chapters c
+                 JOIN manga m ON c.manga_id = m.manga_id
+                 WHERE c.chapter_slug = ?''', (chapter_slug,))
+    chapter = c.fetchone()
+    if not chapter:
+        conn.close()
+        return jsonify({'error': 'Глава не найдена'}), 404
+
+    chapter_dict = dict(chapter)
+    if chapter_dict.get('pages_json'):
+        try:
+            chapter_dict['pages'] = json.loads(chapter_dict['pages_json'])
+        except Exception:
+            chapter_dict['pages'] = []
+    else:
+        chapter_dict['pages'] = []
+
+    if not chapter_dict['pages']:
+        pages = get_chapter_pages(chapter_slug)
+        if pages:
+            page_urls = [p.get("image", {}).get("compress", {}).get("url", "")
+                         for p in pages if p.get("image", {}).get("compress", {}).get("url")]
+            chapter_dict['pages'] = page_urls
+            c.execute('UPDATE chapters SET pages_json=?, pages_count=? WHERE chapter_slug=?',
+                      (json.dumps(page_urls), len(page_urls), chapter_slug))
+            conn.commit()
+
+    manga_id_nav = chapter_dict['manga_id']
+    chapter_num_nav = chapter_dict['chapter_number']
+    c.execute('''SELECT chapter_slug, chapter_number, chapter_name FROM chapters
+                 WHERE manga_id=? AND CAST(chapter_number AS FLOAT) > CAST(? AS FLOAT)
+                 ORDER BY CAST(chapter_number AS FLOAT) ASC LIMIT 1''',
+              (manga_id_nav, chapter_num_nav))
+    next_ch = c.fetchone()
+
+    # Запись прочтения
+    user_id = session.get('user_id')
+    if user_id:
+        c.execute('''INSERT OR REPLACE INTO reading_history (user_id, manga_id, chapter_id, last_read)
+                     VALUES (?,?,?,?)''',
+                  (user_id, chapter_dict['manga_id'], chapter_dict['chapter_id'], datetime.now()))
+        c.execute('INSERT OR IGNORE INTO chapters_read (user_id, chapter_id, manga_id) VALUES (?,?,?)',
+                  (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
+        conn.commit()
+
+    conn.close()
+    return jsonify({
+        'chapter_slug': chapter_slug,
+        'chapter_number': chapter_dict.get('chapter_number'),
+        'chapter_name': chapter_dict.get('chapter_name'),
+        'manga_slug': manga_slug,
+        'pages': chapter_dict['pages'],
+        'next_chapter': dict(next_ch) if next_ch else None,
+    })
+
 
 # ==================== ФИЛЬТРЫ ДЛЯ ШАБЛОНОВ ====================
 
@@ -2552,6 +2615,37 @@ def toggle_comment_like(comment_id):
     return jsonify({'liked': liked, 'likes_count': likes_count})
 
 
+@bp.route('/api/comments/<int:comment_id>/react', methods=['POST'])
+def toggle_comment_reaction(comment_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+    reaction = (request.get_json(silent=True) or {}).get('reaction', '')
+    if reaction not in ('👍', '❤️', '😂'):
+        return jsonify({'error': 'Недопустимая реакция'}), 400
+    conn = get_db()
+    existing = conn.execute(
+        'SELECT id FROM comment_reactions WHERE user_id=? AND comment_id=? AND reaction=?',
+        (user_id, comment_id, reaction)
+    ).fetchone()
+    if existing:
+        conn.execute('DELETE FROM comment_reactions WHERE user_id=? AND comment_id=? AND reaction=?',
+                     (user_id, comment_id, reaction))
+        active = False
+    else:
+        conn.execute('INSERT OR IGNORE INTO comment_reactions (user_id, comment_id, reaction) VALUES (?,?,?)',
+                     (user_id, comment_id, reaction))
+        active = True
+    conn.commit()
+    counts = {}
+    for r in ('👍', '❤️', '😂'):
+        counts[r] = conn.execute(
+            'SELECT COUNT(*) FROM comment_reactions WHERE comment_id=? AND reaction=?', (comment_id, r)
+        ).fetchone()[0]
+    conn.close()
+    return jsonify({'active': active, 'reaction': reaction, 'counts': counts})
+
+
 # ==================== REFERRAL ====================
 
 @bp.route('/api/profile/referral')
@@ -2723,6 +2817,36 @@ def get_comments(manga_slug):
             reply_map.setdefault(r['parent_id'], []).append(r)
         for cmt in top_comments:
             cmt['replies'] = reply_map.get(cmt['id'], [])
+
+    # Реакции для всех комментариев + ответов
+    all_ids = [cmt['id'] for cmt in top_comments]
+    for cmt in top_comments:
+        all_ids += [r['id'] for r in cmt.get('replies', [])]
+    if all_ids:
+        ph = ','.join('?' * len(all_ids))
+        reaction_rows = c.execute(
+            f'SELECT comment_id, reaction, COUNT(*) as cnt FROM comment_reactions WHERE comment_id IN ({ph}) GROUP BY comment_id, reaction',
+            all_ids
+        ).fetchall()
+        react_counts = {}
+        for row in reaction_rows:
+            react_counts.setdefault(row[0], {})
+            react_counts[row[0]][row[1]] = row[2]
+        my_reactions = set()
+        if viewer_id:
+            my_rows = c.execute(
+                f'SELECT comment_id, reaction FROM comment_reactions WHERE user_id=? AND comment_id IN ({ph})',
+                (viewer_id, *all_ids)
+            ).fetchall()
+            my_reactions = {(r[0], r[1]) for r in my_rows}
+
+        def attach_reactions(lst):
+            for item in lst:
+                item['reactions'] = react_counts.get(item['id'], {})
+                item['my_reactions'] = [r for c_id, r in my_reactions if c_id == item['id']]
+        attach_reactions(top_comments)
+        for cmt in top_comments:
+            attach_reactions(cmt.get('replies', []))
 
     conn.close()
     return jsonify({
@@ -4470,6 +4594,18 @@ def api_notification_read(notif_id):
         'UPDATE site_notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
         (notif_id, user_id)
     )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/notifications/<int:notif_id>', methods=['DELETE'])
+def api_notification_delete(notif_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    conn.execute('DELETE FROM site_notifications WHERE id = ? AND user_id = ?', (notif_id, user_id))
     conn.commit()
     conn.close()
     return jsonify({'ok': True})

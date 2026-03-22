@@ -62,7 +62,11 @@ _PG_UPSERT_MAP: dict = {
 
 def _translate_sql(sql: str) -> str:
     """Конвертирует SQLite-специфичный SQL в PostgreSQL-совместимый."""
-    sql = re.sub(r"'(?:[^']|'')*'|(\?)", lambda m: m.group(0) if m.group(1) is None else '%s', sql)
+    def _token(m):
+        if m.group(1):          # ? вне строкового литерала → %s
+            return '%s'
+        return m.group(0).replace('%', '%%')   # строковый литерал → экранируем %
+    sql = re.sub(r"'(?:[^']|'')*'|(\?)", _token, sql)
     sql = _RE_INSERT_OR_IGNORE.sub('INSERT INTO', sql)
     sql = _RE_INSERT_OR_REPLACE.sub('INSERT INTO', sql)
 

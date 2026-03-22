@@ -7,6 +7,17 @@
   tg.ready();
   tg.expand();
 
+  /* Не закрывать приложение свайпом вниз */
+  try { tg.disableVerticalSwipes(); } catch(e){}
+
+  /* CSS-переменная высоты viewport (Telegram меняет её динамически) */
+  function applyVh(){
+    var h = tg.viewportStableHeight || tg.viewportHeight || window.innerHeight;
+    document.documentElement.style.setProperty('--tg-vh', h + 'px');
+  }
+  applyVh();
+  tg.onEvent('viewportChanged', function(){ applyVh(); });
+
   /* Back button — показываем на всех страницах кроме главной */
   if (tg.BackButton) {
     if (location.pathname !== '/') tg.BackButton.show();
@@ -16,6 +27,14 @@
   /* Haptic helper — доступен глобально */
   window.tgHaptic = function(type) {
     try { tg.HapticFeedback.impactOccurred(type || 'light'); } catch(e) {}
+  };
+
+  /* Замена браузерных диалогов на Telegram-нативные */
+  window.tgAlert = function(msg, cb) {
+    try { tg.showAlert(msg, cb); } catch(e) { alert(msg); if(cb) cb(); }
+  };
+  window.tgConfirm = function(msg, cb) {
+    try { tg.showConfirm(msg, cb); } catch(e) { cb(confirm(msg)); }
   };
 
   /* Авто-авторизация: если initData есть и сессии нет — логинимся */
@@ -33,10 +52,26 @@
   window._tgWebApp = tg;
 })();
 </script>
+<script>
+/* PWA manifest + apple icons (инжектируем в <head> из body-include) */
+(function(){
+  if(!document.querySelector('link[rel="manifest"]')){
+    var m=document.createElement('link'); m.rel='manifest'; m.href='/static/manifest.json';
+    document.head.appendChild(m);
+  }
+  if(!document.querySelector('link[rel="apple-touch-icon"]')){
+    var a=document.createElement('link'); a.rel='apple-touch-icon'; a.href='/static/icon-192.png';
+    document.head.appendChild(a);
+  }
+})();
+</script>
 <style>
+/* ── Telegram WebApp: сброс дефолтных отступов webview ── */
+html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+
 /* ── Global header ──────────────────────────────── */
 .g-header {
-  position: sticky; top: 0; z-index: 200;
+  position: sticky; top: 0; left: 0; right: 0; width: 100%; z-index: 200;
   background: rgba(14,11,8,.92);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
@@ -82,9 +117,31 @@
 .g-search-form {
   flex: 1; display: flex; align-items: center;
   background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
-  border-radius: 10px; overflow: hidden; transition: border-color .2s;
-  max-width: 340px;
+  border-radius: 10px; overflow: visible; transition: border-color .2s;
+  max-width: 340px; position: relative;
 }
+.g-search-form:focus-within { border-radius: 10px; }
+.g-search-dropdown {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 1200;
+  background: #1c1a17; border: 1px solid rgba(255,255,255,.1); border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5); overflow: hidden;
+}
+.g-search-dropdown.visible { display: block; }
+.g-sdrop-label {
+  font-size: 10px; color: rgba(244,244,245,.35); text-transform: uppercase; letter-spacing: .8px;
+  padding: 8px 12px 4px; display: flex; align-items: center; justify-content: space-between;
+}
+.g-sdrop-clear { background: none; border: none; color: rgba(244,244,245,.3); font-size: 10px; cursor: pointer; padding: 0; font-family: inherit; }
+.g-sdrop-clear:hover { color: #e09535; }
+.g-sdrop-item {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+  color: rgba(244,244,245,.8); font-size: 13px; cursor: pointer;
+  transition: background .12s;
+}
+.g-sdrop-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.g-sdrop-item .g-sdrop-icon { color: rgba(244,244,245,.3); font-size: 12px; flex-shrink: 0; }
+.g-sdrop-item .g-sdrop-del { margin-left: auto; color: rgba(244,244,245,.2); font-size: 11px; padding: 2px 4px; border-radius: 4px; }
+.g-sdrop-item .g-sdrop-del:hover { color: #e09535; background: rgba(255,255,255,.05); }
 .g-search-form:focus-within { border-color: rgba(224,149,53,.5); background: rgba(255,255,255,.07); }
 .g-search-input {
   flex: 1; background: none; border: none; outline: none;
@@ -192,8 +249,8 @@
 .g-search-sticky form {
   display: flex; align-items: center;
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
-  border-radius: 10px; overflow: hidden; height: 38px;
-  transition: border-color .2s;
+  border-radius: 10px; overflow: visible; height: 38px;
+  transition: border-color .2s; position: relative;
 }
 .g-search-sticky form:focus-within { border-color: rgba(224,149,53,.5); }
 .g-search-sticky input {
@@ -288,27 +345,37 @@
 .g-bell-item {
   display: flex; gap: 10px; padding: 10px 14px;
   border-bottom: 1px solid rgba(255,255,255,.05);
-  text-decoration: none; cursor: pointer; transition: background .15s;
-  align-items: flex-start;
+  text-decoration: none; cursor: pointer; transition: background .15s, transform .2s, opacity .2s;
+  align-items: flex-start; position: relative; overflow: hidden;
+  touch-action: pan-y;
 }
 .g-bell-item:hover { background: rgba(255,255,255,.04); }
 .g-bell-item.unread { background: rgba(224,149,53,.06); }
 .g-bell-item.unread:hover { background: rgba(224,149,53,.1); }
+.g-bell-item.dismissing { transform: translateX(100%); opacity: 0; }
 .g-bell-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
 .g-bell-text { flex: 1; min-width: 0; }
 .g-bell-title { font-size: 12px; font-weight: 600; color: #f4f4f5; line-height: 1.35; }
 .g-bell-body { font-size: 11px; color: rgba(244,244,245,.5); margin-top: 2px; }
 .g-bell-empty { padding: 28px 14px; text-align: center; color: rgba(244,244,245,.4); font-size: 13px; }
+.g-bell-dismiss {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  color: rgba(244,244,245,.25); font-size: 14px; line-height: 1;
+  padding: 2px 4px; border-radius: 4px; transition: color .15s, background .15s;
+  margin-top: 1px; align-self: flex-start;
+}
+.g-bell-dismiss:hover { color: rgba(239,68,68,.8); background: rgba(239,68,68,.1); }
 
 /* ── Bottom nav (mobile) ──────────────────────────────── */
 .g-bottom-nav {
   display: none;
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 250;
+  position: fixed; bottom: 0; left: 0; z-index: 250;
+  width: 100vw; max-width: 100vw; box-sizing: border-box; overflow: hidden;
   background: rgba(14,11,8,.97);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
   border-top: 1px solid rgba(255,255,255,.07);
-  height: 60px;
+  height: calc(60px + env(safe-area-inset-bottom, 0px));
   flex-direction: row; align-items: stretch;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   box-shadow: 0 -4px 20px rgba(0,0,0,.4);
@@ -350,10 +417,10 @@
       <a href="/shop" class="g-nav-a{% if g_active == 'shop' %} active{% endif %}">Магазин</a>
     </nav>
 
-    <form class="g-search-form" action="/search" method="GET" autocomplete="off">
-      <input class="g-search-input" type="text" name="q"
+    <form class="g-search-form" action="/search" method="GET" autocomplete="off" id="gSearchForm">
+      <input class="g-search-input" type="text" name="q" id="gSearchInput"
              placeholder="Поиск манги..."
-             value="{{ request.args.get('q', '') }}">
+             value="{{ request.args.get('q', '') | e }}">
       <button type="submit" class="g-search-submit" aria-label="Найти">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.2"
@@ -361,6 +428,7 @@
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </button>
+      <div class="g-search-dropdown" id="gSearchDropdown"></div>
     </form>
 
     <div class="g-actions">
@@ -418,10 +486,10 @@
   </div>
 
   <div class="g-search-sticky">
-    <form action="/search" method="GET" autocomplete="off">
+    <form action="/search" method="GET" autocomplete="off" id="gStickyForm">
       <input type="text" name="q" placeholder="Поиск манги..."
-             value="{{ request.args.get('q', '') }}"
-             autocomplete="off">
+             value="{{ request.args.get('q', '') | e }}"
+             autocomplete="off" id="gStickyInput">
       <button type="submit" aria-label="Найти">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.2"
@@ -429,6 +497,7 @@
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </button>
+      <div class="g-search-dropdown" id="gStickyDropdown"></div>
     </form>
   </div>
 </header>
@@ -491,15 +560,18 @@
         list.innerHTML = data.notifications.map(function(n) {
           var icon = _notifIcons[n.type] || '🔔';
           var cls = n.is_read ? '' : ' unread';
-          var href = n.url ? ' onclick="gBellClick(' + n.id + ', \'' + (n.url||'') + '\')"' : ' onclick="gBellMark(' + n.id + ')"';
-          return '<div class="g-bell-item' + cls + '"' + href + '>' +
+          var clickFn = n.url ? 'gBellClick(' + n.id + ', \'' + (n.url||'') + '\')' : 'gBellMark(' + n.id + ')';
+          return '<div class="g-bell-item' + cls + '" data-id="' + n.id + '" onclick="' + clickFn + '">' +
             '<span class="g-bell-icon">' + icon + '</span>' +
             '<div class="g-bell-text">' +
               '<div class="g-bell-title">' + _esc(n.title) + '</div>' +
               (n.body ? '<div class="g-bell-body">' + _esc(n.body) + '</div>' : '') +
               '<div class="g-bell-body">' + _timeAgo(n.created_at) + '</div>' +
-            '</div></div>';
+            '</div>' +
+            '<button class="g-bell-dismiss" onclick="event.stopPropagation();gBellDismiss(' + n.id + ',this)" title="Удалить">✕</button>' +
+          '</div>';
         }).join('');
+        _initSwipeDismiss();
       }).catch(function(){});
   }
 
@@ -531,6 +603,68 @@
       .then(gLoadNotifs);
   };
 
+  window.gBellDismiss = function(id, btn) {
+    var item = btn ? btn.closest('.g-bell-item') : document.querySelector('.g-bell-item[data-id="' + id + '"]');
+    if (item) {
+      item.style.transition = 'transform .2s, opacity .2s, max-height .25s .15s, padding .25s .15s';
+      item.style.transform = 'translateX(110%)';
+      item.style.opacity = '0';
+      setTimeout(function() {
+        item.style.maxHeight = item.offsetHeight + 'px';
+        item.style.overflow = 'hidden';
+        requestAnimationFrame(function() {
+          item.style.maxHeight = '0';
+          item.style.paddingTop = '0';
+          item.style.paddingBottom = '0';
+          setTimeout(function() { item.remove(); _checkEmpty(); }, 260);
+        });
+      }, 180);
+    }
+    fetch('/api/notifications/' + id, {method: 'DELETE', credentials: 'same-origin'})
+      .then(function(){ gLoadNotifs(); });
+  };
+
+  function _checkEmpty() {
+    var list = document.getElementById('gBellList');
+    if (list && !list.querySelector('.g-bell-item')) {
+      list.innerHTML = '<div class="g-bell-empty">Нет уведомлений</div>';
+    }
+  }
+
+  function _initSwipeDismiss() {
+    var list = document.getElementById('gBellList');
+    if (!list) return;
+    list.querySelectorAll('.g-bell-item').forEach(function(item) {
+      var startX = 0, startY = 0, dx = 0, swiping = false;
+      item.addEventListener('touchstart', function(e) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        dx = 0; swiping = false;
+        item.style.transition = 'none';
+      }, {passive: true});
+      item.addEventListener('touchmove', function(e) {
+        dx = e.touches[0].clientX - startX;
+        var dy = Math.abs(e.touches[0].clientY - startY);
+        if (!swiping && Math.abs(dx) > 8 && dy < 20) swiping = true;
+        if (swiping && dx > 0) {
+          e.preventDefault();
+          item.style.transform = 'translateX(' + dx + 'px)';
+          item.style.opacity = String(1 - dx / 200);
+        }
+      }, {passive: false});
+      item.addEventListener('touchend', function() {
+        if (swiping && dx > 80) {
+          var id = parseInt(item.dataset.id);
+          window.gBellDismiss(id, null);
+        } else {
+          item.style.transition = 'transform .2s, opacity .2s';
+          item.style.transform = '';
+          item.style.opacity = '';
+        }
+      });
+    });
+  }
+
   // Polling: every 60s + on focus
   gLoadNotifs();
   setInterval(gLoadNotifs, 60000);
@@ -539,6 +673,95 @@
   });
 })();
 {% endif %}
+
+// ── Search history dropdown ──────────────────────────────────────
+(function(){
+  const HKEY = 'manga_search_history';
+  const MAX = 5;
+
+  function getHistory() { try { return JSON.parse(localStorage.getItem(HKEY)||'[]'); } catch{ return []; } }
+  function saveHistory(q) {
+    if (!q || q.length < 2) return;
+    let h = getHistory().filter(x => x !== q);
+    h.unshift(q); h = h.slice(0, MAX);
+    try { localStorage.setItem(HKEY, JSON.stringify(h)); } catch{}
+  }
+  function delHistory(q) {
+    let h = getHistory().filter(x => x !== q);
+    try { localStorage.setItem(HKEY, JSON.stringify(h)); } catch{}
+  }
+  function clearHistory() { try { localStorage.removeItem(HKEY); } catch{} }
+
+  function initSearchDrop(inp, drop, form) {
+    if (!inp || !drop || !form) return;
+
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+
+    function showHistory() {
+      const h = getHistory();
+      if (!h.length) { drop.classList.remove('visible'); return; }
+      const uid = 'gSdropClear_' + Math.random().toString(36).slice(2);
+      drop.innerHTML = `<div class="g-sdrop-label"><span>🕐 История</span><button class="g-sdrop-clear" id="${uid}">Очистить</button></div>` +
+        h.map(q => `<div class="g-sdrop-item" data-q="${esc(q)}">
+          <span class="g-sdrop-icon">🕐</span><span>${esc(q)}</span>
+          <span class="g-sdrop-del" data-del="${esc(q)}">✕</span>
+        </div>`).join('');
+      drop.classList.add('visible');
+      document.getElementById(uid).onclick = e => { e.stopPropagation(); clearHistory(); drop.classList.remove('visible'); };
+      drop.querySelectorAll('.g-sdrop-item').forEach(el => {
+        el.addEventListener('click', e => {
+          const del = e.target.closest('[data-del]');
+          if (del) { e.stopPropagation(); delHistory(del.dataset.del); showHistory(); return; }
+          inp.value = el.dataset.q; saveHistory(el.dataset.q); form.submit();
+        });
+      });
+    }
+
+    function showSuggestions(list) {
+      if (!list.length) { drop.classList.remove('visible'); return; }
+      drop.innerHTML = list.map(s => `<div class="g-sdrop-item" data-q="${esc(s)}">
+        <span class="g-sdrop-icon">🔍</span><span>${esc(s)}</span>
+      </div>`).join('');
+      drop.classList.add('visible');
+      drop.querySelectorAll('.g-sdrop-item').forEach(el => {
+        el.addEventListener('click', () => { inp.value = el.dataset.q; saveHistory(el.dataset.q); form.submit(); });
+      });
+    }
+
+    let debounce;
+    inp.addEventListener('focus', () => { if (inp.value.trim().length < 2) showHistory(); });
+    inp.addEventListener('input', () => {
+      clearTimeout(debounce);
+      const q = inp.value.trim();
+      if (q.length < 2) { showHistory(); return; }
+      debounce = setTimeout(async () => {
+        try {
+          const list = await fetch(`/api/search/suggestions?q=${encodeURIComponent(q)}`).then(r=>r.json());
+          showSuggestions(list);
+        } catch{}
+      }, 280);
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { drop.classList.remove('visible'); return; }
+      if (e.key === 'Enter') { drop.classList.remove('visible'); }
+    });
+    document.addEventListener('click', e => { if (!form.contains(e.target)) drop.classList.remove('visible'); });
+    form.addEventListener('submit', () => { saveHistory(inp.value.trim()); });
+  }
+
+  // Десктоп
+  initSearchDrop(
+    document.getElementById('gSearchInput'),
+    document.getElementById('gSearchDropdown'),
+    document.getElementById('gSearchForm')
+  );
+  // Мобайл
+  initSearchDrop(
+    document.getElementById('gStickyInput'),
+    document.getElementById('gStickyDropdown'),
+    document.getElementById('gStickyForm')
+  );
+})();
 </script>
 
 <nav class="g-bottom-nav" id="gBottomNav">

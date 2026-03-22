@@ -57,7 +57,10 @@ async def send_telegram_notification(user_id, manga_title, chapter_info, chapter
         message += f" (Том {chapter_info.get('chapter_volume')})"
     if chapter_info.get('chapter_name'):
         message += f"\n{chapter_info.get('chapter_name')}"
-    message += f"\n\n🔗 <a href='{chapter_url}'>Читать на сайте</a>"
+
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📖 Читать", web_app=WebAppInfo(url=chapter_url))
+    ]])
 
     try:
         conn = get_db()
@@ -70,6 +73,7 @@ async def send_telegram_notification(user_id, manga_title, chapter_info, chapter
                 chat_id=result[0],
                 text=message,
                 parse_mode='HTML',
+                reply_markup=keyboard,
             )
     except Exception as e:
         logger.error(f"❌ Ошибка отправки уведомления: {e}")

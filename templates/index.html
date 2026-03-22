@@ -8,7 +8,8 @@
     <title>Манговая — Читай мангу</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"></noscript>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         :root{
@@ -18,7 +19,6 @@
             --border:rgba(237,200,140,.08);
             --gp:linear-gradient(135deg,#e09535,#c07828);
         }
-        html{overflow-x:hidden;}
         body::before{
             content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
             background:
@@ -31,7 +31,6 @@
             background: linear-gradient(160deg, #130e07 0%, #0e0b08 40%, #0b0806 100%);
             color:var(--text);
             -webkit-font-smoothing:antialiased;
-            padding-bottom:calc(70px + env(safe-area-inset-bottom,0px));
         }
 
         /* ── Container ── */
@@ -214,6 +213,43 @@
             width:5px; height:5px; border-radius:50%; background:#ef4444;
         }
 
+        /* ── Читаю — номер на карточке ── */
+        .reading-num{
+            position:absolute; top:.4rem; left:.4rem; z-index:6;
+            background:rgba(0,0,0,.7); border:1px solid rgba(255,255,255,.15);
+            border-radius:5px; padding:.18rem .45rem;
+            font-size:.65rem; font-weight:800; color:#fff;
+        }
+        .reading-ch-label{
+            font-size:.68rem; color:var(--p-light); font-weight:600;
+        }
+        .reading-card-active{
+            border-color:rgba(224,149,53,.5) !important;
+            box-shadow:0 0 0 1px rgba(224,149,53,.25);
+        }
+
+        /* ── Кнопка "Продолжить" ── */
+        .reading-continue{
+            display:flex; align-items:center; gap:14px;
+            margin-top:10px; padding:14px 16px;
+            background:rgba(255,255,255,.04);
+            border:1px solid rgba(255,255,255,.08);
+            border-radius:12px; cursor:pointer;
+            transition:background .2s, border-color .2s;
+        }
+        .reading-continue:hover{ background:rgba(224,149,53,.08); border-color:rgba(224,149,53,.25); }
+        .reading-continue:active{ background:rgba(224,149,53,.15); }
+        .rc-play{
+            width:44px; height:44px; border-radius:50%; flex-shrink:0;
+            background:rgba(224,149,53,.15); border:1px solid rgba(224,149,53,.3);
+            display:flex; align-items:center; justify-content:center;
+            font-size:16px; color:var(--p-light);
+        }
+        .rc-info{ flex:1; min-width:0; }
+        .rc-label{ font-size:12px; color:var(--muted); font-weight:500; margin-bottom:2px; }
+        .rc-chapter{ font-size:15px; font-weight:700; color:#fff; }
+        .rc-time{ font-size:12px; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+
         /* ── Show more ── */
         .show-more{
             display:block; width:100%; margin-top:2px;
@@ -256,10 +292,12 @@
         /* ── Hero ── */
         .hero{
             position:relative;
-            padding:32px 16px 28px;
+            padding:32px 0 28px;
+            overflow:hidden;
         }
+        .hero-text{ padding:0 16px; }
         .hero::before{
-            content:''; position:absolute; inset:-40px;
+            content:''; position:absolute; inset:-40px 0;
             background:
                 radial-gradient(ellipse 90% 70% at 30% 50%, rgba(224,149,53,.10) 0%, transparent 65%),
                 radial-gradient(ellipse 60% 80% at 80% 20%, rgba(200,120,40,.07) 0%, transparent 55%);
@@ -318,14 +356,8 @@
             margin:0 0 20px;
             aspect-ratio:21/9;
             animation:float 4s ease-in-out infinite;
-            -webkit-mask-image:
-                linear-gradient(to bottom, transparent 0%, black 14%, black 72%, transparent 100%),
-                linear-gradient(to right,  transparent 0%, black 8%,  black 92%, transparent 100%);
-            -webkit-mask-composite: destination-in;
-            mask-image:
-                linear-gradient(to bottom, transparent 0%, black 14%, black 72%, transparent 100%),
-                linear-gradient(to right,  transparent 0%, black 8%,  black 92%, transparent 100%);
-            mask-composite: intersect;
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 75%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 75%, transparent 100%);
         }
         .hero-img-wrap::after{
             content:''; position:absolute; inset:0;
@@ -382,7 +414,6 @@
         .orb{
             position:absolute; border-radius:50%;
             filter:blur(90px); opacity:.6;
-            will-change:transform;
         }
         .orb1{
             width:680px; height:680px;
@@ -502,6 +533,53 @@
     <div id="section-top-manhwa"></div>
     <div id="section-top-manhua"></div>
     <div id="section-top-manga"></div>
+
+    <!-- Читаю (последнее читаемое) -->
+    {% if user_id and reading %}
+    <section class="row" id="section-reading">
+        <div class="row-head">
+            <h2 class="row-title">Читаю</h2>
+            <a href="/bookmarks" class="row-link">Все →</a>
+        </div>
+        <div class="grid-wrap">
+        <button class="scroll-btn left" aria-label="Назад" onclick="scrollGrid(this,-1)">&#8249;</button>
+        <div class="manga-grid reading-grid" id="readingGrid">
+            {% for manga in reading %}
+            <div class="manga-card reading-card {% if loop.first %}reading-card-active{% endif %}"
+                 data-slug="{{ manga.manga_slug }}"
+                 data-chapter-num="{{ manga.last_chapter_number or '' }}"
+                 data-chapter-slug="{{ manga.last_chapter_slug or '' }}"
+                 data-time="{{ manga.last_read_time or '' }}"
+                 onclick="location.href='/manga/{{ manga.manga_slug }}'">
+                <div class="manga-cover-wrap">
+                    <span class="reading-num">{{ loop.index }}</span>
+                    <span class="manga-type-badge">{{ manga.manga_type or 'Манга' }}</span>
+                    <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
+                </div>
+                <div class="manga-info">
+                    <div class="manga-title">{{ manga.manga_title }}</div>
+                    {% if manga.last_chapter_number %}
+                    <div class="manga-meta"><span class="reading-ch-label">Гл. {{ manga.last_chapter_number }}</span></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="scroll-btn right" aria-label="Вперёд" onclick="scrollGrid(this,1)">&#8250;</button>
+        </div>
+
+        <!-- Кнопка "Продолжить" для активной карточки -->
+        <div class="reading-continue" id="readingContinue">
+            <div class="rc-play">▶</div>
+            <div class="rc-info">
+                <div class="rc-label">Продолжить</div>
+                <div class="rc-chapter" id="rcChapter"></div>
+            </div>
+            <div class="rc-time" id="rcTime"></div>
+        </div>
+    </section>
+    {% endif %}
 
     <!-- Мои подписки (сервер) -->
     {% if user_id and subscriptions %}
@@ -711,6 +789,47 @@
         },{rootMargin:'150px'});
         document.querySelectorAll('[data-slug]').forEach(el=>obs.observe(el));
     });
+
+    /* ── блок "Читаю" — кнопка Продолжить ── */
+    (function(){
+        const grid = document.getElementById('readingGrid');
+        const cont = document.getElementById('readingContinue');
+        if (!grid || !cont) return;
+
+        const rcChapter = document.getElementById('rcChapter');
+        const rcTime    = document.getElementById('rcTime');
+
+        function activateCard(card) {
+            grid.querySelectorAll('.reading-card').forEach(c => c.classList.remove('reading-card-active'));
+            card.classList.add('reading-card-active');
+            const chNum  = card.dataset.chapterNum;
+            const chSlug = card.dataset.chapterSlug;
+            const slug   = card.dataset.slug;
+            const time   = card.dataset.time;
+            rcChapter.textContent = chNum ? 'Глава ' + chNum : card.querySelector('.manga-title').textContent.trim();
+            rcTime.textContent    = timeAgo(time);
+            cont.onclick = () => {
+                if (chSlug && slug) location.href = '/read/' + slug + '/' + chSlug;
+                else location.href = '/manga/' + slug;
+            };
+        }
+
+        // Активируем первую карточку сразу
+        const first = grid.querySelector('.reading-card');
+        if (first) activateCard(first);
+
+        // При скролле — активируем ближайшую к центру карточку
+        grid.addEventListener('scroll', () => {
+            const cards = grid.querySelectorAll('.reading-card');
+            const center = grid.scrollLeft + grid.clientWidth / 2;
+            let best = null, bestDist = Infinity;
+            cards.forEach(c => {
+                const dist = Math.abs(c.offsetLeft + c.offsetWidth / 2 - center);
+                if (dist < bestDist) { bestDist = dist; best = c; }
+            });
+            if (best) activateCard(best);
+        }, { passive: true });
+    })();
 
     /* ── кнопка наверх ── */
     const btn=document.getElementById('toTop');

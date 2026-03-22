@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8"/>
   <link rel="icon" type="image/png" href="/static/favicon.png"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#e09535"/>
   <title>Магазин — Манговая</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -18,7 +19,7 @@
       --border: rgba(255,255,255,.06);
       --text: #ffffff; --text-2: #b8b8b8; --text-3: #71717a;
     }
-    html,body { font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; overflow-x:hidden; }
+    html,body { font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.6; overflow-x:clip; }
     a { color:inherit; }
 
     /* ── Шапка ── */
@@ -42,8 +43,8 @@
     .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(224,149,53,.15),rgba(217,119,6,.1)); border:1px solid rgba(224,149,53,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
     /* ── Вкладки ── */
-    .shop-tabs-wrap { position:sticky; top:160px; z-index:100; background:rgba(14,11,8,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
-    @media(max-width:700px){ .shop-tabs-wrap { top:100px; } }
+    .shop-tabs-wrap { position:sticky; top:130px; z-index:100; background:rgba(14,11,8,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    @media(max-width:700px){ .shop-tabs-wrap { top:128px; } }
     .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; justify-content:center; }
     .shop-tabs::-webkit-scrollbar { display:none; }
     .shop-tab { flex-shrink:0; padding:7px 15px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:50px; color:var(--text-2); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
@@ -335,7 +336,6 @@ function PreviewAvatar({item}){
   // full_url = _original.webp (анимированный), preview_url = _thumb.webp (статичный)
   const src = item.full_url || item.preview_url;
   return h('div',{className:'item-preview-avatar'},
-    !!item.is_animated && h('div',{className:'anim-badge'},'ANIM'),
     h('div',{className:'avatar-circle'},
       src
         ? h(MediaEl,{url:src,style:{width:'100%',height:'100%',objectFit:'cover'}})
