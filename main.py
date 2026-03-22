@@ -1418,10 +1418,11 @@ def get_or_create_user_by_telegram(telegram_id, username=None, first_name=None, 
     # Создаем нового пользователя
     login_token = secrets.token_urlsafe(32)
     referral_code = secrets.token_urlsafe(6).upper()
+    is_bot = bool(username and username.startswith('bot_seed_'))
     c.execute('''INSERT INTO users
-                 (telegram_id, telegram_username, telegram_first_name, telegram_last_name, login_token, referral_code)
-                 VALUES (?, ?, ?, ?, ?, ?)''',
-              (telegram_id, username, first_name, last_name, login_token, referral_code))
+                 (telegram_id, telegram_username, telegram_first_name, telegram_last_name, login_token, referral_code, is_bot)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)''',
+              (telegram_id, username, first_name, last_name, login_token, referral_code, is_bot))
     conn.commit()
     
     user_id = c.lastrowid
@@ -1892,6 +1893,7 @@ def get_user_reading(user_id, limit=12):
     c = conn.cursor()
     c.execute('''SELECT m.manga_id, m.manga_title, m.manga_slug, m.cover_url, m.manga_type,
                         rh.last_read as last_read_time,
+                        rh.page_number as page_number,
                         ch.chapter_number as last_chapter_number,
                         ch.chapter_slug   as last_chapter_slug
                  FROM reading_history rh
@@ -1962,37 +1964,258 @@ def increment_manga_views(manga_id):
 
 # ==================== ПРОВЕРКА НОВЫХ ГЛАВ ====================
 
-last_known_chapters = {}
+# ── Персистентный трекер глав (вместо in-memory dict) ────────────────────────
 
-async def send_telegram_notification(user_id, manga_title, chapter_info, chapter_url):
-    """Отправка уведомления пользователю через Telegram"""
-    global telegram_app
-    
-    message = f"🆕 <b>Новая глава!</b>\n\n"
-    message += f"📖 <b>{manga_title}</b>\n"
-    message += f"Глава: {chapter_info.get('chapter_number')}"
-    if chapter_info.get('chapter_volume'):
-        message += f" (Том {chapter_info.get('chapter_volume')})"
-    if chapter_info.get('chapter_name'):
-        message += f"\n{chapter_info.get('chapter_name')}"
-    message += f"\n\n🔗 <a href='{chapter_url}'>Читать на сайте</a>"
-    
+def _init_manga_tracker():
+    """Создаёт таблицу manga_tracker если не существует, и заполняет из manga."""
+    conn = get_db()
+    conn.execute('''CREATE TABLE IF NOT EXISTS manga_tracker (
+        manga_id       TEXT PRIMARY KEY,
+        last_chapter_id TEXT,
+        last_checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    # Заполняем известными главами, чтобы не слать дубли при первом запуске
+    conn.execute('''INSERT OR IGNORE INTO manga_tracker (manga_id, last_chapter_id)
+                    SELECT manga_id, last_chapter_id FROM manga
+                    WHERE last_chapter_id IS NOT NULL''')
+    conn.commit()
+    conn.close()
+
+
+def _get_tracked(manga_id):
+    conn = get_db()
+    row = conn.execute('SELECT last_chapter_id FROM manga_tracker WHERE manga_id = ?', (manga_id,)).fetchone()
+    conn.close()
+    return row['last_chapter_id'] if row else None
+
+
+def _set_tracked(manga_id, chapter_id):
+    conn = get_db()
+    conn.execute(
+        '''INSERT OR REPLACE INTO manga_tracker (manga_id, last_chapter_id, last_checked_at)
+           VALUES (?, ?, ?)''',
+        (manga_id, chapter_id, datetime.now())
+    )
+    conn.commit()
+    conn.close()
+
+
+# ── Уведомление подписчиков ───────────────────────────────────────────────────
+
+def notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_url):
+    """
+    Уведомляет подписчиков о новой главе.
+    - Премиум: сайт-уведомление + мгновенный Telegram
+    - Не премиум: только в очередь дайджеста (Telegram в 22:00)
+    """
+    chapter_slug   = chapter_info.get('slug') or chapter_info.get('chapter_slug')
+    chapter_number = chapter_info.get('number') or chapter_info.get('chapter_number')
+    chapter_volume = chapter_info.get('volume') or chapter_info.get('chapter_volume')
+    chapter_name   = chapter_info.get('name') or chapter_info.get('chapter_name')
+    chapter_id     = chapter_info.get('id') or chapter_info.get('chapter_id')
+    chapter_url    = f"{SITE_URL}/read/{manga_slug}/{chapter_slug}"
+
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute('SELECT telegram_id FROM users WHERE id = ?', (user_id,))
-        result = c.fetchone()
+        c.execute(
+            '''SELECT s.user_id, u.is_premium, u.telegram_id
+               FROM subscriptions s
+               JOIN users u ON s.user_id = u.id
+               WHERE s.manga_id = ?
+                 AND u.is_active IS NOT FALSE
+                 AND u.notifications_enabled IS NOT FALSE
+                 AND u.is_bot IS NOT TRUE''',
+            (manga_id,)
+        )
+        subscribers = c.fetchall()
         conn.close()
-        
-        if result:
-            telegram_id = result[0]
-            await telegram_app.bot.send_message(
-                chat_id=telegram_id,
-                text=message,
-                parse_mode='HTML'
-            )
     except Exception as e:
-        print(f"❌ Ошибка отправки уведомления: {e}")
+        logger.error(f"❌ Ошибка получения подписчиков: {e}")
+        return
+
+    notify_data = {
+        'chapter_number': chapter_number,
+        'chapter_volume': chapter_volume,
+        'chapter_name':   chapter_name,
+        'chapter_id':     chapter_id,
+    }
+
+    for sub in subscribers:
+        uid = sub['user_id']
+        if sub['is_premium']:
+            # Премиум: сайт + мгновенный Telegram
+            create_site_notification(
+                uid, 'new_chapter', f'Новая глава: {manga_title}',
+                f'Глава {chapter_number}' if chapter_number else None,
+                chapter_url, ref_id=str(chapter_id), cover_url=cover_url
+            )
+            coro = send_telegram_notification(uid, manga_title, notify_data, chapter_url)
+            _loop = _get_bot_loop()
+            if _loop and _loop.is_running():
+                asyncio.run_coroutine_threadsafe(coro, _loop)
+        else:
+            # Не премиум: только в очередь дайджеста
+            try:
+                conn2 = get_db()
+                conn2.execute(
+                    '''INSERT OR IGNORE INTO notification_queue
+                       (user_id, manga_id, manga_title, manga_slug,
+                        chapter_number, chapter_volume, chapter_name)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (uid, manga_id, manga_title, manga_slug,
+                     str(chapter_number) if chapter_number else None,
+                     str(chapter_volume) if chapter_volume else None,
+                     chapter_name)
+                )
+                conn2.commit()
+                conn2.close()
+            except Exception as e:
+                logger.error(f"❌ Ошибка добавления в дайджест: {e}")
+
+
+# ── Общая логика обнаружения новой главы ─────────────────────────────────────
+
+def _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, chapter_info):
+    """
+    Сохраняет главу в БД и при необходимости вызывает notify_subscribers.
+    Возвращает True если уведомления были отправлены.
+    """
+    chapter_id = chapter_info.get('id') or chapter_info.get('chapter_id')
+    if not chapter_id:
+        return False
+
+    save_manga_and_chapter_to_db(manga_id, manga_slug, manga_title, cover_url, chapter_info)
+
+    last_known = _get_tracked(manga_id)
+
+    if last_known is None:
+        # Первый раз видим эту мангу — регистрируем без уведомления.
+        # (initial fill уже заполнил трекер из manga-таблицы при старте,
+        #  поэтому сюда попадают только реально новые манги)
+        _set_tracked(manga_id, chapter_id)
+        logger.info(f"📝 Зарегистрирована манга: {manga_title}")
+        return False
+
+    if last_known != chapter_id:
+        logger.info(f"🆕 Новая глава: {manga_title} — гл. {chapter_info.get('number', '?')}")
+        notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_url)
+        _set_tracked(manga_id, chapter_id)
+        return True
+
+    return False
+
+
+# ── Проверка глобального фида (топ обновлений) ───────────────────────────────
+
+def check_new_chapters():
+    """Проверка последних обновлений через глобальный фид API."""
+    try:
+        edges = api.fetch_main_page()
+        if not edges:
+            logger.error("❌ API не вернул данные при проверке новых глав")
+            return
+
+        logger.info(f"[{datetime.now().strftime('%H:%M:%S')}] 🔄 Проверка... Получено {len(edges)} глав из API")
+
+        for edge in edges:
+            node = edge.get("node") or {}
+            if not node:
+                continue
+            manga_id    = node.get("id")
+            manga_slug  = node.get("slug")
+            titles      = node.get("titles") or []
+            manga_title = (
+                next((t["content"] for t in titles if t.get("lang") == "RU"), None) or
+                next((t["content"] for t in titles if t.get("lang") == "EN"), None) or
+                manga_slug
+            )
+            cover     = node.get("cover") or {}
+            cover_url = (cover.get("original") or {}).get("url", "") or \
+                        (cover.get("preview") or {}).get("url", "")
+            last_chapters = node.get("lastChapters") or []
+            if not last_chapters:
+                continue
+            _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, last_chapters[0])
+
+        logger.info(f"✅ Проверка завершена. Обработано {len(edges)} глав")
+
+        # Пушим свежие главы всем подключённым клиентам через SocketIO
+        try:
+            fresh = get_recent_chapters_from_api(21)
+            socketio.emit('new_chapters', fresh, namespace='/')
+        except Exception as _se:
+            logger.warning(f"⚠️ SocketIO emit error: {_se}")
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка в check_new_chapters: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+# ── Ротация подписок: полное покрытие всех подписанных манг ──────────────────
+
+_sub_rotation_offset = 0
+_SUB_BATCH_SIZE = 5  # манг за один тик (регулирует нагрузку на API)
+
+
+def check_subscribed_mangas():
+    """
+    Каждую минуту проверяет следующие _SUB_BATCH_SIZE подписанных манг через API.
+    Гарантирует, что любая манга из подписок будет проверена,
+    даже если она не попала в глобальный фид.
+    """
+    global _sub_rotation_offset
+    try:
+        conn = get_db()
+        c = conn.cursor()
+        # Берём манги у которых есть хоть один подписчик и известен branch_id
+        c.execute(
+            '''SELECT DISTINCT m.manga_id, m.manga_slug, m.manga_title,
+                      m.cover_url, m.branch_id
+               FROM subscriptions s
+               JOIN manga m ON s.manga_id = m.manga_id
+               WHERE m.branch_id IS NOT NULL
+               ORDER BY m.manga_id
+               LIMIT ? OFFSET ?''',
+            (_SUB_BATCH_SIZE, _sub_rotation_offset)
+        )
+        batch = c.fetchall()
+        conn.close()
+
+        if not batch:
+            _sub_rotation_offset = 0  # прошли весь список — начинаем заново
+            return
+
+        for row in batch:
+            try:
+                ch_data = api.fetch_manga_chapters_page(row['branch_id'], after=None)
+                edges   = (ch_data or {}).get('edges') or []
+                if not edges:
+                    continue
+                node = (edges[0].get('node') or {}) or edges[0]
+                if not node:
+                    continue
+                chapter_info = {
+                    'id':        node.get('id'),
+                    'slug':      node.get('slug'),
+                    'number':    node.get('number'),
+                    'volume':    node.get('volume'),
+                    'name':      node.get('name'),
+                    'createdAt': node.get('createdAt'),
+                }
+                _process_chapter_if_new(
+                    row['manga_id'], row['manga_title'], row['manga_slug'],
+                    row['cover_url'] or '', chapter_info
+                )
+            except Exception as e_row:
+                logger.debug(f"⚠️ Ошибка проверки {row.get('manga_slug', '?')}: {e_row}")
+
+        _sub_rotation_offset += _SUB_BATCH_SIZE
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка check_subscribed_mangas: {e}")
+
 
 def get_chapter_pages(chapter_slug):
     """Получить страницы главы через API"""
@@ -2021,182 +2244,25 @@ def save_chapter_to_db(chapter_data):
     finally:
         conn.close()
 
-def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_url):
-    """Обработка новой главы"""
-    chapter_slug = chapter_info.get("slug")
-    chapter_number = chapter_info.get("number")
-    chapter_volume = chapter_info.get("volume")
-    chapter_name = chapter_info.get("name")
-    chapter_id = chapter_info.get("id")
-    chapter_url = f"{SITE_URL}/read/{manga_slug}/{chapter_slug}"
-
-    chapter_data = {
-        'manga_id': manga_id,
-        'chapter_id': chapter_id,
-        'chapter_slug': chapter_slug,
-        'chapter_number': chapter_number,
-        'chapter_volume': chapter_volume,
-        'chapter_name': chapter_name,
-        'chapter_url': chapter_url,
-        'pages': []
-    }
-
-    # Уведомить подписанных пользователей (не зависит от загрузки страниц)
-    conn = get_db()
-    c = conn.cursor()
-    c.execute(
-        '''SELECT s.user_id, u.is_premium, u.notifications_enabled
-           FROM subscriptions s
-           JOIN users u ON s.user_id = u.id
-           WHERE s.manga_id = ? AND u.is_active IS NOT FALSE''',
-        (manga_id,)
-    )
-    subscribers = c.fetchall()
-    conn.close()
-
-    for sub in subscribers:
-        uid = sub['user_id']
-        # Уведомление на сайте — всегда для подписчиков
-        create_site_notification(uid, 'new_chapter', f'Новая глава: {manga_title}',
-                                 f'Глава {chapter_number}' if chapter_number else None,
-                                 chapter_url, ref_id=str(chapter_id), cover_url=cover_url)
-        if sub['notifications_enabled'] == 0:
-            continue
-        if sub['is_premium']:
-            # Премиум: мгновенное Telegram-уведомление
-            coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
-            _loop = _get_bot_loop()
-            if _loop and _loop.is_running():
-                asyncio.run_coroutine_threadsafe(coro, _loop)
-            else:
-                asyncio.run(coro)
-        else:
-            # Не премиум: добавить в очередь ежедневного дайджеста
-            try:
-                conn2 = get_db()
-                c2 = conn2.cursor()
-                c2.execute(
-                    '''INSERT OR IGNORE INTO notification_queue
-                       (user_id, manga_id, manga_title, manga_slug, chapter_number, chapter_volume, chapter_name)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                    (uid, manga_id, manga_title, manga_slug,
-                     str(chapter_number) if chapter_number else None,
-                     str(chapter_volume) if chapter_volume else None,
-                     chapter_name)
-                )
-                conn2.commit()
-                conn2.close()
-            except Exception as e:
-                print(f"❌ Ошибка добавления в очередь: {e}")
-
-    # Сохранить мангу в БД
-    conn = get_db()
-    c = conn.cursor()
-    try:
-        c.execute('''INSERT OR REPLACE INTO manga
-                     (manga_id, manga_slug, manga_title, cover_url,
-                      last_chapter_id, last_chapter_number, last_chapter_volume,
-                      last_chapter_name, last_chapter_slug, last_updated)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                  (manga_id, manga_slug, manga_title, cover_url,
-                   chapter_id, chapter_number, chapter_volume,
-                   chapter_name, chapter_slug, datetime.now()))
-        conn.commit()
-    except Exception as e:
-        print(f"❌ Ошибка сохранения манги: {e}")
-    finally:
-        conn.close()
-
-    # Загрузить и сохранить страницы главы (опционально, не блокирует уведомления)
-    try:
-        pages = get_chapter_pages(chapter_slug)
-        if pages:
-            chapter_data['pages'] = [
-                p.get("image", {}).get("compress", {}).get("url", "")
-                for p in pages if p.get("image", {}).get("compress", {}).get("url")
-            ]
-            save_chapter_to_db(chapter_data)
-    except Exception as e:
-        logger.warning(f"⚠️ Не удалось загрузить страницы для {chapter_slug}: {e}")
-
-def check_new_chapters():
-    """Проверка новых глав и обновление БД всеми 21 главой из API"""
-    try:
-        edges = api.fetch_main_page()
-        if not edges:
-            logger.error("❌ API не вернул данные при проверке новых глав")
-            return
-
-        logger.info(f"\n[{datetime.now().strftime('%H:%M:%S')}] 🔄 Проверка... Получено {len(edges)} глав из API")
-
-        # Обрабатываем ВСЕ полученные главы (обычно 21)
-        for edge in edges:
-            node = edge.get("node") or {}
-            if not node:
-                continue
-            manga_id = node.get("id")
-            manga_slug = node.get("slug")
-
-            titles = node.get("titles") or []
-            ru_title = next((t["content"] for t in titles if t.get("lang") == "RU"), None)
-            en_title = next((t["content"] for t in titles if t.get("lang") == "EN"), None)
-            manga_title = ru_title or en_title or manga_slug
-
-            cover = node.get("cover") or {}
-            cover_url = (cover.get("original") or {}).get("url", "") or \
-                        (cover.get("preview") or {}).get("url", "")
-            
-            last_chapters = node.get("lastChapters", [])
-            
-            if not last_chapters:
-                continue
-
-            latest_chapter = last_chapters[0]
-            chapter_id = latest_chapter.get("id")
-
-            # Сохраняем мангу и главу в БД для отображения в последних обновлениях
-            save_manga_and_chapter_to_db(manga_id, manga_slug, manga_title, cover_url, latest_chapter)
-
-            # Проверяем, новая ли это глава для уведомлений
-            if manga_id not in last_known_chapters:
-                last_known_chapters[manga_id] = chapter_id
-                logger.info(f"📝 Зарегистрирована манга: {manga_title}")
-            elif last_known_chapters[manga_id] != chapter_id:
-                logger.info(f"🆕 Новая глава обнаружена: {manga_title} - Глава {latest_chapter.get('number')}")
-                process_new_chapter(manga_title, manga_slug, manga_id, latest_chapter, cover_url)
-                last_known_chapters[manga_id] = chapter_id
-
-        logger.info(f"✅ Проверка завершена. Обработано {len(edges)} глав")
-
-        # Пушим свежие главы всем подключённым клиентам
-        try:
-            fresh = get_recent_chapters_from_api(21)
-            socketio.emit('new_chapters', fresh, namespace='/')
-        except Exception as _se:
-            logger.warning(f"⚠️ SocketIO emit error: {_se}")
-
-    except Exception as e:
-        logger.error(f"❌ Ошибка в check_new_chapters: {e}")
-        import traceback
-        traceback.print_exc()
-
 def background_checker():
-    """Фоновый процесс проверки"""
+    """Фоновый процесс: новые главы + дайджест + Premium-expired + временные предметы."""
+    _init_manga_tracker()
     logger.info("🤖 Фоновый мониторинг запущен!")
     check_new_chapters()
-    _last_digest_hour_key = None  # "YYYY-MM-DD-HH"
+    _last_digest_hour_key = None
 
     while True:
         try:
-            time.sleep(60)  # Проверка каждую минуту
-            check_new_chapters()
+            time.sleep(60)
+            check_new_chapters()          # Глобальный фид: быстрая детекция популярных манг
+            check_subscribed_mangas()     # Ротация: гарантированное покрытие всех подписок
 
-            # Ежедневный дайджест: запускаем каждый час для пользователей с matching digest_hour
+            # Ежедневный дайджест в 22:00 МСК
             now_msk = datetime.utcnow() + timedelta(hours=3)
             hour_key = now_msk.strftime('%Y-%m-%d-%H')
-            if _last_digest_hour_key != hour_key:
+            if _last_digest_hour_key != hour_key and now_msk.hour == 22:
                 _last_digest_hour_key = hour_key
-                coro = send_daily_digest(hour=now_msk.hour)
+                coro = send_daily_digest()
                 _loop = _get_bot_loop()
                 if _loop and _loop.is_running():
                     asyncio.run_coroutine_threadsafe(coro, _loop)

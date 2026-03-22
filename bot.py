@@ -79,8 +79,8 @@ async def send_telegram_notification(user_id, manga_title, chapter_info, chapter
         logger.error(f"❌ Ошибка отправки уведомления: {e}")
 
 
-async def send_daily_digest(hour=22):
-    """Ежедневный дайджест новых глав для непремиум-пользователей."""
+async def send_daily_digest():
+    """Ежедневный дайджест в 22:00 МСК — список новых глав для непремиум-пользователей."""
     global telegram_app
     if not telegram_app:
         return
@@ -88,14 +88,18 @@ async def send_daily_digest(hour=22):
     try:
         conn = get_db()
         c = conn.cursor()
+        # Все непремиум-пользователи у кого есть накопившиеся уведомления и telegram_id
         c.execute(
             '''SELECT DISTINCT nq.user_id, u.telegram_id
                FROM notification_queue nq
                JOIN users u ON nq.user_id = u.id
-               WHERE (u.last_digest_date IS NULL OR u.last_digest_date < ?)
-                 AND COALESCE(u.digest_hour, 22) = ?
-                 AND u.is_active IS NOT FALSE AND u.notifications_enabled IS NOT FALSE''',
-            (today, hour),
+               WHERE u.telegram_id IS NOT NULL
+                 AND (u.last_digest_date IS NULL OR u.last_digest_date < ?)
+                 AND u.is_active IS NOT FALSE
+                 AND u.notifications_enabled IS NOT FALSE
+                 AND COALESCE(u.is_premium, 0) = 0
+                 AND u.is_bot IS NOT TRUE''',
+            (today,),
         )
         users = c.fetchall()
         conn.close()
@@ -104,14 +108,14 @@ async def send_daily_digest(hour=22):
         return
 
     for row in users:
-        user_id    = row['user_id']
+        user_id     = row['user_id']
         telegram_id = row['telegram_id']
         conn2 = None
         try:
             conn2 = get_db()
             c2 = conn2.cursor()
             c2.execute(
-                '''SELECT manga_title, manga_slug, chapter_number, chapter_volume, chapter_name
+                '''SELECT manga_title, chapter_number, chapter_volume, chapter_name
                    FROM notification_queue WHERE user_id = ?
                    ORDER BY created_at ASC''',
                 (user_id,),
@@ -122,15 +126,15 @@ async def send_daily_digest(hour=22):
 
             message = "📚 <b>Новые главы из твоих подписок:</b>\n\n"
             for ch in chapters:
-                message += f"📖 <b>{ch['manga_title']}</b>"
+                line = f"📖 <b>{ch['manga_title']}</b>"
                 if ch['chapter_number']:
-                    message += f" — Глава {ch['chapter_number']}"
+                    line += f" — Глава {ch['chapter_number']}"
                 if ch['chapter_volume']:
-                    message += f" (Том {ch['chapter_volume']})"
+                    line += f" (Том {ch['chapter_volume']})"
                 if ch['chapter_name']:
-                    message += f"\n    <i>{ch['chapter_name']}</i>"
-                message += "\n"
-            message += "\n💎 <i>Оформи Premium — получай мгновенные уведомления с прямыми ссылками!</i>"
+                    line += f"\n    <i>{ch['chapter_name']}</i>"
+                message += line + "\n"
+            message += "\n💎 <i>Оформи Premium — получай мгновенные уведомления!</i>"
 
             await telegram_app.bot.send_message(
                 chat_id=telegram_id, text=message, parse_mode='HTML',

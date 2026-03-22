@@ -1074,6 +1074,9 @@
         const mangaSlug       = {{ chapter.manga_slug | tojson }};
         const chapterSlug     = {{ chapter.chapter_slug | tojson }};
         const chapterNumber   = {{ chapter.chapter_number | tojson }};
+        const _mangaId        = {{ chapter.manga_id | tojson }};
+        const _chapterId      = {{ chapter.chapter_id | tojson }};
+        const _isLoggedIn     = {{ (session.user_id is defined and session.user_id) | tojson }};
 
         const prevChapterUrl  = {% if prev_chapter %}{{ ('/read/' + chapter.manga_slug + '/' + prev_chapter.chapter_slug) | tojson }}{% else %}null{% endif %};
         const nextChapterUrl  = {% if next_chapter %}{{ ('/read/' + chapter.manga_slug + '/' + next_chapter.chapter_slug) | tojson }}{% else %}null{% endif %};
@@ -1295,10 +1298,22 @@
         }
 
         // ==================== СОХРАНЕНИЕ ПРОГРЕССА ====================
+        var _progressSaveTimer = null;
         function saveReadingProgress(page) {
             try {
                 localStorage.setItem(_activeProgressKey, page);
             } catch (e) {}
+            // Сохраняем на сервер (только для текущей главы, не infinite scroll)
+            if (_isLoggedIn && _activeChapterSlug === chapterSlug) {
+                clearTimeout(_progressSaveTimer);
+                _progressSaveTimer = setTimeout(function() {
+                    fetch('/api/reading/progress', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({manga_id: _mangaId, chapter_id: _chapterId, page: page})
+                    }).catch(function(){});
+                }, 2000);
+            }
         }
 
         // ==================== ВОССТАНОВЛЕНИЕ ПРОГРЕССА ====================
@@ -1306,7 +1321,9 @@
         // и имеют высоту-заглушку min-height:100vh → позиция предсказуема
         (function restoreProgress() {
             try {
-                const savedPage = parseInt(localStorage.getItem(_activeProgressKey), 10);
+                // Сначала проверяем URL-параметр ?p= (из кнопки "Продолжить")
+                const urlPage = parseInt(new URLSearchParams(location.search).get('p'), 10);
+                const savedPage = urlPage || parseInt(localStorage.getItem(_activeProgressKey), 10);
                 if (!savedPage || savedPage <= 1) return;
                 // Первые 3 картинки загружаются сразу, остальные — заглушка 100vh
                 // Скролл до нужной страницы = (savedPage - 1) * 100vh

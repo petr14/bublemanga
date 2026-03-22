@@ -712,6 +712,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 
       <div style="display:flex;gap:8px;padding-top:4px">
         <button class="btn btn-danger" id="um-ban-btn" onclick="toggleBan()" style="flex:1">🔨 Заблокировать</button>
+        <button class="btn btn-ghost" id="um-bot-btn" onclick="toggleBot()" style="flex:1">🤖 Отметить ботом</button>
         <button class="btn btn-ghost" onclick="document.getElementById('user-modal').classList.remove('open')" style="flex:1">Закрыть</button>
       </div>
     </div>
@@ -1102,6 +1103,7 @@ async function loadUsers(page){
       <td>
         ${u.is_active ? '<span class="badge badge-green">Активен</span>' : '<span class="badge badge-red">Забанен</span>'}
         ${u.is_premium ? '<span class="badge badge-yellow" title="до '+esc(u.premium_expires_at||'')+'">⭐</span>' : ''}
+        ${u.is_bot ? '<span class="badge" style="background:rgba(150,150,150,.15);color:var(--text3)">🤖 бот</span>' : ''}
       </td>
       <td><span class="badge badge-purple">Ур. ${u.level}</span></td>
       <td>${fmtNum(u.xp)}</td>
@@ -1126,9 +1128,8 @@ async function openUserModal(uid){
   $('um-subs-tbody').innerHTML = '<tr><td colspan="3" class="empty"><div class="spinner"></div></td></tr>';
   $('um-details').innerHTML = '<div style="grid-column:span 2;color:var(--text3)">Загрузка...</div>';
 
-  const d = await api(`/api/admin/users?page=1&per_page=1&q=${uid}`);
-  const u = d.users.find(x=>x.id===uid) || d.users[0];
-  if(!u){ toast('Пользователь не найден','error'); return; }
+  const u = await api(`/api/admin/users/${uid}`);
+  if(!u || u.error){ toast('Пользователь не найден','error'); return; }
 
   $('um-title').textContent = userName(u);
   $('um-details').innerHTML = `
@@ -1149,6 +1150,15 @@ async function openUserModal(uid){
   } else {
     banBtn.textContent = '✅ Разблокировать';
     banBtn.className = 'btn btn-success';
+  }
+
+  const botBtn = $('um-bot-btn');
+  if(u.is_bot){
+    botBtn.textContent = '✅ Снять метку бота';
+    botBtn.className = 'btn btn-success';
+  } else {
+    botBtn.textContent = '🤖 Отметить ботом';
+    botBtn.className = 'btn btn-ghost';
   }
 
   loadUserSubs(uid);
@@ -1175,6 +1185,15 @@ async function toggleBan(){
   if(r.success){
     const banned = r.is_active===0;
     toast(banned ? 'Пользователь заблокирован' : 'Пользователь разблокирован', banned?'error':'success');
+    openUserModal(currentUserId);
+    if(sectionLoaded['users']) loadUsers();
+  }
+}
+
+async function toggleBot(){
+  const r = await api(`/api/admin/users/${currentUserId}/bot`, {method:'POST'});
+  if(r.success){
+    toast(r.is_bot ? 'Помечен как бот' : 'Метка бота снята', r.is_bot ? 'error' : 'success');
     openUserModal(currentUserId);
     if(sectionLoaded['users']) loadUsers();
   }

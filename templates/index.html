@@ -567,6 +567,7 @@
                  data-slug="{{ manga.manga_slug }}"
                  data-chapter-num="{{ manga.last_chapter_number or '' }}"
                  data-chapter-slug="{{ manga.last_chapter_slug or '' }}"
+                 data-page="{{ manga.page_number or '' }}"
                  data-time="{{ manga.last_read_time or '' }}"
                  onclick="location.href='/manga/{{ manga.manga_slug }}'">
                 <div class="manga-cover-wrap">
@@ -884,11 +885,14 @@
             const chSlug = card.dataset.chapterSlug;
             const slug   = card.dataset.slug;
             const time   = card.dataset.time;
+            const page   = parseInt(card.dataset.page, 10) || 0;
             rcChapter.textContent = chNum ? 'Глава ' + chNum : card.querySelector('.manga-title').textContent.trim();
             rcTime.textContent    = timeAgo(time);
             cont.onclick = () => {
-                if (chSlug && slug) location.href = '/read/' + slug + '/' + chSlug;
-                else location.href = '/manga/' + slug;
+                if (chSlug && slug) {
+                    const url = '/read/' + slug + '/' + chSlug + (page > 1 ? '?p=' + page : '');
+                    location.href = url;
+                } else location.href = '/manga/' + slug;
             };
         }
 

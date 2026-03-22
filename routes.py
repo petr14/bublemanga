@@ -1336,6 +1336,29 @@ def _calc_chapter_reward(pages_count: int) -> tuple[int, int]:
         return 60, 3
 
 
+@bp.route('/api/reading/progress', methods=['POST'])
+def api_reading_progress():
+    """Сохраняет текущую страницу в reading_history."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'ok': False}), 401
+    data = request.get_json(silent=True) or {}
+    manga_id   = data.get('manga_id')
+    chapter_id = data.get('chapter_id')
+    page       = data.get('page')
+    if not manga_id or not chapter_id or not page:
+        return jsonify({'ok': False}), 400
+    conn = get_db()
+    conn.execute(
+        '''UPDATE reading_history SET page_number = ?
+           WHERE user_id = ? AND manga_id = ? AND chapter_id = ?''',
+        (int(page), user_id, int(manga_id), int(chapter_id))
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
 @bp.route('/api/chapter/<chapter_slug>/complete', methods=['POST'])
 def api_chapter_complete(chapter_slug):
     """
@@ -3860,7 +3883,7 @@ def api_admin_users():
 
     c.execute(f'''
         SELECT u.id, u.telegram_id, u.telegram_username, u.telegram_first_name,
-               u.is_active, u.is_premium, u.premium_expires_at,
+               u.is_active, u.is_premium, u.premium_expires_at, u.is_bot,
                u.created_at, u.last_login,
                COALESCE(up.custom_name,'') as custom_name,
                COALESCE(up.avatar_url,'') as avatar_url,
@@ -3880,6 +3903,33 @@ def api_admin_users():
     return jsonify({'users': users, 'total': total, 'page': page, 'per_page': per_page})
 
 
+@bp.route('/api/admin/users/<int:uid>', methods=['GET'])
+@admin_required
+def api_admin_get_user(uid):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        SELECT u.id, u.telegram_id, u.telegram_username, u.telegram_first_name,
+               u.is_active, u.is_premium, u.premium_expires_at, u.is_bot,
+               u.created_at, u.last_login,
+               COALESCE(up.custom_name,'') as custom_name,
+               COALESCE(up.avatar_url,'') as avatar_url,
+               COALESCE(s.xp,0) as xp, COALESCE(s.level,1) as level, COALESCE(s.coins,0) as coins,
+               COALESCE(s.total_chapters_read,0) as chapters_read,
+               (SELECT COUNT(*) FROM subscriptions WHERE user_id=u.id) as sub_count,
+               (SELECT COUNT(*) FROM comments WHERE user_id=u.id) as comment_count
+        FROM users u
+        LEFT JOIN user_profile up ON up.user_id = u.id
+        LEFT JOIN user_stats s ON s.user_id = u.id
+        WHERE u.id = ?
+    ''', (uid,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'error': 'Пользователь не найден'}), 404
+    return jsonify(dict(row))
+
+
 @bp.route('/api/admin/users/<int:uid>/ban', methods=['POST'])
 @admin_required
 def api_admin_ban_user(uid):
@@ -3895,6 +3945,23 @@ def api_admin_ban_user(uid):
     conn.commit()
     conn.close()
     return jsonify({'success': True, 'is_active': bool(new_state)})
+
+
+@bp.route('/api/admin/users/<int:uid>/bot', methods=['POST'])
+@admin_required
+def api_admin_toggle_bot(uid):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT is_bot FROM users WHERE id = ?', (uid,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Пользователь не найден'}), 404
+    new_state = not bool(row['is_bot'])
+    c.execute('UPDATE users SET is_bot = ? WHERE id = ?', (new_state, uid))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True, 'is_bot': new_state})
 
 
 @bp.route('/api/admin/users/<int:uid>/premium', methods=['POST'])

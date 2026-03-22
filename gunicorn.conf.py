@@ -4,7 +4,8 @@ threads = 8
 worker_class = 'gthread'
 timeout = 120
 keepalive = 5
-reload = True
+reload = False
+preload_app = False
 
 def post_fork(server, worker):
     import threading
