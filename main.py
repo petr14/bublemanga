@@ -139,6 +139,10 @@ def filter_rating_ru(v):
 
 import bot as _bot_module
 from bot import run_telegram_bot, send_telegram_notification, send_daily_digest, _revoke_premium_loans
+import bot as _bot_module_ref
+
+def _get_bot_loop():
+    return _bot_module_ref._bot_loop
 
 # Клиент API Senkuro
 api = SenkuroAPI()
@@ -190,15 +194,18 @@ from database import (
 )
 
 
-def create_site_notification(user_id, notif_type, title, body=None, url=None, ref_id=None, conn=None):
+def create_site_notification(user_id, notif_type, title, body=None, url=None, ref_id=None, cover_url=None, conn=None):
     """Создать уведомление на сайте. Если conn передан — не коммитит и не закрывает."""
     _close = conn is None
     if conn is None:
         conn = get_db()
     try:
         conn.execute(
-            'INSERT INTO site_notifications (user_id, type, title, body, url, ref_id) VALUES (?,?,?,?,?,?)',
-            (user_id, notif_type, title, body, url, ref_id)
+            '''INSERT INTO site_notifications (user_id, type, title, body, url, ref_id, cover_url)
+               VALUES (?,?,?,?,?,?,?)
+               ON CONFLICT (user_id, type, ref_id) WHERE type='new_chapter' AND ref_id IS NOT NULL
+               DO NOTHING''',
+            (user_id, notif_type, title, body, url, ref_id, cover_url)
         )
         if _close:
             conn.commit()
@@ -980,8 +987,9 @@ def _suggest_similar_manga(user_id, manga_id, manga_title):
             except Exception as e:
                 logger.warning(f"_suggest_similar_manga tg error: {e}")
 
-    if _bot_loop and _bot_loop.is_running():
-        asyncio.run_coroutine_threadsafe(_send(), _bot_loop)
+    _loop = _get_bot_loop()
+    if _loop and _loop.is_running():
+        asyncio.run_coroutine_threadsafe(_send(), _loop)
 
 
 # ==================== ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ СПОТЛАЙТОВ ====================
@@ -2051,14 +2059,15 @@ def process_new_chapter(manga_title, manga_slug, manga_id, chapter_info, cover_u
         # Уведомление на сайте — всегда для подписчиков
         create_site_notification(uid, 'new_chapter', f'Новая глава: {manga_title}',
                                  f'Глава {chapter_number}' if chapter_number else None,
-                                 chapter_url, ref_id=str(chapter_id))
+                                 chapter_url, ref_id=str(chapter_id), cover_url=cover_url)
         if sub['notifications_enabled'] == 0:
             continue
         if sub['is_premium']:
             # Премиум: мгновенное Telegram-уведомление
             coro = send_telegram_notification(uid, manga_title, chapter_data, chapter_url)
-            if _bot_loop and _bot_loop.is_running():
-                asyncio.run_coroutine_threadsafe(coro, _bot_loop)
+            _loop = _get_bot_loop()
+            if _loop and _loop.is_running():
+                asyncio.run_coroutine_threadsafe(coro, _loop)
             else:
                 asyncio.run(coro)
         else:
@@ -2188,8 +2197,9 @@ def background_checker():
             if _last_digest_hour_key != hour_key:
                 _last_digest_hour_key = hour_key
                 coro = send_daily_digest(hour=now_msk.hour)
-                if _bot_loop and _bot_loop.is_running():
-                    asyncio.run_coroutine_threadsafe(coro, _bot_loop)
+                _loop = _get_bot_loop()
+                if _loop and _loop.is_running():
+                    asyncio.run_coroutine_threadsafe(coro, _loop)
                 else:
                     try:
                         asyncio.run(coro)

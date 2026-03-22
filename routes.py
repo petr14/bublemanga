@@ -4558,7 +4558,7 @@ def api_notifications():
         return jsonify({'error': 'not_auth'}), 401
     conn = get_db()
     rows = conn.execute(
-        '''SELECT id, type, title, body, url, ref_id, is_read, created_at
+        '''SELECT id, type, title, body, url, ref_id, cover_url, is_read, created_at
            FROM site_notifications
            WHERE user_id = ?
            ORDER BY created_at DESC LIMIT 50''',
@@ -4578,7 +4578,7 @@ def api_notifications_read_all():
     if not user_id:
         return jsonify({'error': 'not_auth'}), 401
     conn = get_db()
-    conn.execute('UPDATE site_notifications SET is_read = 1 WHERE user_id = ?', (user_id,))
+    conn.execute('DELETE FROM site_notifications WHERE user_id = ?', (user_id,))
     conn.commit()
     conn.close()
     return jsonify({'ok': True})

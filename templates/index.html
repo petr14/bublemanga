@@ -43,7 +43,7 @@
         @media(min-width:640px){.row{padding:36px 0 4px;}}
 
         /* ── Scroll arrows (desktop only) ── */
-        .grid-wrap{position:relative;}
+        .grid-wrap{position:relative; z-index:21;}
         .scroll-btn{
             display:none;
         }
@@ -223,9 +223,60 @@
         .reading-ch-label{
             font-size:.68rem; color:var(--p-light); font-weight:600;
         }
+        .reading-card {
+            transition: box-shadow .25s ease, border-color .25s ease;
+        }
         .reading-card-active{
-            border-color:rgba(224,149,53,.5) !important;
-            box-shadow:0 0 0 1px rgba(224,149,53,.25);
+            border-color:rgba(224,149,53,.6) !important;
+            box-shadow:0 0 0 2px rgba(224,149,53,.4), 0 6px 24px rgba(224,149,53,.25);
+        }
+        @keyframes connectorFlow {
+            0%   { background-position: 0 0; }
+            100% { background-position: 0 28px; }
+        }
+        @keyframes connectorPulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: .45; }
+        }
+
+        #section-reading { position: relative; }
+        .reading-connector {
+            position: absolute;
+            width: 80px;
+            pointer-events: none;
+            z-index: 20;          /* поверх карточек и стрелок */
+            transition: left .3s cubic-bezier(.34,1.2,.64,1), top .3s, height .3s, opacity .3s;
+        }
+        .reading-connector-glow {
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse 100% 50% at 50% 0%,
+                rgba(224,149,53,.25) 0%,
+                rgba(224,149,53,.08) 55%,
+                transparent 100%);
+        }
+        .reading-connector-beam {
+            position: absolute;
+            top: 0; bottom: 0;
+            left: 50%; transform: translateX(-50%);
+            width: 2px;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(224,149,53,.85) 0px,
+                rgba(224,149,53,.3) 10px,
+                transparent 10px,
+                transparent 18px
+            );
+            background-size: 2px 18px;
+            animation: connectorFlow .7s linear infinite, connectorPulse 2s ease-in-out infinite;
+        }
+        .reading-connector-dot {
+            position: absolute;
+            bottom: -3px; left: 50%; transform: translateX(-50%);
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #f59e0b;
+            box-shadow: 0 0 10px 4px rgba(224,149,53,.55);
+            animation: connectorPulse 1.5s ease-in-out infinite;
         }
 
         /* ── Кнопка "Продолжить" ── */
@@ -501,6 +552,60 @@
 
 <div class="wrap">
 
+    <!-- Читаю (последнее читаемое) -->
+    {% if user_id and reading %}
+    <section class="row" id="section-reading">
+        <div class="row-head">
+            <h2 class="row-title">Читаю</h2>
+            <a href="/bookmarks" class="row-link">Все →</a>
+        </div>
+        <div class="grid-wrap">
+        <button class="scroll-btn left" aria-label="Назад" onclick="scrollGrid(this,-1)">&#8249;</button>
+        <div class="manga-grid reading-grid" id="readingGrid">
+            {% for manga in reading %}
+            <div class="manga-card reading-card {% if loop.first %}reading-card-active{% endif %}"
+                 data-slug="{{ manga.manga_slug }}"
+                 data-chapter-num="{{ manga.last_chapter_number or '' }}"
+                 data-chapter-slug="{{ manga.last_chapter_slug or '' }}"
+                 data-time="{{ manga.last_read_time or '' }}"
+                 onclick="location.href='/manga/{{ manga.manga_slug }}'">
+                <div class="manga-cover-wrap">
+                    <!-- <span class="reading-num">{{ loop.index }}</span> -->
+                    <span class="manga-type-badge">{{ manga.manga_type or 'Манга' }}</span>
+                    <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
+                </div>
+                <div class="manga-info">
+                    <div class="manga-title">{{ manga.manga_title }}</div>
+                    {% if manga.last_chapter_number %}
+                    <div class="manga-meta"><span class="reading-ch-label">Гл. {{ manga.last_chapter_number }}</span></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="scroll-btn right" aria-label="Вперёд" onclick="scrollGrid(this,1)">&#8250;</button>
+        </div>
+
+        <!-- Коннектор: свечение от активной карточки к кнопке -->
+        <div class="reading-connector" id="readingConnector">
+            <div class="reading-connector-glow"></div>
+            <div class="reading-connector-beam"></div>
+            <div class="reading-connector-dot"></div>
+        </div>
+
+        <!-- Кнопка "Продолжить" для активной карточки -->
+        <div class="reading-continue" id="readingContinue">
+            <div class="rc-play">▶</div>
+            <div class="rc-info">
+                <div class="rc-label">Продолжить</div>
+                <div class="rc-chapter" id="rcChapter"></div>
+            </div>
+            <div class="rc-time" id="rcTime"></div>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Самое читаемое (скелет → JS) -->
     <section id="section-trending" class="row">
         <div class="row-head">
@@ -533,53 +638,6 @@
     <div id="section-top-manhwa"></div>
     <div id="section-top-manhua"></div>
     <div id="section-top-manga"></div>
-
-    <!-- Читаю (последнее читаемое) -->
-    {% if user_id and reading %}
-    <section class="row" id="section-reading">
-        <div class="row-head">
-            <h2 class="row-title">Читаю</h2>
-            <a href="/bookmarks" class="row-link">Все →</a>
-        </div>
-        <div class="grid-wrap">
-        <button class="scroll-btn left" aria-label="Назад" onclick="scrollGrid(this,-1)">&#8249;</button>
-        <div class="manga-grid reading-grid" id="readingGrid">
-            {% for manga in reading %}
-            <div class="manga-card reading-card {% if loop.first %}reading-card-active{% endif %}"
-                 data-slug="{{ manga.manga_slug }}"
-                 data-chapter-num="{{ manga.last_chapter_number or '' }}"
-                 data-chapter-slug="{{ manga.last_chapter_slug or '' }}"
-                 data-time="{{ manga.last_read_time or '' }}"
-                 onclick="location.href='/manga/{{ manga.manga_slug }}'">
-                <div class="manga-cover-wrap">
-                    <span class="reading-num">{{ loop.index }}</span>
-                    <span class="manga-type-badge">{{ manga.manga_type or 'Манга' }}</span>
-                    <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
-                </div>
-                <div class="manga-info">
-                    <div class="manga-title">{{ manga.manga_title }}</div>
-                    {% if manga.last_chapter_number %}
-                    <div class="manga-meta"><span class="reading-ch-label">Гл. {{ manga.last_chapter_number }}</span></div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        <button class="scroll-btn right" aria-label="Вперёд" onclick="scrollGrid(this,1)">&#8250;</button>
-        </div>
-
-        <!-- Кнопка "Продолжить" для активной карточки -->
-        <div class="reading-continue" id="readingContinue">
-            <div class="rc-play">▶</div>
-            <div class="rc-info">
-                <div class="rc-label">Продолжить</div>
-                <div class="rc-chapter" id="rcChapter"></div>
-            </div>
-            <div class="rc-time" id="rcTime"></div>
-        </div>
-    </section>
-    {% endif %}
 
     <!-- Мои подписки (сервер) -->
     {% if user_id and subscriptions %}
@@ -792,16 +850,36 @@
 
     /* ── блок "Читаю" — кнопка Продолжить ── */
     (function(){
-        const grid = document.getElementById('readingGrid');
-        const cont = document.getElementById('readingContinue');
+        const grid      = document.getElementById('readingGrid');
+        const cont      = document.getElementById('readingContinue');
+        const connector = document.getElementById('readingConnector');
         if (!grid || !cont) return;
 
         const rcChapter = document.getElementById('rcChapter');
         const rcTime    = document.getElementById('rcTime');
 
+        function updateConnector(card) {
+            if (!connector) return;
+            const section  = document.getElementById('section-reading');
+            const sectRect = section.getBoundingClientRect();
+            const cardRect = card.getBoundingClientRect();
+            const contRect = cont.getBoundingClientRect();
+
+            const cardCenterX = cardRect.left + cardRect.width / 2 - sectRect.left;
+            // Коннектор начинается от низа карточки (не от низа грида)
+            const top    = cardRect.bottom - sectRect.top - 8;
+            const height = contRect.top - cardRect.bottom + 8;
+
+            connector.style.left    = (cardCenterX - 40) + 'px';
+            connector.style.top     = top + 'px';
+            connector.style.height  = Math.max(0, height) + 'px';
+            connector.style.opacity = height > 4 ? '1' : '0';
+        }
+
         function activateCard(card) {
             grid.querySelectorAll('.reading-card').forEach(c => c.classList.remove('reading-card-active'));
             card.classList.add('reading-card-active');
+            updateConnector(card);
             const chNum  = card.dataset.chapterNum;
             const chSlug = card.dataset.chapterSlug;
             const slug   = card.dataset.slug;
@@ -818,13 +896,24 @@
         const first = grid.querySelector('.reading-card');
         if (first) activateCard(first);
 
-        // При скролле — активируем ближайшую к центру карточку
+        // На ПК — активируем карточку при наведении мыши (только hover-устройства)
+        if (window.matchMedia('(hover: hover)').matches) {
+            grid.querySelectorAll('.reading-card').forEach(c => {
+                c.addEventListener('mouseenter', () => activateCard(c));
+            });
+        }
+
+        // При скролле (мобайл) — активируем карточку в первой трети экрана
         grid.addEventListener('scroll', () => {
+            if (window.matchMedia('(hover: hover)').matches) return; // только тач
             const cards = grid.querySelectorAll('.reading-card');
-            const center = grid.scrollLeft + grid.clientWidth / 2;
+            // Если прокручено до конца — выбираем последнюю карточку
+            const atEnd = grid.scrollLeft + grid.clientWidth >= grid.scrollWidth - 8;
+            if (atEnd) { activateCard(cards[cards.length - 1]); return; }
+            const threshold = grid.scrollLeft + grid.clientWidth / 3;
             let best = null, bestDist = Infinity;
             cards.forEach(c => {
-                const dist = Math.abs(c.offsetLeft + c.offsetWidth / 2 - center);
+                const dist = Math.abs(c.offsetLeft + c.offsetWidth / 2 - threshold);
                 if (dist < bestDist) { bestDist = dist; best = c; }
             });
             if (best) activateCard(best);

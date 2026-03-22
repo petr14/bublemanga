@@ -333,6 +333,22 @@
       font-size: .68rem; font-weight: 500; padding: .18rem .55rem; border-radius: 12px;
       background: rgba(224,149,53,.12); border: 1px solid rgba(224,149,53,.25); color: var(--primary);
     }
+    .pp-actions {
+      display: flex; gap: .5rem; margin-bottom: .6rem;
+    }
+    .pp-sub-btn {
+      flex: 1; padding: .55rem .5rem; border-radius: 10px; border: 1px solid rgba(224,149,53,.4);
+      background: rgba(224,149,53,.1); color: #e09535; font-size: .8rem; font-weight: 700;
+      cursor: pointer; transition: background .15s, border-color .15s; font-family: inherit;
+    }
+    .pp-sub-btn.subscribed { background: rgba(224,149,53,.25); border-color: rgba(224,149,53,.7); }
+    .pp-sub-btn:hover { background: rgba(224,149,53,.2); }
+    .pp-status-btn {
+      flex: 1; padding: .55rem .5rem; border-radius: 10px; border: 1px solid rgba(255,255,255,.1);
+      background: rgba(255,255,255,.05); color: rgba(244,244,245,.7); font-size: .8rem; font-weight: 600;
+      cursor: pointer; transition: background .15s; font-family: inherit; text-align: center;
+    }
+    .pp-status-btn:hover { background: rgba(255,255,255,.1); }
     .pp-read-btn {
       display: block; width: 100%; padding: .65rem; border-radius: 12px; text-align: center;
       background: linear-gradient(135deg, var(--primary), var(--primary2));
@@ -407,7 +423,7 @@
 <!-- Quick preview popup -->
 <div class="manga-preview-overlay" id="ppOverlay" onclick="closePreview()"></div>
 <div class="manga-preview-popup" id="ppPopup" role="dialog" aria-modal="true"
-  onmouseenter="clearTimeout(ppCloseTimer)" onmouseleave="closePreview()">
+  onmouseenter="clearTimeout(ppCloseTimer)" onmouseleave="if(!picker.classList.contains('open'))closePreview()">
   <div class="pp-cover-wrap">
     <img class="pp-cover" id="ppCover" alt="">
     <div class="pp-gradient"></div>
@@ -420,6 +436,12 @@
     </div>
     <div class="pp-desc" id="ppDesc"></div>
     <div class="pp-genres" id="ppGenres"></div>
+    {% if session.get('user_id') %}
+    <div class="pp-actions" id="ppActions">
+      <button class="pp-sub-btn" id="ppSubBtn" onclick="ppToggleSub()">🔔 Подписаться</button>
+      <button class="pp-status-btn" id="ppStatusBtn" onclick="ppOpenStatus(event)">+ Статус</button>
+    </div>
+    {% endif %}
     <a class="pp-read-btn" id="ppReadBtn">Читать</a>
   </div>
 </div>
@@ -466,6 +488,7 @@ function buildCard(m) {
   const score = m.score ? Number(m.score).toFixed(1) : '';
   const dataAttrs = [
     `data-slug="${esc(m.manga_slug)}"`,
+    `data-manga-id="${esc(m.manga_id)}"`,
     `data-title="${esc(m.manga_title)}"`,
     `data-cover="${esc(m.cover_url || '')}"`,
     `data-score="${esc(score)}"`,
@@ -567,6 +590,8 @@ function openStatusPicker(e, badge) {
 function closePicker() {
   picker.classList.remove('open');
   pickerBadge = null;
+  // Если мышь не над попапом — закрываем превью
+  if (ppOpen && !ppPopup.matches(':hover')) closePreview();
 }
 
 async function selectStatus(status) {
@@ -580,7 +605,14 @@ async function selectStatus(status) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({status: status || null}),
     });
-    if (r.ok) applyUserStatus(badge, status || '');
+    if (r.ok) {
+      applyUserStatus(badge, status || '');
+      // Sync popup buttons if open for same manga
+      if (ppCurrentMangaId && mangaId === ppCurrentMangaId) {
+        _ppSetStatus(status || '');
+        _ppSetSub(!!status);
+      }
+    }
   } catch(e) {}
 }
 
@@ -856,6 +888,8 @@ let ppOpen = false;
 
 const STATUS_CLASS = {ongoing:'status-ongoing',finished:'status-finished',cancelled:'status-cancelled',hiatus:'status-hiatus',announced:'status-announced'};
 
+let ppCurrentMangaId = null;
+
 function openPreview(card) {
   const slug   = card.dataset.slug;
   const title  = card.dataset.title;
@@ -864,6 +898,7 @@ function openPreview(card) {
   const status = card.dataset.status;
   const statusLabel = card.dataset.statusLabel;
   const desc   = card.dataset.desc;
+  ppCurrentMangaId = card.dataset.mangaId || null;
   let tags = [];
   try { tags = JSON.parse(card.dataset.tags || '[]'); } catch(e) {}
 
@@ -888,6 +923,11 @@ function openPreview(card) {
     .join('');
 
   document.getElementById('ppReadBtn').href = '/manga/' + slug;
+
+  // Load subscribe + user status state
+  if (CURRENT_USER_ID && ppCurrentMangaId) {
+    _ppLoadState(ppCurrentMangaId, card);
+  }
 
   // Position popup near card on desktop, centered on mobile
   ppOpen = true;
@@ -920,6 +960,86 @@ function closePreview() {
   ppOpen = false;
   ppOverlay.classList.remove('show');
   ppPopup.classList.remove('show');
+}
+
+// ── Popup: subscribe + status ──────────────────────────────
+const USER_STATUS_CFG_PP = {
+  reading:   {label:'Читаю'},
+  completed: {label:'Прочитано'},
+  planned:   {label:'В планах'},
+  dropped:   {label:'Брошено'},
+  paused:    {label:'Отложено'},
+};
+
+async function _ppLoadState(mangaId, card) {
+  const subBtn = document.getElementById('ppSubBtn');
+  const stBtn  = document.getElementById('ppStatusBtn');
+  if (!subBtn) return;
+  subBtn.textContent = '...'; stBtn.textContent = '...';
+  try {
+    // Subscribe state
+    const badge = card.querySelector('.user-status-badge');
+    const curStatus = badge ? badge.dataset.current : '';
+    // Subscription: if status set → subscribed
+    const subscribed = !!curStatus;
+    _ppSetSub(subscribed);
+    _ppSetStatus(curStatus || '');
+  } catch(e) {}
+}
+
+function _ppSetSub(subscribed) {
+  const btn = document.getElementById('ppSubBtn');
+  if (!btn) return;
+  btn.textContent = subscribed ? '🔔 Подписан' : '🔔 Подписаться';
+  btn.classList.toggle('subscribed', subscribed);
+  btn.dataset.subscribed = subscribed ? '1' : '0';
+}
+
+function _ppSetStatus(status) {
+  const btn = document.getElementById('ppStatusBtn');
+  if (!btn) return;
+  const cfg = USER_STATUS_CFG_PP[status];
+  btn.textContent = cfg ? cfg.label : '+ Статус';
+  btn.dataset.current = status;
+}
+
+async function ppToggleSub() {
+  if (!ppCurrentMangaId || !CURRENT_USER_ID) return;
+  const btn = document.getElementById('ppSubBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/subscribe/${encodeURIComponent(ppCurrentMangaId)}`, {method:'POST',credentials:'same-origin'});
+    const d = await r.json();
+    _ppSetSub(d.subscribed);
+    _ppSetStatus(d.status || '');
+    // Sync badge on card
+    const badge = document.querySelector(`.user-status-badge[data-manga-id="${ppCurrentMangaId}"]`);
+    if (badge) applyUserStatus(badge, d.status || '');
+  } catch(e) {} finally { btn.disabled = false; }
+}
+
+function ppOpenStatus(e) {
+  if (e) e.stopPropagation();
+  if (!ppCurrentMangaId) return;
+  const badge = document.querySelector(`.user-status-badge[data-manga-id="${ppCurrentMangaId}"]`);
+  if (!badge) return;
+
+  if (pickerBadge === badge && picker.classList.contains('open')) {
+    closePicker(); return;
+  }
+  pickerBadge = badge;
+  picker.classList.add('open');
+
+  // Position relative to the status button inside the popup
+  const btn = document.getElementById('ppStatusBtn');
+  const rect = btn.getBoundingClientRect();
+  const ph = picker.offsetHeight || 200;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const top = spaceBelow > ph + 8 ? rect.bottom + 6 : rect.top - ph - 6;
+  let left = rect.left;
+  if (left + 150 > window.innerWidth) left = window.innerWidth - 155;
+  picker.style.top = top + 'px';
+  picker.style.left = left + 'px';
 }
 
 function ppHoverStart(card) {

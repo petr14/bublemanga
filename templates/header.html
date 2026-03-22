@@ -354,6 +354,10 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
 .g-bell-item.unread:hover { background: rgba(224,149,53,.1); }
 .g-bell-item.dismissing { transform: translateX(100%); opacity: 0; }
 .g-bell-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.g-bell-cover {
+  flex-shrink: 0; width: 36px; height: 50px; border-radius: 4px;
+  object-fit: cover; background: rgba(255,255,255,.07);
+}
 .g-bell-text { flex: 1; min-width: 0; }
 .g-bell-title { font-size: 12px; font-weight: 600; color: #f4f4f5; line-height: 1.35; }
 .g-bell-body { font-size: 11px; color: rgba(244,244,245,.5); margin-top: 2px; }
@@ -561,8 +565,11 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
           var icon = _notifIcons[n.type] || '🔔';
           var cls = n.is_read ? '' : ' unread';
           var clickFn = n.url ? 'gBellClick(' + n.id + ', \'' + (n.url||'') + '\')' : 'gBellMark(' + n.id + ')';
+          var leftEl = (n.cover_url && n.type === 'new_chapter')
+            ? '<img class="g-bell-cover" src="' + _esc(n.cover_url) + '" alt="" loading="lazy">'
+            : '<span class="g-bell-icon">' + icon + '</span>';
           return '<div class="g-bell-item' + cls + '" data-id="' + n.id + '" onclick="' + clickFn + '">' +
-            '<span class="g-bell-icon">' + icon + '</span>' +
+            leftEl +
             '<div class="g-bell-text">' +
               '<div class="g-bell-title">' + _esc(n.title) + '</div>' +
               (n.body ? '<div class="g-bell-body">' + _esc(n.body) + '</div>' : '') +
