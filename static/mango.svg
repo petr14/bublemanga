@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <radialGradient id="mg" cx="38%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffe066"/>
+      <stop offset="55%" stop-color="#ffb627"/>
+      <stop offset="100%" stop-color="#e07a00"/>
+    </radialGradient>
+    <radialGradient id="ms" cx="30%" cy="28%" r="40%">
+      <stop offset="0%" stop-color="#fff7c0" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#ffb627" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Тело манго -->
+  <ellipse cx="16" cy="18" rx="11.5" ry="12" fill="url(#mg)"/>
+  <!-- Блик -->
+  <ellipse cx="12" cy="12" rx="5" ry="4" fill="url(#ms)"/>
+  <!-- Стебель -->
+  <rect x="15" y="5" width="2" height="4" rx="1" fill="#6b4f1e"/>
+  <!-- Листик левый -->
+  <path d="M16 6 Q10 2 8 5 Q10 9 16 8Z" fill="#4caf50"/>
+  <!-- Листик правый -->
+  <path d="M16 6 Q22 1 24 4 Q22 8 16 8Z" fill="#66bb6a"/>
+</svg>

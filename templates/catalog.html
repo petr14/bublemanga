@@ -438,8 +438,8 @@
     <div class="pp-genres" id="ppGenres"></div>
     {% if session.get('user_id') %}
     <div class="pp-actions" id="ppActions">
-      <button class="pp-sub-btn" id="ppSubBtn" onclick="ppToggleSub()">🔔 Подписаться</button>
-      <button class="pp-status-btn" id="ppStatusBtn" onclick="ppOpenStatus(event)">+ Статус</button>
+      <button class="pp-sub-btn" id="ppSubBtn" onclick="ppToggleSub()">Подписаться</button>
+      <button class="pp-status-btn" id="ppStatusBtn" onclick="ppOpenStatus(event)">Изм. Статус</button>
     </div>
     {% endif %}
     <a class="pp-read-btn" id="ppReadBtn">Читать</a>
@@ -990,7 +990,7 @@ async function _ppLoadState(mangaId, card) {
 function _ppSetSub(subscribed) {
   const btn = document.getElementById('ppSubBtn');
   if (!btn) return;
-  btn.textContent = subscribed ? '🔔 Подписан' : '🔔 Подписаться';
+  btn.textContent = subscribed ? 'Подписан' : 'Подписаться';
   btn.classList.toggle('subscribed', subscribed);
   btn.dataset.subscribed = subscribed ? '1' : '0';
 }
@@ -999,7 +999,7 @@ function _ppSetStatus(status) {
   const btn = document.getElementById('ppStatusBtn');
   if (!btn) return;
   const cfg = USER_STATUS_CFG_PP[status];
-  btn.textContent = cfg ? cfg.label : '+ Статус';
+  btn.textContent = cfg ? cfg.label : 'Изм. Статус';
   btn.dataset.current = status;
 }
 

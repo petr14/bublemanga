@@ -516,7 +516,7 @@
                     <span class="pstat-lbl">XP</span>
                 </div>
                 <div class="pstat">
-                    <span class="pstat-val"><img src="/static/bubbles.svg" class="bubble-icon" alt="">{{ profile.coins }}</span>
+                    <span class="pstat-val"><img src="/static/mango.svg" class="bubble-icon" alt="">{{ profile.coins }}</span>
                     <span class="pstat-lbl">Манго</span>
                 </div>
                 <div class="pstat">
@@ -866,7 +866,7 @@
             : `<span class="quest-card-badge-new">Ур. ${q.required_level}+</span>`;
         const rewards = [];
         if (q.xp_reward) rewards.push(`<div class="quest-reward-badge xp"><div class="quest-reward-icon"><img src="/static/xp.png"  alt=""></div><span class="quest-reward-val">${q.xp_reward}</span></div>`);
-        if (q.coins_reward) rewards.push(`<div class="quest-reward-badge coins"><div class="quest-reward-icon"><img src="/static/bubbles.svg"  alt=""></div><span class="quest-reward-val">${q.coins_reward}</span></div>`);
+        if (q.coins_reward) rewards.push(`<div class="quest-reward-badge coins"><div class="quest-reward-icon"><img src="/static/mango.svg"  alt=""></div><span class="quest-reward-val">${q.coins_reward}</span></div>`);
         return `
         <div class="quest-card${done ? ' done' : ''}">
           <div class="quest-card-top">

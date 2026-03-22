@@ -43,8 +43,7 @@
     .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(224,149,53,.15),rgba(217,119,6,.1)); border:1px solid rgba(224,149,53,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
     /* ── Вкладки ── */
-    .shop-tabs-wrap { position:sticky; top:130px; z-index:100; background:rgba(14,11,8,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
-    @media(max-width:700px){ .shop-tabs-wrap { top:128px; } }
+    .shop-tabs-wrap { background:rgba(14,11,8,.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
     .shop-tabs { display:flex; gap:5px; padding:10px 14px; overflow-x:auto; max-width:960px; margin:0 auto; scrollbar-width:none; justify-content:center; }
     .shop-tabs::-webkit-scrollbar { display:none; }
     .shop-tab { flex-shrink:0; padding:7px 15px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:50px; color:var(--text-2); font-size:12.5px; font-weight:600; cursor:pointer; transition:all .2s; font-family:inherit; white-space:nowrap; }
@@ -89,10 +88,11 @@
     .item-preview img { width:100%; height:100%; object-fit:cover; }
 
     /* Бейджи на карточках */
-    .anim-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#e09535,#ef4444); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:.3px; z-index:2; }
+    .badges-left { position:absolute; top:.32rem; left:.32rem; z-index:2; display:flex; flex-direction:column; align-items:flex-start; gap:.22rem; }
+    .anim-badge { background:linear-gradient(135deg,#e09535,#ef4444); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:.3px; }
     .item-badge-equipped { position:absolute; top:.32rem; right:.32rem; background:#e09535; border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:700; color:#fff; z-index:2; }
-    .loan-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#e09535,#c07828); border-radius:20px; padding:.1rem .42rem; font-size:.57rem; font-weight:700; color:#fff; z-index:2; }
-    .temp-badge { position:absolute; top:.32rem; left:.32rem; background:linear-gradient(135deg,#06b6d4,#0891b2); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; z-index:2; }
+    .loan-badge { background:linear-gradient(135deg,#e09535,#c07828); border-radius:20px; padding:.1rem .42rem; font-size:.57rem; font-weight:700; color:#fff; }
+    .temp-badge { background:linear-gradient(135deg,#06b6d4,#0891b2); border-radius:20px; padding:.1rem .42rem; font-size:.58rem; font-weight:800; color:#fff; }
     .item-countdown { font-size:.62rem; color:#94a3b8; margin-top:.15rem; }
 
     .item-body { padding:.7rem .8rem; flex:1; display:flex; flex-direction:column; gap:.28rem; }
@@ -511,16 +511,16 @@ function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate,
   } else if(loaned){
     btns = h('div',{className:'item-footer-btns'},
       h('button',{className:equipped?'btn-unequip':'btn-equip',onClick:()=>onEquip(item)},equipped?'Снять':'Надеть'),
-      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} шариков`,onClick:()=>onBuy(item)},'Купить')
+      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} манго`,onClick:()=>onBuy(item)},'Купить')
     );
   } else if(USER_ID&&IS_PREMIUM){
     btns = h('div',{className:'item-footer-btns'},
       h('button',{className:'btn-activate',onClick:()=>onActivate(item)},'Активировать'),
-      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} шариков`,onClick:()=>onBuy(item)},'Купить')
+      h('button',{className:'btn-buy-perm',disabled:!canAfford,title:canAfford?'Купить навсегда':`Нужно ${item.price} манго`,onClick:()=>onBuy(item)},'Купить')
     );
   } else if(USER_ID){
     btns = h('div',{className:'item-footer-btns'},
-      h('button',{className:'btn-buy',disabled:!canAfford,title:canAfford?'':`Нужно ${item.price} шариков`,onClick:()=>onBuy(item)},'Купить')
+      h('button',{className:'btn-buy',disabled:!canAfford,title:canAfford?'':`Нужно ${item.price} манго`,onClick:()=>onBuy(item)},'Купить')
     );
   } else {
     btns = h('div',{className:'item-footer-btns'},
@@ -532,8 +532,11 @@ function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate,
 
   return h('div',{className:cls},
     equipped && h('div',{className:'item-badge-equipped'},'✓ Надето'),
-    loaned   && h('div',{className:'loan-badge'},' Premium'),
-    !owned && item.duration_days && h('div',{className:'temp-badge'},`⏱ ${item.duration_days}д`),
+    (item.is_animated || loaned || (!owned && item.duration_days)) && h('div',{className:'badges-left'},
+      item.is_animated && h('div',{className:'anim-badge'},'ANIM'),
+      loaned && h('div',{className:'loan-badge'},'Premium'),
+      !owned && item.duration_days && h('div',{className:'temp-badge'},`⏱ ${item.duration_days}д`)
+    ),
     h('div',{style:{cursor:isPreviewable?'zoom-in':'default'},onClick:isPreviewable?()=>onTryOn(item):null},
       h(ItemPreview,{item})
     ),
@@ -547,7 +550,7 @@ function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate,
         item.price===0
           ? 'Бесплатно'
           : h(Fragment,null,
-              h('img',{src:'/static/bubbles.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.15em',marginRight:'3px'},alt:''}),
+              h('img',{src:'/static/mango.svg',style:{width:'1em',height:'1em',verticalAlign:'-0.15em',marginRight:'3px'},alt:''}),
               item.price.toLocaleString()
             )
       ),

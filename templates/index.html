@@ -405,7 +405,7 @@
             order:-1;
             display:block; position:relative; overflow:hidden;
             margin:0 0 20px;
-            aspect-ratio:21/9;
+            aspect-ratio:4/3;
             animation:float 4s ease-in-out infinite;
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 75%, transparent 100%);
             mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 75%, transparent 100%);
@@ -931,7 +931,7 @@
         if(!a)return;
         const id=a.getAttribute('href'); if(id==='#')return;
         const el=document.querySelector(id);
-        if(el){e.preventDefault(); window.scrollTo({top:el.offsetTop-70,behavior:'smooth'});}
+        if(el){e.preventDefault(); window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-70,behavior:'smooth'});}
     });
 
     /* ── горизонтальный свайп (вертикаль → страница, горизонталь → сетка) ── */
