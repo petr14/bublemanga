@@ -56,7 +56,7 @@ _PG_UPSERT_MAP: dict = {
     'cache':           ('key',               None),
     'manga':           ('manga_id',          None),
     'chapters':        ('chapter_id',        None),
-    'reading_history': ('user_id, manga_id', ['chapter_id', 'page_number', 'last_read']),
+    'reading_history': ('user_id, manga_id', ['chapter_id', 'last_read']),
     'manga_tracker':   ('manga_id',          ['last_chapter_id', 'last_checked_at']),
 }
 

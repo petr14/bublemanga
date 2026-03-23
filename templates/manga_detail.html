@@ -1479,7 +1479,7 @@
                         {% if first_chapter or last_chapter %}
                         <div class="manga-actions-row">
                             {% if user_id and reading_history %}
-                            <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}" class="btn btn-primary">
+                            <a href="/read/{{ manga.manga_slug }}/{{ reading_history.chapter_slug }}{% if reading_history.page_number and reading_history.page_number > 1 %}?p={{ reading_history.page_number }}{% endif %}" class="btn btn-primary">
                                 <span>▶</span>
                                 <span>Продолжить · Гл. {{ reading_history.chapter_number }}</span>
                             </a>

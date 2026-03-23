@@ -3242,7 +3242,7 @@ def api_user_history():
     c = conn.cursor()
     c.execute(
         '''SELECT m.manga_title, m.manga_slug, m.cover_url, m.manga_type,
-                  c.chapter_number, c.chapter_slug, rh.last_read
+                  c.chapter_number, c.chapter_slug, rh.last_read, rh.page_number
            FROM reading_history rh
            JOIN manga m ON rh.manga_id = m.manga_id
            JOIN chapters c ON rh.chapter_id = c.chapter_id

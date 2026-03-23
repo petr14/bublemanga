@@ -1089,7 +1089,7 @@
                 const el = document.getElementById('historyContent');
                 if (!rows.length) { el.innerHTML = emptyState('😔', 'История пуста', 'Начни читать мангу!'); return; }
                 el.innerHTML = '<div class="history-list">' + rows.map(r => `
-                    <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}" class="hitem">
+                    <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}${r.page_number > 1 ? '?p=' + r.page_number : ''}" class="hitem">
                         <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">
                         <div class="hitem-info">
                             <div class="hitem-title">${esc(r.manga_title)}</div>

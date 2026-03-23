@@ -1974,9 +1974,11 @@ def _init_manga_tracker():
         last_chapter_id TEXT,
         last_checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-    # Заполняем известными главами, чтобы не слать дубли при первом запуске
-    conn.execute('''INSERT OR IGNORE INTO manga_tracker (manga_id, last_chapter_id)
-                    SELECT manga_id, last_chapter_id FROM manga
+    # Синхронизируем трекер с manga-таблицей при каждом старте:
+    # INSERT OR REPLACE обновляет существующие строки + добавляет новые.
+    # Это гарантирует что после перезапуска трекер не содержит устаревших ID.
+    conn.execute('''INSERT OR REPLACE INTO manga_tracker (manga_id, last_chapter_id, last_checked_at)
+                    SELECT manga_id, last_chapter_id, CURRENT_TIMESTAMP FROM manga
                     WHERE last_chapter_id IS NOT NULL''')
     conn.commit()
     conn.close()
