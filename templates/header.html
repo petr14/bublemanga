@@ -536,12 +536,23 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
   };
 
   function _timeAgo(ts) {
-    var d = new Date(ts + (ts.endsWith('Z') ? '' : 'Z'));
-    var diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 60) return 'только что';
-    if (diff < 3600) return Math.floor(diff/60) + ' мин. назад';
-    if (diff < 86400) return Math.floor(diff/3600) + ' ч. назад';
-    return Math.floor(diff/86400) + ' д. назад';
+    if (!ts || ts === 'null' || ts === 'undefined') return 'недавно';
+    try {
+      var raw = String(ts).replace(' ', 'T').replace(/Z$/, '').split('+')[0];
+      var d = new Date(raw);
+      if (isNaN(d.getTime())) return 'недавно';
+      var diff = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (diff < 0) return 'только что';
+      if (diff < 60) return 'только что';
+      if (diff < 3600) return Math.floor(diff/60) + ' мин. назад';
+      if (diff < 86400) return Math.floor(diff/3600) + ' ч. назад';
+      var days = Math.floor(diff/86400);
+      if (days === 1) return 'вчера';
+      if (days < 7) return days + ' дн. назад';
+      if (days < 30) return Math.floor(days/7) + ' нед. назад';
+      if (days < 365) return Math.floor(days/30) + ' мес. назад';
+      return Math.floor(days/365) + ' г. назад';
+    } catch(e) { return 'недавно'; }
   }
 
   function gLoadNotifs() {
