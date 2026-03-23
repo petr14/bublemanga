@@ -685,10 +685,13 @@
     function typeRu(v){return TYPE_RU[(v||'').toUpperCase()]||v||'Манга';}
     function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
     function timeAgo(ts){
-        if(!ts)return 'недавно'; try{
-            let d=new Date(ts.replace('Z','').split('+')[0]);
-            if(isNaN(d))return 'недавно';
-            let s=Math.floor((Date.now()-d)/1000);
+        if(!ts||ts==='null'||ts==='undefined')return 'недавно';
+        try{
+            let raw=String(ts).replace(' ','T').replace('Z','').split('+')[0];
+            let d=new Date(raw);
+            if(isNaN(d.getTime()))return 'недавно';
+            let s=Math.floor((Date.now()-d.getTime())/1000);
+            if(s<0)return 'только что';
             if(s<60)return 'только что';
             if(s<3600)return Math.floor(s/60)+' мин. назад';
             if(s<86400)return Math.floor(s/3600)+' ч. назад';
@@ -772,6 +775,17 @@
         }));
     }
 
+    /* ── живое обновление времени ── */
+    let _timeLiveTimer=null;
+    function startTimeLiveUpdate(){
+        if(_timeLiveTimer)clearInterval(_timeLiveTimer);
+        _timeLiveTimer=setInterval(()=>{
+            document.querySelectorAll('.update-time[data-ts]').forEach(el=>{
+                el.textContent=timeAgo(el.dataset.ts);
+            });
+        },30000);
+    }
+
     /* ── свежие главы ── */
     function renderRecent(list){
         if(!list?.length)return;
@@ -783,7 +797,7 @@
                 <div class="update-info">
                     <div class="update-title">${esc(ch.manga_title)}</div>
                     <div class="update-chapter">Глава ${esc(ch.chapter_number)}${ch.chapter_name?' — '+esc(ch.chapter_name):''}</div>
-                    <span class="update-time">${timeAgo(ch.created_at)}</span>
+                    <span class="update-time" data-ts="${esc(ch.created_at)}">${timeAgo(ch.created_at)}</span>
                 </div>
                 <span class="update-type">${esc(typeRu(ch.manga_type))}</span>
             </div>`).join('');
@@ -794,6 +808,7 @@
                 <h2 class="row-title" id="recentTitle">Свежие главы</h2>
             </div>
             <div class="updates-list" id="updatesList">${items}</div>${btnHtml}`;
+        startTimeLiveUpdate();
     }
     /* экспортируем для Socket.IO */
     window._renderRecent=renderRecent;
