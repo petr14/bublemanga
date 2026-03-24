@@ -512,7 +512,7 @@
         /* контент поверх орбов */
         .wrap, .hero{ position:relative; z-index:1; }
     </style>
-    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
+    <script>if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister()));</script>
 </head>
 <body>
 <div class="orbs" aria-hidden="true">

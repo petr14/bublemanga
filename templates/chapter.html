@@ -802,7 +802,7 @@
     </style>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+            navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister()));
         }
     </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
