@@ -389,7 +389,7 @@ def api_home_popular():
 @bp.route('/sw.js')
 def service_worker():
     sw_content = """
-const CACHE = 'mangovaya-v1';
+const CACHE = 'mangovaya-v3';
 const IMG_CACHE = 'mangovaya-images-v1';
 
 self.addEventListener('install', e => {
@@ -419,50 +419,12 @@ async function cacheFirst(req, cacheName) {
     return resp;
 }
 
-async function staleWhileRevalidate(req, cacheName) {
-    const cache = await caches.open(cacheName);
-    const cached = await cache.match(req);
-    const fetchPromise = fetch(req).then(resp => {
-        if (resp.ok) cache.put(req, resp.clone());
-        return resp;
-    }).catch(() => null);
-    return cached || fetchPromise;
-}
-
-async function networkFirst(req, cacheName) {
-    try {
-        const resp = await fetch(req);
-        if (resp.ok) {
-            const cache = await caches.open(cacheName);
-            cache.put(req, resp.clone());
-        }
-        return resp;
-    } catch {
-        const cached = await caches.match(req);
-        return cached || new Response('Нет подключения', { status: 503 });
-    }
-}
-
 self.addEventListener('fetch', e => {
     const { request } = e;
-    const url = new URL(request.url);
 
-    // Картинки (обложки, страницы глав) — cache-first
+    // Только картинки кешируем — всё остальное идёт напрямую в сеть
     if (request.destination === 'image') {
         e.respondWith(cacheFirst(request, IMG_CACHE));
-        return;
-    }
-
-    // API главной — stale-while-revalidate
-    if (url.pathname.startsWith('/api/home/')) {
-        e.respondWith(staleWhileRevalidate(request, CACHE));
-        return;
-    }
-
-    // HTML страницы — network-first с fallback
-    if (request.mode === 'navigate') {
-        e.respondWith(networkFirst(request, CACHE));
-        return;
     }
 });
 """.strip()
