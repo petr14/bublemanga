@@ -51,6 +51,8 @@ from main import (
     cache, socketio,
     # пользователи
     get_or_create_user_by_telegram, get_user_by_token, get_user_full_profile,
+    register_user_by_email, get_user_by_email, _hash_password, _verify_password,
+    link_telegram_to_user,
     # геймификация / квесты / сезоны
     update_reading_streak, get_or_create_daily_quests, update_daily_quest_progress,
     get_active_season, update_season_quest_progress, check_achievements,
@@ -66,6 +68,36 @@ def _m():
     """Lazy reference to main module for items not imported at top level."""
     import main
     return main
+
+
+def _set_user_session(user: dict):
+    """Записать пользователя в сессию."""
+    session['user_id'] = user['id']
+    session['username'] = (
+        user.get('telegram_first_name') or
+        user.get('telegram_username') or
+        (user.get('email') or '').split('@')[0] or
+        f"User_{user['id']}"
+    )
+    session.permanent = True
+
+
+def _get_mangabuff_pages(manga_slug: str, chapter_number: str, conn) -> list:
+    """Вернуть список URL страниц из таблицы mangabuff_chapters."""
+    try:
+        row = conn.execute(
+            '''SELECT pages_json FROM mangabuff_chapters
+               WHERE manga_slug = ? AND chapter_number = ?
+               LIMIT 1''',
+            (manga_slug, str(chapter_number).strip())
+        ).fetchone()
+        if row and row['pages_json']:
+            pages = json.loads(row['pages_json'])
+            if pages:
+                return pages
+    except Exception as e:
+        logger.warning(f"_get_mangabuff_pages {manga_slug} ch={chapter_number}: {e}")
+    return []
 
 
 # ==================== STATIC FILE ROUTES ====================
@@ -357,8 +389,8 @@ def api_home_popular():
 @bp.route('/sw.js')
 def service_worker():
     sw_content = """
-const CACHE = 'bubblemanga-v1';
-const IMG_CACHE = 'bubblemanga-images-v1';
+const CACHE = 'mangovaya-v1';
+const IMG_CACHE = 'mangovaya-images-v1';
 
 self.addEventListener('install', e => {
     self.skipWaiting();
@@ -458,7 +490,7 @@ def login_token(token):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Вход — BubbleManga</title>
+  <title>Вход — Манговая</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{min-height:100dvh;display:flex;align-items:center;justify-content:center;
@@ -480,7 +512,7 @@ def login_token(token):
     <div class="icon">✅</div>
     <h1>Добро пожаловать, {{ name }}!</h1>
     <p class="sub">Вы успешно вошли в аккаунт.<br>Нажмите кнопку ниже чтобы перейти на сайт.</p>
-    <a href="/" class="btn">Перейти на BubbleManga</a>
+    <a href="/" class="btn">Перейти на Манговая</a>
     <p class="hint">
       Хотите открыть в браузере (Safari)?<br>
       Нажмите <b>···&nbsp;→&nbsp;Открыть в браузере</b> прямо сейчас —<br>
@@ -494,6 +526,139 @@ def login_token(token):
 def logout():
     session.clear()
     return redirect(url_for('main.index'))
+
+
+# ── Email / password auth ─────────────────────────────────────────────────
+
+@bp.route('/login')
+def login_page():
+    """Страница входа / регистрации по email."""
+    if session.get('user_id'):
+        return redirect(url_for('main.index'))
+    next_url = request.args.get('next', '')
+    return render_template('auth.html', g_active=None, next_url=next_url)
+
+
+@bp.route('/api/auth/register', methods=['POST'])
+def api_auth_register():
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    if not email or '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'error': 'invalid_email'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'password_too_short'}), 400
+    user = register_user_by_email(email, password)
+    if user is None:
+        return jsonify({'error': 'email_taken'}), 409
+    _set_user_session(user)
+    # Создаём базовые записи (stats, profile)
+    try:
+        import main as m
+        m.get_or_create_user_stats(user['id'])
+    except Exception:
+        pass
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/auth/login/email', methods=['POST'])
+def api_auth_login_email():
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    user = get_user_by_email(email)
+    if not user or not user.get('password_hash'):
+        return jsonify({'error': 'invalid_credentials'}), 401
+    if not _verify_password(password, user['password_hash']):
+        return jsonify({'error': 'invalid_credentials'}), 401
+    _set_user_session(user)
+    return jsonify({'ok': True})
+
+
+@bp.route('/auth/link-telegram/<token>')
+def auth_link_telegram(token):
+    """Привязать Telegram-аккаунт к email-аккаунту по одноразовому токену из бота."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(f'/login?next=/auth/link-telegram/{token}')
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM telegram_link_tokens WHERE token=? AND expires_at > datetime('now')",
+        (token,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return render_template_string('''<!DOCTYPE html><html lang="ru"><head>
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Ошибка</title>
+        <style>body{background:#0a0a0a;color:#f4f4f5;font-family:system-ui;display:flex;
+        align-items:center;justify-content:center;min-height:100dvh;margin:0}
+        .c{text-align:center;padding:24px}.btn{display:inline-block;margin-top:20px;
+        padding:12px 28px;background:#667eea;color:#fff;border-radius:12px;
+        text-decoration:none;font-weight:700}</style></head>
+        <body><div class="c"><h2>Ссылка недействительна</h2>
+        <p>Ссылка устарела или уже использована.<br>Запросите новую командой /link в боте.</p>
+        <a href="/" class="btn">На главную</a></div></body></html>'''), 400
+    ok = link_telegram_to_user(
+        user_id, row['telegram_id'],
+        row['tg_username'], row['tg_first_name'], row['tg_last_name']
+    )
+    conn.execute('DELETE FROM telegram_link_tokens WHERE token=?', (token,))
+    conn.commit()
+    conn.close()
+    if not ok:
+        return render_template_string('''<!DOCTYPE html><html lang="ru"><head>
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Ошибка</title>
+        <style>body{background:#0a0a0a;color:#f4f4f5;font-family:system-ui;display:flex;
+        align-items:center;justify-content:center;min-height:100dvh;margin:0}
+        .c{text-align:center;padding:24px}.btn{display:inline-block;margin-top:20px;
+        padding:12px 28px;background:#667eea;color:#fff;border-radius:12px;
+        text-decoration:none;font-weight:700}</style></head>
+        <body><div class="c"><h2>Аккаунт уже привязан</h2>
+        <p>Этот Telegram-аккаунт уже привязан к другому профилю.</p>
+        <a href="/" class="btn">На главную</a></div></body></html>'''), 409
+    # Обновляем имя в сессии
+    session['username'] = row['tg_first_name'] or row['tg_username'] or session.get('username')
+    session.modified = True
+    return render_template_string('''<!DOCTYPE html><html lang="ru"><head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Готово</title>
+    <style>body{background:#0a0a0a;color:#f4f4f5;font-family:system-ui;display:flex;
+    align-items:center;justify-content:center;min-height:100dvh;margin:0}
+    .c{text-align:center;padding:24px}.icon{font-size:52px;margin-bottom:12px}
+    .btn{display:inline-block;margin-top:20px;padding:12px 28px;
+    background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px;
+    text-decoration:none;font-weight:700}</style></head>
+    <body><div class="c"><div class="icon">✅</div>
+    <h2>Telegram привязан!</h2>
+    <p>Теперь вы можете входить через Telegram-бота.</p>
+    <a href="/" class="btn">На главную</a></div></body></html>''')
+
+
+@bp.route('/api/profile/set-email-password', methods=['POST'])
+def api_set_email_password():
+    """Добавить email+пароль к существующему Telegram-аккаунту."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'unauthorized'}), 401
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    if not email or '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'error': 'invalid_email'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'password_too_short'}), 400
+    existing = get_user_by_email(email)
+    if existing and existing['id'] != user_id:
+        return jsonify({'error': 'email_taken'}), 409
+    pw_hash = _hash_password(password)
+    conn = get_db()
+    conn.execute('UPDATE users SET email=?, password_hash=? WHERE id=?',
+                 (email, pw_hash, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
 
 @bp.route('/search')
 def search():
@@ -981,19 +1146,29 @@ def read_chapter(manga_slug, chapter_slug):
             chapter_dict['pages'] = []
     else:
         chapter_dict['pages'] = []
-    
+
+    # Для user_id=1: проверяем, выбран ли MangaBuff как источник
+    _active_source = 'senkuro'
+    if session.get('user_id') == 1:
+        _active_source = session.get(f'src_{manga_slug}', 'senkuro')
+    if _active_source == 'mangabuff':
+        chapter_dict['pages'] = _get_mangabuff_pages(
+            manga_slug, chapter_dict.get('chapter_number', ''), conn
+        ) or chapter_dict['pages']
+    chapter_dict['active_source'] = _active_source
+
     # Если страниц нет или они пустые, получаем через API
     if not chapter_dict['pages']:
         print(f"📄 Получение страниц через API для главы {chapter_slug}")
         pages = get_chapter_pages(chapter_slug)
-        
+
         if pages:
             # Извлекаем URL страниц
-            page_urls = [p.get("image", {}).get("compress", {}).get("url", "") 
+            page_urls = [p.get("image", {}).get("compress", {}).get("url", "")
                         for p in pages if p.get("image", {}).get("compress", {}).get("url")]
-            
+
             chapter_dict['pages'] = page_urls
-            
+
             # Обновляем в БД
             c.execute('UPDATE chapters SET pages_json = ?, pages_count = ? WHERE chapter_slug = ?',
                       (json.dumps(page_urls), len(page_urls), chapter_slug))
@@ -1357,6 +1532,23 @@ def api_reading_progress():
     conn.commit()
     conn.close()
     return jsonify({'ok': True})
+
+
+@bp.route('/api/manga/<manga_slug>/source', methods=['GET', 'POST'])
+def api_manga_source(manga_slug):
+    """Получить или установить источник страниц для манги (только user_id=1)."""
+    user_id = session.get('user_id')
+    if user_id != 1:
+        return jsonify({'error': 'forbidden'}), 403
+    key = f'src_{manga_slug}'
+    if request.method == 'POST':
+        src = (request.get_json(silent=True) or {}).get('source', 'senkuro')
+        if src not in ('senkuro', 'mangabuff'):
+            return jsonify({'error': 'invalid source'}), 400
+        session[key] = src
+        session.modified = True
+        return jsonify({'ok': True, 'source': src})
+    return jsonify({'source': session.get(key, 'senkuro')})
 
 
 @bp.route('/api/chapter/<chapter_slug>/complete', methods=['POST'])
@@ -2024,7 +2216,7 @@ def shop_create_invoice():
     async def _create_link():
         return await telegram_app.bot.create_invoice_link(
             title=pkg['label'],
-            description=f"{pkg['coins']} монет для BubbleManga",
+            description=f"{pkg['coins']} монет для Манговая",
             payload=payload,
             currency="XTR",
             provider_token="",
@@ -2145,7 +2337,7 @@ def shop_create_payment():
                 'confirmation': {'type': 'redirect',
                                  'return_url': f'{SITE_URL}/shop?tab=buy&paid=1'},
                 'capture': True,
-                'description': f"{pkg['label']} — BubbleManga",
+                'description': f"{pkg['label']} — Манговая",
                 'metadata': {'package_id': pkg['id'], 'user_id': str(user_id)},
             }, str(_uuid.uuid4()))
             return jsonify({'url': payment.confirmation.confirmation_url})
@@ -2213,7 +2405,7 @@ def shop_create_premium_payment():
                 'confirmation': {'type': 'redirect',
                                  'return_url': f'{SITE_URL}/shop?tab=premium&paid=1'},
                 'capture': True,
-                'description': f"{pkg['label']} — BubbleManga",
+                'description': f"{pkg['label']} — Манговая",
                 'metadata': {'premium_package_id': pkg['id'], 'user_id': str(user_id)},
             }, str(_uuid.uuid4()))
             return jsonify({'url': payment.confirmation.confirmation_url})
@@ -2299,7 +2491,7 @@ def shop_gift_premium():
             future = asyncio.run_coroutine_threadsafe(
                 bot.create_invoice_link(
                     title=f'Premium на {label} для {recipient_name}',
-                    description=f'Подарок Premium BubbleManga на {label}',
+                    description=f'Подарок Premium Манговая на {label}',
                     payload=payload,
                     currency='XTR',
                     provider_token='',
@@ -3242,7 +3434,7 @@ def api_user_history():
     c = conn.cursor()
     c.execute(
         '''SELECT m.manga_title, m.manga_slug, m.cover_url, m.manga_type,
-                  c.chapter_number, c.chapter_slug, rh.last_read
+                  c.chapter_number, c.chapter_slug, rh.last_read, rh.page_number
            FROM reading_history rh
            JOIN manga m ON rh.manga_id = m.manga_id
            JOIN chapters c ON rh.chapter_id = c.chapter_id

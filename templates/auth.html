@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Войти — Манговая</title>
+  <link rel="icon" href="/static/favicon.png">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #f4f4f5;
+      padding: 20px;
+      background: linear-gradient(160deg, #130e07 0%, #0e0b08 40%, #0b0806 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 50% at 20% 20%, rgba(224,149,53,.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(192,120,40,.06) 0%, transparent 60%);
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Logo ── */
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo-img {
+      height: 70px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 16px rgba(224,149,53,.25));
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 20px;
+      padding: 28px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: rgba(0,0,0,.25);
+      border-radius: 11px;
+      padding: 4px;
+      margin-bottom: 24px;
+      gap: 3px;
+    }
+    .tab {
+      flex: 1;
+      padding: 9px;
+      border: none;
+      background: none;
+      color: rgba(244,244,245,.45);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all .18s;
+    }
+    .tab.active {
+      background: linear-gradient(135deg, #e09535, #c07828);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(224,149,53,.3);
+    }
+
+    /* ── Fields ── */
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(244,244,245,.45);
+      margin-bottom: 7px;
+      letter-spacing: .3px;
+    }
+    input[type=email],
+    input[type=password] {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px;
+      color: #f4f4f5;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .18s, background .18s;
+      -webkit-appearance: none;
+    }
+    input:focus {
+      border-color: #e09535;
+      background: rgba(224,149,53,.05);
+    }
+    input::placeholder { color: rgba(244,244,245,.25); }
+
+    /* ── Submit button ── */
+    .btn-submit {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #e09535, #c07828);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      transition: opacity .18s, transform .1s;
+      margin-top: 4px;
+      letter-spacing: .2px;
+      box-shadow: 0 4px 16px rgba(224,149,53,.25);
+    }
+    .btn-submit:hover  { opacity: .88; }
+    .btn-submit:active { transform: scale(.98); }
+    .btn-submit:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── Messages ── */
+    .msg {
+      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      display: none;
+      line-height: 1.5;
+    }
+    .msg.err { background: rgba(239,68,68,.1);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+    .msg.ok  { background: rgba(74,222,128,.1); color: #6ee7b7; border: 1px solid rgba(74,222,128,.2); }
+
+    /* ── Divider ── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 20px 0;
+      color: rgba(244,244,245,.2);
+      font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,.07);
+    }
+
+    /* ── Telegram button ── */
+    .tg-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.1);
+      color: rgba(244,244,245,.8);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(255,255,255,.04);
+      transition: all .18s;
+    }
+    .tg-btn:hover {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.18);
+      color: #f4f4f5;
+    }
+    .tg-icon { width: 22px; height: 22px; flex-shrink: 0; }
+
+    /* ── Footer ── */
+    .footer-hint {
+      text-align: center;
+      font-size: 12px;
+      color: rgba(244,244,245,.25);
+      margin-top: 20px;
+      line-height: 1.6;
+    }
+    .footer-hint a {
+      color: rgba(224,149,53,.7);
+      text-decoration: none;
+    }
+    .footer-hint a:hover { color: #e09535; }
+
+    @media (max-width: 460px) {
+      .panel { padding: 22px 18px; border-radius: 16px; }
+      .logo-img { height: 58px; }
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="logo">
+    <img class="logo-img" src="/static/logo_desktop.png" alt="Манговая">
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" id="tabLogin" onclick="switchTab('login')">Войти</button>
+      <button class="tab" id="tabReg" onclick="switchTab('register')">Регистрация</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="panelLogin">
+      <form onsubmit="submitLogin(event)" autocomplete="on">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="lEmail" placeholder="you@example.com"
+                 autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label>Пароль</label>
+          <input type="password" id="lPass" placeholder="••••••••"
+                 autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn-submit" id="btnLogin">Войти</button>
+        <div class="msg" id="loginMsg"></div>
+      </form>
+
+      <div class="divider">или</div>
+
+      <a href="https://t.me/hookah_p_bot" target="_blank" class="tg-btn">
+        <svg class="tg-icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="12" fill="#229ED9"/>
+          <path d="M5.5 11.8l2.9 1.1 1.1 3.5c.1.3.5.4.7.2l1.6-1.3 3.1 2.3c.3.2.7 0 .8-.3l2.3-9.5c.1-.4-.3-.8-.7-.6l-11.5 4.1c-.4.1-.4.7-.3.5z" fill="#fff"/>
+        </svg>
+        Войти через Telegram-бот
+      </a>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="panelReg" style="display:none">
+      <form onsubmit="submitRegister(event)" autocomplete="on">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="rEmail" placeholder="you@example.com"
+                 autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label>Пароль <span style="font-weight:400;opacity:.5">(минимум 6 символов)</span></label>
+          <input type="password" id="rPass" placeholder="••••••••"
+                 autocomplete="new-password" minlength="6" required>
+        </div>
+        <button type="submit" class="btn-submit" id="btnReg">Создать аккаунт</button>
+        <div class="msg" id="regMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <p class="footer-hint">
+    Уже есть аккаунт через Telegram?
+    <a href="https://t.me/hookah_p_bot" target="_blank">Войдите через бота</a>
+  </p>
+
+</div>
+
+<script>
+const _NEXT = {{ next_url | tojson }};
+
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tabLogin').classList.toggle('active', isLogin);
+  document.getElementById('tabReg').classList.toggle('active', !isLogin);
+  document.getElementById('panelLogin').style.display = isLogin ? '' : 'none';
+  document.getElementById('panelReg').style.display   = isLogin ? 'none' : '';
+}
+
+function showMsg(id, text, isErr) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + (isErr ? 'err' : 'ok');
+  el.style.display = 'block';
+}
+
+const ERR_LOGIN = {
+  invalid_credentials: 'Неверный email или пароль.',
+  invalid_email: 'Введите корректный email.'
+};
+const ERR_REG = {
+  email_taken:        'Этот email уже зарегистрирован.',
+  invalid_email:      'Введите корректный email.',
+  password_too_short: 'Пароль должен быть минимум 6 символов.'
+};
+
+async function submitLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true; btn.textContent = 'Входим…';
+  try {
+    const r = await fetch('/api/auth/login/email', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        email:    document.getElementById('lEmail').value.trim(),
+        password: document.getElementById('lPass').value
+      }),
+      credentials: 'same-origin'
+    });
+    const d = await r.json();
+    if (d.ok) {
+      window.location.href = _NEXT || '/';
+    } else {
+      showMsg('loginMsg', ERR_LOGIN[d.error] || 'Ошибка входа. Попробуйте снова.', true);
+      btn.disabled = false; btn.textContent = 'Войти';
+    }
+  } catch {
+    showMsg('loginMsg', 'Ошибка соединения.', true);
+    btn.disabled = false; btn.textContent = 'Войти';
+  }
+}
+
+async function submitRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnReg');
+  btn.disabled = true; btn.textContent = 'Регистрируем…';
+  try {
+    const r = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        email:    document.getElementById('rEmail').value.trim(),
+        password: document.getElementById('rPass').value
+      }),
+      credentials: 'same-origin'
+    });
+    const d = await r.json();
+    if (d.ok) {
+      window.location.href = _NEXT || '/';
+    } else {
+      showMsg('regMsg', ERR_REG[d.error] || 'Ошибка. Попробуйте снова.', true);
+      btn.disabled = false; btn.textContent = 'Создать аккаунт';
+    }
+  } catch {
+    showMsg('regMsg', 'Ошибка соединения.', true);
+    btn.disabled = false; btn.textContent = 'Создать аккаунт';
+  }
+}
+</script>
+</body>
+</html>

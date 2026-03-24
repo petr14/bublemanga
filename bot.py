@@ -1,5 +1,5 @@
 """
-bot.py — Telegram-бот для BubbleManga.
+bot.py — Telegram-бот Манговой.
 
 Содержит:
   - Глобалы telegram_app / _bot_loop
@@ -13,6 +13,7 @@ bot.py — Telegram-бот для BubbleManga.
 """
 
 import asyncio
+import secrets
 from config import (
     TELEGRAM_BOT_TOKEN, ADMIN_TELEGRAM_IDS, SITE_URL,
     COIN_PACKAGES, PREMIUM_PACKAGES,
@@ -331,7 +332,7 @@ async def handle_search_message(update: Update, context: ContextTypes.DEFAULT_TY
             return
         recipient_id, recipient_name = await _resolve_recipient(username)
         if not recipient_id:
-            await update.message.reply_text(f"❌ Пользователь @{username} не найден на BubbleManga")
+            await update.message.reply_text(f"❌ Пользователь @{username} не найден на Манговой")
             return
         keyboard = [
             [InlineKeyboardButton("🎁 1 месяц — 50 ⭐",   callback_data=f"gift_pkg:{username}:30")],
@@ -480,7 +481,7 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     text = (
         "⭐ *Купить монеты за Telegram Stars*\n\n"
-        "Монеты используются в магазине BubbleManga:\n"
+        "Монеты используются в магазине Манговой:\n"
         "🖼 Аватары, рамки, фоны профиля\n"
         "🏷 Значки и другие украшения\n\n"
         "💡 *Как это работает?*\n"
@@ -525,7 +526,7 @@ async def _send_gift_invoice(msg_or_query, context, sender_id, recipient_id, rec
     await context.bot.send_invoice(
         chat_id=chat_id,
         title=f'Premium на {label} для {recipient_name}',
-        description=f'Подарок Premium BubbleManga на {label}',
+        description=f'Подарок Premium Манговая на {label}',
         payload=payload,
         currency='XTR',
         provider_token='',
@@ -581,7 +582,7 @@ async def _handle_gift_premium_payment(update, payment, payload, payment_id):
                 try:
                     await update.get_bot().send_message(
                         chat_id=rec_row['telegram_id'],
-                        text=f"🎁 Вам подарили Premium на {label}!\nПриятного чтения на BubbleManga!",
+                        text=f"🎁 Вам подарили Premium на {label}!\nПриятного чтения на Манговой!",
                     )
                 except Exception:
                     pass
@@ -600,7 +601,7 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sender_row = c.execute('SELECT id FROM users WHERE telegram_id=?', (telegram_id,)).fetchone()
     conn.close()
     if not sender_row:
-        await update.message.reply_text("❌ Сначала войдите на сайт BubbleManga через /start")
+        await update.message.reply_text("❌ Сначала войдите на сайт Манговой через /start")
         return
     sender_id = sender_row['id']
     args = context.args or []
@@ -616,7 +617,7 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = args[0].lstrip('@')
     recipient_id, recipient_name = await _resolve_recipient(username)
     if not recipient_id:
-        await update.message.reply_text(f"❌ Пользователь @{username} не найден на BubbleManga")
+        await update.message.reply_text(f"❌ Пользователь @{username} не найден на Манговой")
         return
 
     if len(args) >= 2:
@@ -712,13 +713,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         row = c.fetchone()
         conn.close()
         if not row:
-            await query.answer("Сначала войдите на сайт BubbleManga", show_alert=True)
+            await query.answer("Сначала войдите на сайт Манговой", show_alert=True)
             return
         user_id = row['id']
         await context.bot.send_invoice(
             chat_id=query.message.chat_id,
             title=pkg['label'],
-            description=f"{pkg['coins']} монет для BubbleManga",
+            description=f"{pkg['coins']} монет для Манговой",
             payload=f"{pkg['id']}:{user_id}",
             currency="XTR",
             provider_token="",
@@ -737,7 +738,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender_row = c.execute('SELECT id FROM users WHERE telegram_id=?', (telegram_id,)).fetchone()
         conn.close()
         if not sender_row:
-            await query.answer("Сначала войдите на сайт BubbleManga", show_alert=True)
+            await query.answer("Сначала войдите на сайт Манговой", show_alert=True)
             return
         sender_id = sender_row['id']
         recipient_id, recipient_name = await _resolve_recipient(username)
@@ -745,6 +746,48 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(f"Пользователь @{username} не найден", show_alert=True)
             return
         await _send_gift_invoice(query.message, context, sender_id, recipient_id, recipient_name, days)
+
+
+async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/link — сгенерировать одноразовую ссылку для привязки Telegram к email-аккаунту."""
+    telegram_id = update.effective_user.id
+    username    = update.effective_user.username
+    first_name  = update.effective_user.first_name
+    last_name   = update.effective_user.last_name
+
+    conn = get_db()
+    # Если этот Telegram уже привязан к аккаунту — нет смысла в /link
+    existing = conn.execute(
+        'SELECT id FROM users WHERE telegram_id=?', (telegram_id,)
+    ).fetchone()
+    if existing:
+        conn.close()
+        await update.message.reply_text(
+            "Ваш Telegram уже привязан к аккаунту Манговой.\n"
+            "Нет необходимости в привязке."
+        )
+        return
+
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(minutes=15)).isoformat()
+    conn.execute(
+        '''INSERT INTO telegram_link_tokens
+           (token, telegram_id, tg_username, tg_first_name, tg_last_name, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (token, telegram_id, username, first_name, last_name, expires_at)
+    )
+    conn.commit()
+    conn.close()
+
+    link_url = f"{SITE_URL}/auth/link-telegram/{token}"
+    await update.message.reply_text(
+        "🔗 *Привязка Telegram к аккаунту Манговой*\n\n"
+        "1\\. Войдите на сайт через email/пароль\n"
+        f"2\\. Перейдите по ссылке \\(действует 15 минут\\):\n"
+        f"`{link_url}`\n\n"
+        "После перехода аккаунты будут объединены\\.",
+        parse_mode="MarkdownV2"
+    )
 
 
 # ==================== ЗАПУСК БОТА ====================
@@ -767,6 +810,7 @@ def run_telegram_bot():
             telegram_app.add_handler(CommandHandler("premium", premium_command))
             telegram_app.add_handler(CommandHandler("buy",     buy_command))
             telegram_app.add_handler(CommandHandler("gift",    gift_command))
+            telegram_app.add_handler(CommandHandler("link",    link_command))
 
             telegram_app.add_handler(CallbackQueryHandler(handle_callback))
             telegram_app.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
