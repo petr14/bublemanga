@@ -351,7 +351,7 @@ def api_auth_webapp():
 def api_home_recent():
     data = get_recent_chapters_from_api(21)
     resp = make_response(jsonify(data))
-    resp.headers['Cache-Control'] = 'public, max-age=300'
+    resp.headers['Cache-Control'] = 'no-store'
     return resp
 
 
@@ -359,7 +359,7 @@ def api_home_recent():
 def api_home_spotlights():
     spotlights_data = get_cached_spotlights(ttl_seconds=1800)
     resp = make_response(jsonify(spotlights_data.get('spotlights', {})))
-    resp.headers['Cache-Control'] = 'public, max-age=1800'
+    resp.headers['Cache-Control'] = 'no-store'
     return resp
 
 
@@ -382,7 +382,7 @@ def api_home_popular():
         for m in raw
     ]
     resp = make_response(jsonify(data))
-    resp.headers['Cache-Control'] = 'public, max-age=600'
+    resp.headers['Cache-Control'] = 'no-store'
     return resp
 
 
