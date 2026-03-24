@@ -1369,10 +1369,18 @@
                                 {% if manga.translation_status == 'IN_PROGRESS' %}
                                 В процессе
                                 {% elif manga.translation_status == 'COMPLETED' %}
-                                Завершен
+                                Завершён
                                 {% elif manga.translation_status == 'ABANDONED' %}
                                 Заброшен
-                                {% else %}
+                                {% elif manga.translation_status == 'ANNOUNCED' %}
+                                Анонсирован
+                                {% elif manga.translation_status == 'FROZEN' %}
+                                Заморожен
+                                {% elif manga.translation_status == 'LICENSED' %}
+                                Лицензирован
+                                {% elif manga.translation_status == 'NOT_TRANSLATED' %}
+                                Не переведён
+                                {% elif manga.translation_status %}
                                 {{ manga.translation_status }}
                                 {% endif %}
                             </span>
@@ -1713,7 +1721,7 @@
             const lbl = document.getElementById('statusBtnLabel');
             if (btn && lbl) {
                 btn.dataset.status = d.status || '';
-                lbl.textContent = d.status ? _STATUS_LABELS[d.status] : '＋ Статус';
+                lbl.textContent = d.status ? _STATUS_LABELS[d.status] : 'Изм. Статус';
                 if (d.status) btn.classList.add('btn-status-active');
                 else btn.classList.remove('btn-status-active');
                 // rebuild remove option

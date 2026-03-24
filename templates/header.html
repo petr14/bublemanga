@@ -608,7 +608,12 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
 
   window.gBellClick = function(id, url) {
     fetch('/api/notifications/' + id + '/read', {method: 'POST', credentials: 'same-origin'});
-    if (url) { window.location.href = url; }
+    var item = document.querySelector('.g-bell-item[data-id="' + id + '"]');
+    if (item) {
+      item.classList.add('dismissing');
+      setTimeout(function() { if (item.parentNode) item.remove(); _checkEmpty(); }, 200);
+    }
+    if (url) { setTimeout(function(){ window.location.href = url; }, 50); }
   };
 
   window.gBellMark = function(id) {

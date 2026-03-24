@@ -523,6 +523,7 @@
 </div>
 
 {% set g_active = 'home' %}{% include 'header.html' %}
+{% set TYPE_RU = {'MANGA':'Манга','MANHWA':'Манхва','MANHUA':'Маньхуа','OEL':'Вэб','NOVEL':'Новелла','ONE_SHOT':'Короткие','DOUJINSHI':'Додзинси','COMICS':'Комикс'} %}
 
 <!-- Hero — только десктоп -->
 <section class="hero">
@@ -572,7 +573,7 @@
                  onclick="location.href='/manga/{{ manga.manga_slug }}'">
                 <div class="manga-cover-wrap">
                     <!-- <span class="reading-num">{{ loop.index }}</span> -->
-                    <span class="manga-type-badge">{{ manga.manga_type or 'Манга' }}</span>
+                    <span class="manga-type-badge">{{ TYPE_RU.get((manga.manga_type or '')|upper, manga.manga_type or 'Манга') }}</span>
                     <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
                          onerror="this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
                 </div>
@@ -653,7 +654,7 @@
             {% for manga in subscriptions %}
             <div class="manga-card" data-mid="{{ manga.manga_id }}" onclick="location.href='/manga/{{ manga.manga_slug }}'">
                 <div class="manga-cover-wrap">
-                    <span class="manga-type-badge">{{ manga.manga_type or 'Манга' }}</span>
+                    <span class="manga-type-badge">{{ TYPE_RU.get((manga.manga_type or '')|upper, manga.manga_type or 'Манга') }}</span>
                     {% if manga.last_chapter_number %}
                     <span class="manga-badge new">Гл.{{ manga.last_chapter_number }}</span>
                     {% endif %}

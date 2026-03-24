@@ -4658,7 +4658,7 @@ def api_notification_read(notif_id):
         return jsonify({'error': 'not_auth'}), 401
     conn = get_db()
     conn.execute(
-        'UPDATE site_notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+        'DELETE FROM site_notifications WHERE id = ? AND user_id = ?',
         (notif_id, user_id)
     )
     conn.commit()

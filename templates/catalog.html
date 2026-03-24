@@ -29,21 +29,16 @@
     a { color: inherit; text-decoration: none; }
 
     /* ── Layout ── */
-    .page-wrap { display: flex; min-height: calc(100vh - 160px); }
-    @media (max-width: 700px) { .page-wrap { min-height: calc(100vh - 100px); } }
+    .page-wrap { display: flex; min-height: calc(100vh - 130px); }
+    @media (max-width: 700px) { .page-wrap { min-height: calc(100vh - 72px); } }
 
     /* ── Sidebar ── */
     .sidebar {
       width: 260px; flex-shrink: 0;
-      padding: 1.5rem 1rem 6rem 1.5rem;
+      padding: 1.5rem 1rem 6.5rem 1.5rem;
       border-right: 1px solid var(--border);
-      position: sticky; top: 160px; align-self: flex-start;
-      height: calc(100vh - 160px); overflow-y: auto;
-      scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+      position: sticky; top: 130px; align-self: flex-start;
     }
-    @media (max-width: 700px) { .sidebar { top: 100px; height: calc(100vh - 100px); } }
-    .sidebar::-webkit-scrollbar { width: 4px; }
-    .sidebar::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
 
     @media (max-width: 860px) { .sidebar { display: none; } }
 
