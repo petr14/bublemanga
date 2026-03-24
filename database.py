@@ -844,6 +844,7 @@ def init_db():
         body TEXT,
         url TEXT,
         ref_id TEXT,
+        cover_url TEXT,
         is_read INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
@@ -872,6 +873,7 @@ def init_db():
     for _sql in [
         'ALTER TABLE shop_items ADD COLUMN duration_days INTEGER DEFAULT NULL',
         'ALTER TABLE user_items ADD COLUMN expires_at TIMESTAMP DEFAULT NULL',
+        'ALTER TABLE site_notifications ADD COLUMN cover_url TEXT',
     ]:
         try:
             c.execute(_sql)

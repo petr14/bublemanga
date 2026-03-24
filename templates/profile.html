@@ -1128,7 +1128,7 @@
                 if (!rows.length) { el.innerHTML = emptyState('😔', 'История пуста', 'Начни читать мангу!'); return; }
                 el.innerHTML = '<div class="history-list">' + rows.map(r => `
                     <a href="/read/${esc(r.manga_slug)}/${esc(r.chapter_slug)}${r.page_number > 1 ? '?p=' + r.page_number : ''}" class="hitem">
-                        <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">
+                        <img src="${esc(r.cover_url)}" class="hitem-cover" onerror="this.onerror=null;this.src='https://via.placeholder.com/44x60/1a1a1a/667eea'">
                         <div class="hitem-info">
                             <div class="hitem-title">${esc(r.manga_title)}</div>
                             <div class="hitem-chap">Глава ${esc(String(r.chapter_number))}</div>
@@ -1147,7 +1147,7 @@
                 if (!rows.length) { el.innerHTML = emptyState('🔔', 'Нет подписок', 'Подпишись на любимые манги на их страницах'); return; }
                 el.innerHTML = '<div class="manga-grid-lib">' + rows.map(m => `
                     <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
-                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.onerror=null;this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
                         <div class="mcard-info">
                             <div class="mcard-title">${esc(m.manga_title)}</div>
                             <div class="mcard-meta">${typeRu(m.manga_type)}</div>
@@ -1204,7 +1204,7 @@
                 box.innerHTML = '<div class="manga-grid-lib">' + items.map(m => `
                     <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
                         ${IS_OWN ? `<button class="mcard-remove" onclick="event.stopPropagation();removeManga(${id},'${esc(m.manga_id)}',this.closest('.mcard'))" title="Убрать">✕</button>` : ''}
-                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.onerror=null;this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
                         <div class="mcard-info">
                             <div class="mcard-title">${esc(m.manga_title)}</div>
                             <div class="mcard-meta">${typeRu(m.manga_type)}</div>
@@ -1559,7 +1559,7 @@
                 if (!rows || !rows.length) { el.innerHTML = emptyState('🔖', 'Список пуст', 'Добавляй мангу кнопкой «Хочу прочитать»'); return; }
                 el.innerHTML = '<div class="manga-grid-lib">' + rows.map(m => `
                     <div class="mcard" onclick="location.href='/manga/${esc(m.manga_slug)}'">
-                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
+                        <img src="${esc(m.cover_url)}" class="mcard-img" onerror="this.onerror=null;this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'" loading="lazy">
                         <div class="mcard-info">
                             <div class="mcard-title">${esc(m.manga_title)}</div>
                             <div class="mcard-meta">${typeRu(m.manga_type)}</div>

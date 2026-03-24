@@ -69,7 +69,7 @@ def _set_security_headers(resp):
     resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     resp.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://telegram.org https://esm.sh; "
+        "script-src 'self' 'unsafe-inline' https://telegram.org https://esm.sh https://cdn.socket.io; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
         "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; "
         "img-src 'self' data: blob: https:; "

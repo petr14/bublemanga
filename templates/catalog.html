@@ -505,7 +505,7 @@ function buildCard(m) {
       ${userBadge}
     </div>
     <img src="${m.cover_url || ''}" class="manga-cover" loading="lazy"
-         onerror="this.src='https://via.placeholder.com/150x225/1c160f/f59e0b'">
+         onerror="this.onerror=null;this.src='https://via.placeholder.com/150x225/1c160f/f59e0b'">
     <div class="manga-info">
       <div class="manga-title">${esc(m.manga_title)}</div>
       <div class="manga-meta">

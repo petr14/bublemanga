@@ -144,7 +144,7 @@
         el.innerHTML = '<div class="manga-grid">' + rows.map(function(m) {
           return '<div class="mcard" onclick="location.href=\'/manga/' + esc(m.manga_slug) + '\'">' +
             '<img src="' + esc(m.cover_url||'') + '" class="mcard-img" ' +
-            'onerror="this.src=\'https://via.placeholder.com/130x195/1a1a1a/667eea\'" loading="lazy">' +
+            'onerror="this.onerror=null;this.src=\'https://via.placeholder.com/130x195/1a1a1a/667eea\'" loading="lazy">' +
             '<div class="mcard-info">' +
               '<div class="mcard-title">' + esc(m.manga_title) + '</div>' +
               '<div class="mcard-meta">' + typeRu(m.manga_type) + '</div>' +

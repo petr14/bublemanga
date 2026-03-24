@@ -1288,7 +1288,7 @@
             <div class="manga-header">
                 <div class="manga-cover-container">
                     <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="eager"
-                         onerror="this.src='https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки'">
+                         onerror="this.onerror=null;this.src='https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки'">
                     
                     {% if manga.manga_status %}
                     <div class="manga-status-badge">
@@ -1426,7 +1426,7 @@
                             </div>
                             <div class="rating-ticks" id="ratingTicks">
                                 {% for i in range(1, 11) %}
-                                <span{% if user_manga_rating == i %} class="active"{% endif %}>{{ i }}</span>
+                                <span>{% if user_manga_rating == i %} class="active"{% endif %}>{{ i }}</span>
                                 {% endfor %}
                             </div>
 
