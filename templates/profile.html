@@ -699,6 +699,7 @@
             <button class="edit-tab" data-etab="avatar" onclick="switchEditTab('avatar')">Аватар</button>
             <button class="edit-tab" data-etab="frame" onclick="switchEditTab('frame')">Рамка</button>
             <button class="edit-tab" data-etab="bg" onclick="switchEditTab('bg')">Фон</button>
+            <button class="edit-tab" data-etab="security" onclick="switchEditTab('security')">Безопасность</button>
         </div>
 
         <!-- Основное -->
@@ -773,6 +774,43 @@
             {% endif %}
             <label style="font-size:13px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Купленные фоны из магазина</label>
             <div id="bgItemsGrid" class="shop-items-grid"></div>
+        </div>
+
+        <!-- Безопасность -->
+        <div class="edit-pane" id="epane-security">
+            {% if not profile.user.email %}
+            <div class="field">
+                <label>Добавить email для входа</label>
+                <input type="email" id="secEmail" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="field">
+                <label>Пароль <span style="font-size:11px;color:var(--text2)">(минимум 6 символов)</span></label>
+                <input type="password" id="secPass" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary-m" onclick="saveEmailPassword()">Сохранить</button>
+            </div>
+            <div id="secMsg" style="font-size:13px;margin-top:10px;display:none"></div>
+            {% else %}
+            <div style="padding:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:10px;margin-bottom:16px">
+                <div style="font-size:13px;color:#6ee7b7">Email привязан: <b>{{ profile.user.email }}</b></div>
+            </div>
+            {% endif %}
+
+            {% if not profile.user.telegram_id %}
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+                <label style="font-size:13px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Привязать Telegram</label>
+                <p style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5">
+                    Отправьте команду <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">/link</code>
+                    боту <a href="https://t.me/hookah_p_bot" target="_blank" style="color:#667eea">@hookah_p_bot</a>
+                    и перейдите по полученной ссылке.
+                </p>
+            </div>
+            {% else %}
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);padding:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:10px">
+                <div style="font-size:13px;color:#6ee7b7">Telegram привязан ✓</div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -1458,6 +1496,28 @@
             setBgEl(d.background_url);
             toast('Фон обновлён!', 'success');
         } else toast(d.error || 'Ошибка', 'error');
+    }
+
+    async function saveEmailPassword() {
+        const email = (document.getElementById('secEmail')?.value || '').trim();
+        const pass  =  document.getElementById('secPass')?.value  || '';
+        const msgEl = document.getElementById('secMsg');
+        if (!email || !pass) { msgEl.style.display='block'; msgEl.style.color='#f87171'; msgEl.textContent='Заполните оба поля.'; return; }
+        const r = await fetch('/api/profile/set-email-password', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({email, password: pass})
+        });
+        const d = await r.json();
+        msgEl.style.display = 'block';
+        if (d.ok) {
+            msgEl.style.color = '#6ee7b7';
+            msgEl.textContent = 'Email и пароль сохранены!';
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            const msgs = {email_taken:'Этот email уже занят.',invalid_email:'Некорректный email.',password_too_short:'Пароль минимум 6 символов.'};
+            msgEl.style.color = '#f87171';
+            msgEl.textContent = msgs[d.error] || 'Ошибка сохранения.';
+        }
     }
 
     // Modals

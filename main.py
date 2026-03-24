@@ -693,6 +693,7 @@ def get_user_full_profile(user_id):
             (dict(profile).get('custom_name') or '').strip() or
             dict(user).get('telegram_first_name') or
             dict(user).get('telegram_username') or
+            (dict(user).get('email') or '').split('@')[0] or
             f"Пользователь #{user_id}"
         ),
         'followers_count': followers_count,
@@ -1459,6 +1460,74 @@ def get_user_by_telegram_id(telegram_id):
     user = c.fetchone()
     conn.close()
     return dict(user) if user else None
+
+
+# ── Email/password auth ───────────────────────────────────────────────────
+
+def _hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 260_000)
+    return salt.hex() + ':' + dk.hex()
+
+def _verify_password(password: str, stored: str) -> bool:
+    try:
+        salt_hex, dk_hex = stored.split(':', 1)
+        salt = bytes.fromhex(salt_hex)
+        expected = bytes.fromhex(dk_hex)
+        actual = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 260_000)
+        return hmac.compare_digest(actual, expected)
+    except Exception:
+        return False
+
+def register_user_by_email(email: str, password: str):
+    """Зарегистрировать нового пользователя по email+пароль. None если email занят."""
+    conn = get_db()
+    c = conn.cursor()
+    if c.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone():
+        conn.close()
+        return None
+    pw_hash = _hash_password(password)
+    login_token = secrets.token_urlsafe(32)
+    referral_code = secrets.token_urlsafe(6).upper()
+    c.execute(
+        '''INSERT INTO users (email, password_hash, login_token, referral_code, is_active)
+           VALUES (?, ?, ?, ?, TRUE)''',
+        (email, pw_hash, login_token, referral_code)
+    )
+    conn.commit()
+    uid = c.lastrowid
+    user = c.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
+    conn.close()
+    return dict(user) if user else None
+
+def get_user_by_email(email: str):
+    """Найти активного пользователя по email."""
+    conn = get_db()
+    row = conn.execute(
+        'SELECT * FROM users WHERE email = ? AND is_active IS NOT FALSE', (email,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def link_telegram_to_user(user_id: int, telegram_id: int,
+                           username, first_name, last_name) -> bool:
+    """Привязать Telegram-аккаунт к существующему пользователю. False если telegram_id занят."""
+    conn = get_db()
+    conflict = conn.execute(
+        'SELECT id FROM users WHERE telegram_id = ?', (telegram_id,)
+    ).fetchone()
+    if conflict and conflict['id'] != user_id:
+        conn.close()
+        return False
+    conn.execute(
+        '''UPDATE users SET telegram_id=?, telegram_username=?,
+           telegram_first_name=?, telegram_last_name=? WHERE id=?''',
+        (telegram_id, username, first_name, last_name, user_id)
+    )
+    conn.commit()
+    conn.close()
+    return True
+
 
 # ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 # ==================== ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ ДЕТАЛЕЙ МАНГИ ====================
@@ -2328,6 +2397,16 @@ def background_checker():
                     )
             except Exception as e_tmp:
                 logger.error(f"❌ Ошибка очистки временных предметов: {e_tmp}")
+            # Удаляем истёкшие токены привязки Telegram
+            try:
+                conn_tlt = get_db()
+                conn_tlt.execute(
+                    "DELETE FROM telegram_link_tokens WHERE expires_at < datetime('now')"
+                )
+                conn_tlt.commit()
+                conn_tlt.close()
+            except Exception:
+                pass
         except Exception as e:
             logger.error(f"❌ Ошибка в background_checker: {e}")
             time.sleep(60)

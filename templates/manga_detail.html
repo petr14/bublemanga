@@ -1498,10 +1498,44 @@
                             {% endif %}
                         </div>
                         {% endif %}
+
+                        {% if user_id == 1 %}
+                        <!-- Выбор источника страниц (только для admin user_id=1) -->
+                        <div class="source-switcher" id="sourceSwitcher">
+                            <span class="source-label">Источник:</span>
+                            <button class="source-btn" id="srcSenkuro" onclick="setSource('senkuro')">Senkuro</button>
+                            <button class="source-btn" id="srcMangabuff" onclick="setSource('mangabuff')">MangaBuff</button>
+                        </div>
+                        <style>
+                        .source-switcher{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+                        .source-label{font-size:12px;color:#aaa}
+                        .source-btn{padding:4px 12px;border-radius:20px;border:1px solid #444;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:12px;transition:.2s}
+                        .source-btn:hover{border-color:#667eea;color:#fff}
+                        .source-btn.active{background:#667eea;border-color:#667eea;color:#fff}
+                        </style>
+                        <script>
+                        (function(){
+                            const slug = {{ manga.manga_slug | tojson }};
+                            function refreshBtns(src){
+                                document.getElementById('srcSenkuro').classList.toggle('active', src==='senkuro');
+                                document.getElementById('srcMangabuff').classList.toggle('active', src==='mangabuff');
+                            }
+                            fetch('/api/manga/' + slug + '/source')
+                                .then(r=>r.json()).then(d=>refreshBtns(d.source||'senkuro'));
+                            window.setSource = function(src){
+                                fetch('/api/manga/' + slug + '/source', {
+                                    method:'POST',
+                                    headers:{'Content-Type':'application/json'},
+                                    body: JSON.stringify({source: src})
+                                }).then(r=>r.json()).then(d=>{ if(d.ok) refreshBtns(src); });
+                            };
+                        })();
+                        </script>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            
+
             <!-- Описание -->
             {% if manga.description %}
             <div class="manga-description">
