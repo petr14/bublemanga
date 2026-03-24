@@ -16,7 +16,11 @@ class SenkuroAPI:
     """Клиент GraphQL API Senkuro"""
 
     GRAPHQL_URL = "https://api.senkuro.com/graphql"
-    HEADERS = {"Content-Type": "application/json"}
+    HEADERS = {
+        "Content-Type": "application/json",
+        "Origin": "https://senkuro.com",
+        "Referer": "https://senkuro.com/",
+    }
 
     # Запрос данных главной страницы (последние главы)
     MAIN_PAGE_PAYLOAD = {
