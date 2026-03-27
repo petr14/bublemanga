@@ -47,17 +47,17 @@ _bot_loop = None   # event loop потока Telegram-бота (для run_corou
 
 # ==================== УВЕДОМЛЕНИЯ ====================
 
-async def send_telegram_notification(user_id, manga_title, chapter_info, chapter_url):
+async def send_telegram_notification(user_id, manga_title, chapter_info, chapter_url, cover_url=None):
     """Отправка мгновенного уведомления через Telegram (только Premium)."""
     global telegram_app
 
-    message = "🆕 <b>Новая глава!</b>\n\n"
-    message += f"📖 <b>{manga_title}</b>\n"
-    message += f"Глава: {chapter_info.get('chapter_number')}"
+    caption = "🆕 <b>Новая глава!</b>\n\n"
+    caption += f"📖 <b>{manga_title}</b>\n"
+    caption += f"Глава: {chapter_info.get('chapter_number')}"
     if chapter_info.get('chapter_volume'):
-        message += f" (Том {chapter_info.get('chapter_volume')})"
+        caption += f" (Том {chapter_info.get('chapter_volume')})"
     if chapter_info.get('chapter_name'):
-        message += f"\n{chapter_info.get('chapter_name')}"
+        caption += f"\n{chapter_info.get('chapter_name')}"
 
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("📖 Читать", web_app=WebAppInfo(url=chapter_url))
@@ -70,9 +70,22 @@ async def send_telegram_notification(user_id, manga_title, chapter_info, chapter
         result = c.fetchone()
         conn.close()
         if result:
+            chat_id = result[0]
+            if cover_url:
+                try:
+                    await telegram_app.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=cover_url,
+                        caption=caption,
+                        parse_mode='HTML',
+                        reply_markup=keyboard,
+                    )
+                    return
+                except Exception:
+                    pass  # fallback на текст если фото не загрузилось
             await telegram_app.bot.send_message(
-                chat_id=result[0],
-                text=message,
+                chat_id=chat_id,
+                text=caption,
                 parse_mode='HTML',
                 reply_markup=keyboard,
             )

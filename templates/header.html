@@ -607,7 +607,12 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
   };
 
   window.gBellClick = function(id, url) {
-    fetch('/api/notifications/' + id + '/read', {method: 'POST', credentials: 'same-origin'});
+    // sendBeacon гарантирует доставку даже при навигации (fetch отменяется браузером)
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/notifications/' + id + '/read');
+    } else {
+      fetch('/api/notifications/' + id + '/read', {method: 'POST', credentials: 'same-origin'});
+    }
     var item = document.querySelector('.g-bell-item[data-id="' + id + '"]');
     if (item) {
       item.classList.add('dismissing');
