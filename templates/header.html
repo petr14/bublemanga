@@ -324,7 +324,7 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
     left: 12px;
     right: 12px;
     width: auto;
-    max-height: calc(100dvh - 148px);
+    max-height: calc(100dvh - 148px - 60px - env(safe-area-inset-bottom, 0px));
     border-radius: 16px;
     transform: translateY(-8px);
   }
@@ -341,7 +341,7 @@ html, body { margin: 0 !important; padding-left: 0 !important; padding-right: 0 
   font-family: inherit; font-weight: 600; padding: 0;
 }
 .g-bell-read-all:hover { text-decoration: underline; }
-.g-bell-list { overflow-y: auto; flex: 1; }
+.g-bell-list { overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .g-bell-item {
   display: flex; gap: 10px; padding: 10px 14px;
   border-bottom: 1px solid rgba(255,255,255,.05);

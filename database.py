@@ -641,7 +641,7 @@ def init_db():
     c.execute('''INSERT OR IGNORE INTO shop_items (id, name, description, type, preview_url, css_value, price, is_upload)
                  VALUES (12, 'Загрузка аватара', 'Разблокировать загрузку своего аватара', 'avatar_slot', NULL, NULL, 0, 1)''')
     c.execute('''INSERT OR IGNORE INTO shop_items (id, name, description, type, preview_url, css_value, price, is_upload)
-                 VALUES (13, 'Загрузка фона', 'Разблокировать загрузку своего фона', 'bg_slot', NULL, NULL, 1500, 1)''')
+                 VALUES (13, 'Загрузка фона', 'Разблокировать загрузку своего фона', 'bg_slot', NULL, NULL, 2550, 1)''')
 
     _DAILY_UPDATES = [('Читатель дня', 12), ('Комментатор', 6), ('Исследователь', 6)]
     for _title, _coins in _DAILY_UPDATES:
