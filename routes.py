@@ -63,6 +63,9 @@ from main import (
     get_popular_manga_from_api, toggle_subscription,
 )
 import bot as _bot_module
+from remanga_api import RemangaAPI as _RemangaAPI
+
+_remanga_api = _RemangaAPI()
 
 def _m():
     """Lazy reference to main module for items not imported at top level."""
@@ -80,6 +83,91 @@ def _set_user_session(user: dict):
         f"User_{user['id']}"
     )
     session.permanent = True
+
+
+def _get_remanga_pages(manga_slug: str, chapter_number: str, conn) -> list:
+    """
+    Вернуть страницы из remanga для главы chapter_number.
+
+    Алгоритм:
+      1. Получить remanga dir_slug из manga_sources (source='remanga')
+      2. Проверить кеш remanga_chapters по manga_slug + chapter_number
+      3. Если нет — запросить API: get_manga → branch_id → get_chapters →
+         найти главу → get_chapter_pages → сохранить в кеш
+    """
+    try:
+        # 1. Маппинг manga_slug → remanga dir
+        src_row = conn.execute(
+            "SELECT source_slug FROM manga_sources WHERE manga_slug=%s AND source='remanga'",
+            (manga_slug,)
+        ).fetchone()
+        if not src_row:
+            logger.warning(f"_get_remanga_pages: нет маппинга remanga для {manga_slug}")
+            return []
+        dir_slug = src_row['source_slug']
+
+        # 2. Кеш
+        cached = conn.execute(
+            '''SELECT pages_json FROM remanga_chapters
+               WHERE manga_slug=%s AND chapter_number=%s
+               LIMIT 1''',
+            (manga_slug, str(chapter_number).strip())
+        ).fetchone()
+        if cached and cached['pages_json']:
+            pages = json.loads(cached['pages_json'])
+            if pages:
+                logger.info(f"_get_remanga_pages: кеш hit {manga_slug} ch={chapter_number}")
+                return pages
+
+        # 3. API
+        manga_info = _remanga_api.get_manga(dir_slug)
+        if not manga_info or not manga_info.get('branch_id'):
+            logger.error(f"_get_remanga_pages: нет branch_id для dir={dir_slug}")
+            return []
+
+        chapters = _remanga_api.get_chapters(manga_info['branch_id'])
+        ch_num_str = str(chapter_number).strip()
+
+        # Ищем совпадение по номеру главы
+        target = None
+        for ch in chapters:
+            if str(ch.get('chapter', '')).strip() == ch_num_str:
+                target = ch
+                break
+
+        if not target:
+            logger.warning(f"_get_remanga_pages: глава {ch_num_str} не найдена у {dir_slug}")
+            return []
+
+        pages = _remanga_api.get_chapter_pages(target['id'])
+        if not pages:
+            return []
+
+        # Сохраняем в кеш
+        pages_json = json.dumps(pages)
+        try:
+            conn.execute(
+                '''INSERT INTO remanga_chapters
+                       (manga_slug, remanga_chapter_id, chapter_number,
+                        chapter_volume, chapter_name, pages_json, pages_count)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (manga_slug, remanga_chapter_id)
+                   DO UPDATE SET pages_json=%s, pages_count=%s, synced_at=NOW()''',
+                (manga_slug, str(target['id']), ch_num_str,
+                 target.get('tome', ''), target.get('name', ''),
+                 pages_json, len(pages),
+                 pages_json, len(pages))
+            )
+            conn.commit()
+        except Exception as e_ins:
+            logger.warning(f"_get_remanga_pages кеш write: {e_ins}")
+
+        logger.info(f"_get_remanga_pages: {len(pages)} страниц для {manga_slug} ch={chapter_number}")
+        return pages
+
+    except Exception as e:
+        logger.error(f"_get_remanga_pages {manga_slug} ch={chapter_number}: {e}")
+        return []
 
 
 def _get_mangabuff_pages(manga_slug: str, chapter_number: str, conn) -> list:
@@ -1117,6 +1205,10 @@ def read_chapter(manga_slug, chapter_slug):
         chapter_dict['pages'] = _get_mangabuff_pages(
             manga_slug, chapter_dict.get('chapter_number', ''), conn
         ) or chapter_dict['pages']
+    elif _active_source == 'remanga':
+        chapter_dict['pages'] = _get_remanga_pages(
+            manga_slug, chapter_dict.get('chapter_number', ''), conn
+        ) or chapter_dict['pages']
     chapter_dict['active_source'] = _active_source
 
     # Если страниц нет или они пустые, получаем через API
@@ -1504,13 +1596,50 @@ def api_manga_source(manga_slug):
         return jsonify({'error': 'forbidden'}), 403
     key = f'src_{manga_slug}'
     if request.method == 'POST':
-        src = (request.get_json(silent=True) or {}).get('source', 'senkuro')
-        if src not in ('senkuro', 'mangabuff'):
+        body = request.get_json(silent=True) or {}
+        src  = body.get('source', 'senkuro')
+        if src not in ('senkuro', 'mangabuff', 'remanga'):
             return jsonify({'error': 'invalid source'}), 400
+
+        # Для remanga нужен dir_slug маппинг
+        if src == 'remanga':
+            dir_slug = (body.get('dir_slug') or '').strip()
+            if not dir_slug:
+                return jsonify({'error': 'dir_slug required for remanga'}), 400
+            try:
+                conn = get_db()
+                conn.execute(
+                    '''INSERT INTO manga_sources (manga_slug, source, source_slug, updated_at)
+                       VALUES (%s, 'remanga', %s, NOW())
+                       ON CONFLICT (manga_slug, source)
+                       DO UPDATE SET source_slug=%s, updated_at=NOW()''',
+                    (manga_slug, dir_slug, dir_slug)
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                logger.error(f"api_manga_source remanga upsert: {e}")
+                return jsonify({'error': 'db error'}), 500
+
         session[key] = src
         session.modified = True
         return jsonify({'ok': True, 'source': src})
-    return jsonify({'source': session.get(key, 'senkuro')})
+
+    # GET — возвращаем текущий источник + dir_slug если есть
+    current = session.get(key, 'senkuro')
+    result  = {'source': current}
+    if current == 'remanga':
+        try:
+            conn = get_db()
+            row  = conn.execute(
+                "SELECT source_slug FROM manga_sources WHERE manga_slug=%s AND source='remanga'",
+                (manga_slug,)
+            ).fetchone()
+            conn.close()
+            result['dir_slug'] = row['source_slug'] if row else ''
+        except Exception:
+            result['dir_slug'] = ''
+    return jsonify(result)
 
 
 @bp.route('/api/chapter/<chapter_slug>/complete', methods=['POST'])
@@ -4512,9 +4641,11 @@ def api_admin_achievements_create():
         )
         conn.commit()
         ach_id = c.lastrowid
-    except sqlite3.IntegrityError:
-        conn.close()
-        return jsonify({'error': 'Ключ уже существует'}), 409
+    except Exception as _e:
+        if 'unique' in str(_e).lower() or 'duplicate' in str(_e).lower():
+            conn.close()
+            return jsonify({'error': 'Ключ уже существует'}), 409
+        raise
     conn.close()
     return jsonify({'success': True, 'id': ach_id})
 

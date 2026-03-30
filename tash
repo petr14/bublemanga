@@ -1,0 +1,21 @@
+[1mdiff --git a/main.py b/main.py[m
+[1mindex 1ef6a4e..e164353 100644[m
+[1m--- a/main.py[m
+[1m+++ b/main.py[m
+[36m@@ -9,6 +9,7 @@[m [mfrom config import ([m
+     CRYPTOCLOUD_API_KEY, CRYPTOCLOUD_SECRET_KEY, CRYPTOCLOUD_SHOP_ID,[m
+     COIN_PACKAGES, PREMIUM_PACKAGES,[m
+ )[m
+[32m+[m
+ import hashlib[m
+ import urllib.parse[m
+ from datetime import datetime, timedelta[m
+[36m@@ -74,7 +75,7 @@[m [mdef _set_security_headers(resp):[m
+         "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; "[m
+         "img-src 'self' data: blob: https:; "[m
+         "media-src 'self' blob: https:; "[m
+[31m-        "connect-src 'self' https://api.senkuro.com https://esm.sh; "[m
+[32m+[m[32m        "connect-src 'self' https://api.senkuro.com https://esm.sh https://shiro.senkuro.net https://mirai.senkuro.net https://via.placeholder.com; "[m
+         "frame-ancestors 'self' https://web.telegram.org;"[m
+     )[m
+     return resp[m

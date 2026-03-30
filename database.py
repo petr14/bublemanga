@@ -1,25 +1,30 @@
 """
-database.py — слой доступа к данным для Манговая.
+database.py — PostgreSQL-only слой доступа к данным для Манговая.
 
 Содержит:
-  - SQLite / PostgreSQL совместимый слой (_CompatConn / _CompatCursor)
-  - init_db()       — создание схемы SQLite
+  - PostgreSQL совместимый слой (_CompatConn / _CompatCursor)
+  - init_db()       — создание схемы PostgreSQL
   - init_pg_schema() — PostgreSQL-специфичные триггеры / таблицы
-  - get_db()        — возвращает соединение нужного типа
+  - get_db()        — возвращает соединение PostgreSQL
 """
 
 import os
 import re
-import sqlite3
 import logging
 from datetime import datetime
 from config import DATABASE_URL as _DATABASE_URL
 
 logger = logging.getLogger(__name__)
 
-# ==================== СОВМЕСТИМЫЙ СЛОЙ БД (SQLite / PostgreSQL) ====================
+# ==================== СОВМЕСТИМЫЙ СЛОЙ БД (PostgreSQL) ====================
 
-_USE_PG = bool(_DATABASE_URL)
+_USE_PG = True
+
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    raise ImportError("psycopg2 не установлен. Установите его командой: pip install psycopg2-binary")
 
 
 def _to_dt(val):
@@ -31,15 +36,6 @@ def _to_dt(val):
     if hasattr(val, 'tzinfo') and val.tzinfo is not None:
         val = val.replace(tzinfo=None)
     return val
-
-
-if _USE_PG:
-    try:
-        import psycopg2
-        import psycopg2.extras
-    except ImportError:
-        logger.warning("psycopg2 не установлен, переключаемся на SQLite")
-        _USE_PG = False
 
 
 # Паттерны для транслирования SQLite → PostgreSQL
@@ -62,6 +58,10 @@ _PG_UPSERT_MAP: dict = {
     'mangabuff_chapters':  ('manga_slug, mb_slug',
                             ['chapter_id', 'chapter_number', 'chapter_volume',
                              'chapter_name', 'chapter_url', 'pages_json',
+                             'pages_count', 'synced_at']),
+    'remanga_chapters':    ('manga_slug, remanga_chapter_id',
+                            ['chapter_number', 'chapter_volume',
+                             'chapter_name', 'pages_json',
                              'pages_count', 'synced_at']),
 }
 
@@ -236,32 +236,19 @@ def _get_pg_conn() -> '_CompatConn':
 # ==================== get_db ====================
 
 def get_db():
-    if _USE_PG:
-        return _get_pg_conn()
-    conn = sqlite3.connect('manga.db', timeout=30, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA synchronous=NORMAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    conn.execute('PRAGMA cache_size=-32000')
-    conn.execute('PRAGMA wal_autocheckpoint=1000')
-    return conn
+    return _get_pg_conn()
 
 
 # ==================== БАЗА ДАННЫХ: init_db ====================
 
 def init_db():
-    """Инициализация базы данных (SQLite-схема + миграции)."""
-    conn = sqlite3.connect('manga.db', timeout=30, check_same_thread=False)
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA synchronous=NORMAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    conn.execute('PRAGMA cache_size=-32000')
+    """Инициализация базы данных (PostgreSQL-схема + миграции)."""
+    conn = get_db()
     c = conn.cursor()
 
     # Таблица Манги
     c.execute('''CREATE TABLE IF NOT EXISTS manga (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         manga_id TEXT UNIQUE NOT NULL,
         manga_slug TEXT NOT NULL,
         manga_title TEXT NOT NULL,
@@ -273,7 +260,7 @@ def init_db():
         last_chapter_volume TEXT,
         last_chapter_name TEXT,
         last_chapter_slug TEXT,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_updated TIMESTAMP DEFAULT NOW(),
         views INTEGER DEFAULT 0,
         rating TEXT DEFAULT 'GENERAL',
         branch_id TEXT,
@@ -281,22 +268,22 @@ def init_db():
     )''')
 
     _manga_extra_cols = [
-        ('description',        'TEXT DEFAULT ""'),
+        ('description',        "TEXT DEFAULT ''"),
         ('score',              'REAL DEFAULT 0'),
-        ('tags',               'TEXT DEFAULT "[]"'),
-        ('original_name',      'TEXT DEFAULT ""'),
-        ('translation_status', 'TEXT DEFAULT ""'),
+        ('tags',               "TEXT DEFAULT '[]'"),
+        ('original_name',      "TEXT DEFAULT ''"),
+        ('translation_status', "TEXT DEFAULT ''"),
         ('is_licensed',        'INTEGER DEFAULT 0'),
-        ('formats',            'TEXT DEFAULT "[]"'),
+        ('formats',            "TEXT DEFAULT '[]'"),
     ]
     for col_name, col_def in _manga_extra_cols:
         try:
-            c.execute(f'ALTER TABLE manga ADD COLUMN {col_name} {col_def}')
+            c.execute(f'ALTER TABLE manga ADD COLUMN IF NOT EXISTS {col_name} {col_def}')
         except Exception:
             pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS chapters (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         manga_id TEXT NOT NULL,
         chapter_id TEXT UNIQUE NOT NULL,
         chapter_slug TEXT NOT NULL,
@@ -306,12 +293,12 @@ def init_db():
         chapter_url TEXT,
         pages_json TEXT,
         pages_count INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (manga_id) REFERENCES manga(manga_id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         telegram_id INTEGER UNIQUE NOT NULL,
         telegram_username TEXT,
         telegram_first_name TEXT,
@@ -319,27 +306,27 @@ def init_db():
         login_token TEXT UNIQUE,
         is_active BOOLEAN DEFAULT 1,
         notifications_enabled BOOLEAN DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_login TIMESTAMP DEFAULT NOW()
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS subscriptions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
-        subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        subscribed_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (manga_id) REFERENCES manga(manga_id),
         UNIQUE(user_id, manga_id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS reading_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
         chapter_id TEXT NOT NULL,
         page_number INTEGER DEFAULT 1,
-        last_read TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_read TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (manga_id) REFERENCES manga(manga_id),
         FOREIGN KEY (chapter_id) REFERENCES chapters(chapter_id),
@@ -347,17 +334,17 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS search_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER,
         query TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS cache (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT NOW()
     )''')
 
     # ── Геймификация ────────────────────────────────────────────────────────
@@ -373,7 +360,7 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS achievements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         key TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
         description TEXT,
@@ -384,17 +371,17 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS user_achievements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         achievement_id INTEGER NOT NULL,
-        unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        unlocked_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (achievement_id) REFERENCES achievements(id),
         UNIQUE(user_id, achievement_id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS shop_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
         type TEXT NOT NULL,
@@ -405,10 +392,10 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS user_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         item_id INTEGER NOT NULL,
-        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        purchased_at TIMESTAMP DEFAULT NOW(),
         is_equipped INTEGER DEFAULT 0,
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (item_id) REFERENCES shop_items(id),
@@ -427,44 +414,44 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS xp_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         reason TEXT NOT NULL,
         ref_id TEXT,
         amount INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT NOW()
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS collections (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         description TEXT DEFAULT '',
         cover_url TEXT,
         is_public INTEGER DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS collection_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         collection_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
-        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        added_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE,
         UNIQUE(collection_id, manga_id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS collection_likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         collection_id INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, collection_id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS notification_queue (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
         manga_title TEXT NOT NULL,
@@ -472,39 +459,34 @@ def init_db():
         chapter_number TEXT,
         chapter_volume TEXT,
         chapter_name TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, manga_id, chapter_number)
     )''')
 
-    try:
-        c.execute('ALTER TABLE users ADD COLUMN last_digest_date TEXT')
-        conn.commit()
-    except Exception:
-        pass
+    c.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_digest_date TEXT')
 
     c.execute('''CREATE TABLE IF NOT EXISTS chapters_read (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         chapter_id TEXT NOT NULL,
         manga_id TEXT NOT NULL,
-        read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        read_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id),
         UNIQUE(user_id, chapter_id)
     )''')
 
     _migrations = [
-        ("ALTER TABLE user_profile ADD COLUMN custom_name TEXT DEFAULT ''",),
-        ("ALTER TABLE user_profile ADD COLUMN custom_avatar_url TEXT",),
-        ("ALTER TABLE shop_items ADD COLUMN is_animated INTEGER DEFAULT 0",),
-        ("ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0",),
-        ("ALTER TABLE users ADD COLUMN premium_expires_at TEXT DEFAULT NULL",),
-        ("ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0",),
-        ("ALTER TABLE achievements ADD COLUMN icon_url TEXT",),
-        ("ALTER TABLE coin_purchases ADD COLUMN payment_method TEXT DEFAULT 'stars'",),
-        ("ALTER TABLE user_profile ADD COLUMN name_change_count INTEGER DEFAULT 0",),
-        ("ALTER TABLE user_profile ADD COLUMN name_change_month TEXT DEFAULT NULL",),
+        "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS custom_name TEXT DEFAULT ''",
+        "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS custom_avatar_url TEXT",
+        "ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS is_animated INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_expires_at TEXT DEFAULT NULL",
+        "ALTER TABLE user_items ADD COLUMN IF NOT EXISTS is_premium_loan INTEGER DEFAULT 0",
+        "ALTER TABLE achievements ADD COLUMN IF NOT EXISTS icon_url TEXT",
+        "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS name_change_count INTEGER DEFAULT 0",
+        "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS name_change_month TEXT DEFAULT NULL",
     ]
-    for (sql,) in _migrations:
+    for sql in _migrations:
         try:
             c.execute(sql)
             conn.commit()
@@ -512,27 +494,29 @@ def init_db():
             pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS coin_purchases (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id),
         package_id TEXT NOT NULL,
         stars_paid INTEGER NOT NULL,
         coins_received INTEGER NOT NULL,
         payment_id TEXT UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT NOW()
     )''')
 
+    c.execute('ALTER TABLE coin_purchases ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT \'stars\'')
+
     c.execute('''CREATE TABLE IF NOT EXISTS premium_purchases (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id),
         package_id TEXT NOT NULL,
         payment_id TEXT UNIQUE NOT NULL,
         payment_method TEXT DEFAULT 'yookassa',
         expires_at TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT NOW()
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS quests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT DEFAULT '',
         icon TEXT DEFAULT '📋',
@@ -543,11 +527,11 @@ def init_db():
         xp_reward INTEGER DEFAULT 0,
         coins_reward INTEGER DEFAULT 0,
         is_active INTEGER DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT NOW()
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS user_quests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         quest_id INTEGER NOT NULL,
         progress INTEGER DEFAULT 0,
@@ -607,11 +591,11 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_notification_queue_user ON notification_queue(user_id)')
 
     c.execute('''CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         manga_slug TEXT NOT NULL,
         user_id INTEGER NOT NULL,
         text TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_comments_manga ON comments(manga_slug, created_at DESC)')
@@ -652,11 +636,11 @@ def init_db():
 
     # ── Миграция: Premium поля ─────────────────────────────────────────────
     for _sql in [
-        'ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0',
-        'ALTER TABLE users ADD COLUMN premium_granted_at TIMESTAMP',
-        'ALTER TABLE users ADD COLUMN premium_expires_at TIMESTAMP',
-        'ALTER TABLE user_items ADD COLUMN is_premium_loan INTEGER DEFAULT 0',
-        'ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_granted_at TIMESTAMP',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_expires_at TIMESTAMP',
+        'ALTER TABLE user_items ADD COLUMN IF NOT EXISTS is_premium_loan INTEGER DEFAULT 0',
+        'ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comments(id)',
     ]:
         try:
             c.execute(_sql)
@@ -665,10 +649,10 @@ def init_db():
             pass
 
     for _sql in [
-        'ALTER TABLE user_stats ADD COLUMN reading_streak INTEGER DEFAULT 0',
-        'ALTER TABLE user_stats ADD COLUMN max_streak INTEGER DEFAULT 0',
-        'ALTER TABLE user_stats ADD COLUMN last_read_date TEXT DEFAULT NULL',
-        'ALTER TABLE users ADD COLUMN referral_code TEXT',
+        'ALTER TABLE user_stats ADD COLUMN IF NOT EXISTS reading_streak INTEGER DEFAULT 0',
+        'ALTER TABLE user_stats ADD COLUMN IF NOT EXISTS max_streak INTEGER DEFAULT 0',
+        'ALTER TABLE user_stats ADD COLUMN IF NOT EXISTS last_read_date TEXT DEFAULT NULL',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT',
     ]:
         try:
             c.execute(_sql)
@@ -683,7 +667,7 @@ def init_db():
         pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS daily_quests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT,
         icon TEXT DEFAULT '📅',
@@ -695,7 +679,7 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS user_daily_quests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         quest_id INTEGER NOT NULL,
         date TEXT NOT NULL,
@@ -706,7 +690,7 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS seasons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
         icon TEXT DEFAULT '🌸',
@@ -717,7 +701,7 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS season_quests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         season_id INTEGER NOT NULL,
         title TEXT NOT NULL,
         description TEXT,
@@ -731,7 +715,7 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS user_season_quests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         season_quest_id INTEGER NOT NULL,
         progress INTEGER DEFAULT 0,
@@ -741,7 +725,7 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS comment_likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         comment_id INTEGER NOT NULL,
         UNIQUE(user_id, comment_id),
@@ -750,31 +734,31 @@ def init_db():
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS reading_wishlist (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
-        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        added_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, manga_id),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS referrals (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         referrer_id INTEGER NOT NULL,
         referred_id INTEGER NOT NULL UNIQUE,
         rewarded INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (referrer_id) REFERENCES users(id),
         FOREIGN KEY (referred_id) REFERENCES users(id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS collection_trophies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         collection_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
         iso_week TEXT NOT NULL,
         likes_count INTEGER NOT NULL,
-        awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        awarded_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(iso_week)
     )''')
 
@@ -785,11 +769,11 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)')
 
     c.execute('''CREATE TABLE IF NOT EXISTS user_manga_status (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
         status TEXT NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, manga_id),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
@@ -832,12 +816,12 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS sent_similar_notifications (
         user_id INTEGER NOT NULL,
         manga_id INTEGER NOT NULL,
-        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        sent_at TIMESTAMP DEFAULT NOW(),
         PRIMARY KEY (user_id, manga_id)
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS site_notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         type TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -846,13 +830,13 @@ def init_db():
         ref_id TEXT,
         cover_url TEXT,
         is_read INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_site_notifications ON site_notifications(user_id, is_read)')
 
     c.execute('''CREATE TABLE IF NOT EXISTS admin_broadcasts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         admin_id INTEGER,
         title TEXT NOT NULL,
         body TEXT,
@@ -861,19 +845,15 @@ def init_db():
         filter_desc TEXT,
         recipients_count INTEGER DEFAULT 0,
         send_telegram INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT NOW()
     )''')
 
-    try:
-        c.execute('ALTER TABLE users ADD COLUMN digest_hour INTEGER DEFAULT 22')
-        conn.commit()
-    except Exception:
-        pass
+    c.execute('ALTER TABLE users ADD COLUMN IF NOT EXISTS digest_hour INTEGER DEFAULT 22')
 
     for _sql in [
-        'ALTER TABLE shop_items ADD COLUMN duration_days INTEGER DEFAULT NULL',
-        'ALTER TABLE user_items ADD COLUMN expires_at TIMESTAMP DEFAULT NULL',
-        'ALTER TABLE site_notifications ADD COLUMN cover_url TEXT',
+        'ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS duration_days INTEGER DEFAULT NULL',
+        'ALTER TABLE user_items ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP DEFAULT NULL',
+        'ALTER TABLE site_notifications ADD COLUMN IF NOT EXISTS cover_url TEXT',
     ]:
         try:
             c.execute(_sql)
@@ -882,23 +862,23 @@ def init_db():
             pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS premium_gifts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         sender_id INTEGER NOT NULL,
         recipient_id INTEGER NOT NULL,
         days INTEGER NOT NULL,
         stars_paid INTEGER NOT NULL,
         payment_id TEXT UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         FOREIGN KEY (sender_id) REFERENCES users(id),
         FOREIGN KEY (recipient_id) REFERENCES users(id)
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_premium_gifts_recipient ON premium_gifts(recipient_id)')
 
     c.execute('''CREATE TABLE IF NOT EXISTS curator_follows (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         follower_id INTEGER NOT NULL,
         author_id INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(follower_id, author_id),
         FOREIGN KEY (follower_id) REFERENCES users(id),
         FOREIGN KEY (author_id) REFERENCES users(id)
@@ -907,25 +887,30 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_curator_follows_follower ON curator_follows(follower_id)')
 
     c.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         manga_id TEXT NOT NULL,
         score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, manga_id),
         FOREIGN KEY (user_id) REFERENCES users(id)
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_manga_user_ratings_manga ON manga_user_ratings(manga_id)')
 
-    c.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS manga_fts
-                 USING fts5(manga_id UNINDEXED, manga_title, original_name, description,
-                            tokenize="unicode61 remove_diacritics 1")''')
-    row = conn.execute('SELECT COUNT(*) FROM manga_fts').fetchone()
-    if row[0] == 0:
-        c.execute('''INSERT INTO manga_fts(manga_id, manga_title, original_name, description)
-                     SELECT manga_id, manga_title, COALESCE(original_name,''), COALESCE(description,'')
-                     FROM manga''')
+    c.execute('''CREATE TABLE IF NOT EXISTS remanga_chapters (
+        id                  SERIAL PRIMARY KEY,
+        manga_slug          TEXT    NOT NULL,
+        remanga_chapter_id  TEXT    NOT NULL,
+        chapter_number      TEXT    DEFAULT '',
+        chapter_volume      TEXT    DEFAULT '',
+        chapter_name        TEXT    DEFAULT '',
+        pages_json          TEXT,
+        pages_count         INTEGER DEFAULT 0,
+        synced_at           TIMESTAMP DEFAULT NOW(),
+        UNIQUE(manga_slug, remanga_chapter_id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_remanga_chapters_slug_num ON remanga_chapters(manga_slug, chapter_number)')
 
     conn.commit()
     conn.close()
@@ -977,5 +962,24 @@ def init_pg_schema():
         print("✅ PostgreSQL: таблица manga_user_ratings готова")
     except Exception as e:
         logger.warning(f"init_pg_schema manga_user_ratings: {e}")
+
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS remanga_chapters (
+            id                  SERIAL PRIMARY KEY,
+            manga_slug          TEXT    NOT NULL,
+            remanga_chapter_id  TEXT    NOT NULL,
+            chapter_number      TEXT    DEFAULT '',
+            chapter_volume      TEXT    DEFAULT '',
+            chapter_name        TEXT    DEFAULT '',
+            pages_json          TEXT,
+            pages_count         INTEGER DEFAULT 0,
+            synced_at           TIMESTAMP DEFAULT NOW(),
+            UNIQUE(manga_slug, remanga_chapter_id)
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_remanga_chapters_slug_num ON remanga_chapters(manga_slug, chapter_number)')
+        conn.commit()
+        print("✅ PostgreSQL: таблица remanga_chapters готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema remanga_chapters: {e}")
     finally:
         conn.close()
