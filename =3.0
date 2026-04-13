@@ -1,0 +1,58 @@
+Collecting flask
+  Downloading flask-3.1.3-py3-none-any.whl (103 kB)
+Requirement already satisfied: requests in /usr/lib/python3/dist-packages (2.25.1)
+Collecting python-telegram-bot
+  Downloading python_telegram_bot-22.5-py3-none-any.whl (730 kB)
+Collecting flask-compress
+  Downloading flask_compress-1.23-py3-none-any.whl (10 kB)
+Collecting flask-socketio
+  Downloading flask_socketio-5.6.1-py3-none-any.whl (18 kB)
+Collecting simple-websocket
+  Downloading simple_websocket-1.1.0-py3-none-any.whl (13 kB)
+Collecting gunicorn
+  Downloading gunicorn-23.0.0-py3-none-any.whl (85 kB)
+Collecting jinja2>=3.1.2
+  Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Collecting blinker>=1.9.0
+  Downloading blinker-1.9.0-py3-none-any.whl (8.5 kB)
+Collecting click>=8.1.3
+  Downloading click-8.1.8-py3-none-any.whl (98 kB)
+Collecting markupsafe>=2.1.1
+  Downloading markupsafe-3.0.3-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)
+Collecting itsdangerous>=2.2.0
+  Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Collecting werkzeug>=3.1.0
+  Downloading werkzeug-3.1.7-py3-none-any.whl (226 kB)
+Collecting importlib-metadata>=3.6.0
+  Downloading importlib_metadata-8.7.1-py3-none-any.whl (27 kB)
+Collecting zipp>=3.20
+  Downloading zipp-3.23.0-py3-none-any.whl (10 kB)
+Collecting backports.zstd
+  Downloading backports_zstd-1.3.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (491 kB)
+Collecting brotli
+  Downloading brotli-1.2.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.4 MB)
+Collecting python-socketio>=5.12.0
+  Downloading python_socketio-5.16.1-py3-none-any.whl (82 kB)
+Collecting python-engineio>=4.11.0
+  Downloading python_engineio-4.13.1-py3-none-any.whl (59 kB)
+Collecting bidict>=0.21.0
+  Downloading bidict-0.23.1-py3-none-any.whl (32 kB)
+Collecting wsproto
+  Downloading wsproto-1.2.0-py3-none-any.whl (24 kB)
+Collecting packaging
+  Downloading packaging-26.0-py3-none-any.whl (74 kB)
+Collecting httpx<0.29,>=0.27
+  Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+Collecting anyio
+  Downloading anyio-4.12.1-py3-none-any.whl (113 kB)
+Collecting httpcore==1.*
+  Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+Requirement already satisfied: idna in /usr/lib/python3/dist-packages (from httpx<0.29,>=0.27->python-telegram-bot) (2.10)
+Requirement already satisfied: certifi in /usr/local/lib/python3.9/dist-packages (from httpx<0.29,>=0.27->python-telegram-bot) (2025.11.12)
+Collecting h11>=0.16
+  Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+Requirement already satisfied: typing_extensions>=4.5 in /usr/local/lib/python3.9/dist-packages (from anyio->httpx<0.29,>=0.27->python-telegram-bot) (4.15.0)
+Collecting exceptiongroup>=1.0.2
+  Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
+Installing collected packages: h11, wsproto, zipp, simple-websocket, markupsafe, exceptiongroup, werkzeug, python-engineio, jinja2, itsdangerous, importlib-metadata, httpcore, click, blinker, bidict, anyio, python-socketio, packaging, httpx, flask, brotli, backports.zstd, python-telegram-bot, gunicorn, flask-socketio, flask-compress
+Successfully installed anyio-4.12.1 backports.zstd bidict-0.23.1 blinker-1.9.0 brotli-1.2.0 click-8.1.8 exceptiongroup-1.3.1 flask-3.1.3 flask-compress-1.23 flask-socketio-5.6.1 gunicorn-23.0.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 importlib-metadata-8.7.1 itsdangerous-2.2.0 jinja2-3.1.6 markupsafe-3.0.3 packaging-26.0 python-engineio-4.13.1 python-socketio-5.16.1 python-telegram-bot-22.5 simple-websocket-1.1.0 werkzeug-3.1.7 wsproto-1.2.0 zipp-3.23.0
