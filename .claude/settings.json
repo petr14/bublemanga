@@ -65,7 +65,11 @@
       "Bash(curl -sI https://bubblemanga.ru/)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git stash:*)"
     ],
     "additionalDirectories": [
       "/tmp"
