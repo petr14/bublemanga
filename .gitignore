@@ -1,3 +1,4 @@
 manga.db
 *.db
-/venv
+/venvbackup_20260330_085004.sql
+*.sql
