@@ -6,10 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#e09535"/>
   <title>{{ coll.name }} — Манговая</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+    <link rel="stylesheet" href="/static/fonts/poppins.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -304,7 +301,7 @@
         {% for m in items %}
           <div class="mcard" onclick="location.href='/manga/{{ m.manga_slug }}'">
             <img src="{{ m.cover_url }}" class="mcard-img"
-                 onerror="this.onerror=null;this.src='https://via.placeholder.com/130x195/1a1a1a/667eea'"
+                 onerror="this.onerror=null;this.src='/static/no-cover.svg'"
                  loading="lazy" alt="{{ m.manga_title }}">
             <div class="mcard-info">
               <div class="mcard-title">{{ m.manga_title }}</div>

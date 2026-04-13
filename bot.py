@@ -306,9 +306,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     keyboard = [
         [open_btn],
+        [InlineKeyboardButton("📚 Подборки",       callback_data="catalog")],
+        [InlineKeyboardButton("🔍 Поиск манги",    callback_data="search_manga")],
         [InlineKeyboardButton("📝 Войти на сайте", url=login_url)],
-        [InlineKeyboardButton("🔍 Поиск манги",  callback_data="search_manga")],
-        [InlineKeyboardButton("⭐ Мои подписки", callback_data="my_subscriptions")],
     ]
     message = (
         f"👋 Привет, {first_name or username}!\n\n"
@@ -474,15 +474,391 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text("❌ Ошибка пользователя")
         return
     keyboard = [
-        [InlineKeyboardButton("🌐 Открыть сайт",  url=SITE_URL)],
-        [InlineKeyboardButton("📝 Войти на сайте", url=f"{SITE_URL}/login/{user['login_token']}")],
-        [InlineKeyboardButton("🔍 Поиск манги",   callback_data="search_manga")],
-        [InlineKeyboardButton("⭐ Мои подписки",  callback_data="my_subscriptions")],
+        [InlineKeyboardButton("📱 Открыть приложение", web_app=WebAppInfo(url=SITE_URL))],
+        [InlineKeyboardButton("📚 Подборки",           callback_data="catalog")],
+        [InlineKeyboardButton("🔍 Поиск манги",        callback_data="search_manga")],
+        [InlineKeyboardButton("📝 Войти на сайте",     url=f"{SITE_URL}/login/{user['login_token']}")],
     ]
-    await query.edit_message_text(
-        "👋 С возвращением!\n\nВыберите действие:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
+    # Если текущее сообщение — фото, удаляем и шлём текст
+    try:
+        await query.edit_message_text(
+            "👋 С возвращением!\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+    except Exception:
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="👋 С возвращением!\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+
+
+# ══════════════════════════════════════════════════════
+#  ПОДБОРКИ
+
+async def _safe_edit_text(query, context, text: str, keyboard, parse_mode="Markdown"):
+    """edit_message_text, но если текущее сообщение — фото, сначала удаляет его."""
+    if query.message.photo:
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=text, reply_markup=keyboard, parse_mode=parse_mode,
+        )
+        return
+    try:
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode=parse_mode)
+    except Exception:
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=text, reply_markup=keyboard, parse_mode=parse_mode,
+        )
+# ══════════════════════════════════════════════════════
+
+def _catalog_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔥 Самое читаемое",      callback_data="cat_popular")],
+        [InlineKeyboardButton("🆕 Последние обновления", callback_data="cat_new")],
+        [InlineKeyboardButton("⭐ Мои подписки",         callback_data="cat_subs")],
+        [InlineKeyboardButton("📖 История чтения",       callback_data="cat_history")],
+        [InlineKeyboardButton("◀️ Назад",                callback_data="back_to_start")],
+    ])
+
+
+async def catalog_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await _safe_edit_text(query, context, "📚 *Подборки*\n\nВыберите раздел:", _catalog_keyboard())
+
+
+async def cat_popular_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Самое читаемое."""
+    query = update.callback_query
+    await query.answer()
+    conn = get_db()
+    rows = conn.execute(
+        'SELECT manga_id, manga_title, views FROM manga '
+        'WHERE views IS NOT NULL ORDER BY views DESC LIMIT 10'
+    ).fetchall()
+    conn.close()
+
+    keyboard = []
+    for r in rows:
+        title = r['manga_title'][:32]
+        views = r['views'] or 0
+        views_str = f"{views // 1000}к" if views >= 1000 else str(views)
+        keyboard.append([InlineKeyboardButton(f"👁 {views_str}  {title}", callback_data=f"manga_{r['manga_id']}")])
+
+    context.user_data['catalog_back'] = 'cat_popular'
+    keyboard.append([InlineKeyboardButton("◀️ К подборкам", callback_data="catalog")])
+    await _safe_edit_text(query, context, "🔥 *Самое читаемое:*", InlineKeyboardMarkup(keyboard))
+
+
+async def cat_new_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Последние обновления."""
+    query = update.callback_query
+    await query.answer()
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT m.manga_id, m.manga_title, MAX(c.created_at) as last_ch
+           FROM manga m JOIN chapters c ON c.manga_id = m.manga_id
+           GROUP BY m.manga_id, m.manga_title
+           ORDER BY last_ch DESC NULLS LAST LIMIT 10'''
+    ).fetchall()
+    conn.close()
+
+    keyboard = []
+    for r in rows:
+        title = r['manga_title'][:34]
+        keyboard.append([InlineKeyboardButton(f"🆕 {title}", callback_data=f"manga_{r['manga_id']}")])
+
+    context.user_data['catalog_back'] = 'cat_new'
+    keyboard.append([InlineKeyboardButton("◀️ К подборкам", callback_data="catalog")])
+    await _safe_edit_text(query, context, "🆕 *Последние обновления:*", InlineKeyboardMarkup(keyboard))
+
+
+async def cat_subs_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Мои подписки."""
+    from main import get_user_by_telegram_id, get_user_subscriptions
+    query = update.callback_query
+    await query.answer()
+    user = get_user_by_telegram_id(update.effective_user.id)
+    if not user:
+        await _safe_edit_text(query, context, "❌ Сначала зарегистрируйтесь через /start", None)
+        return
+    subs = get_user_subscriptions(user['id'], 15)
+    back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("◀️ К подборкам", callback_data="catalog")]])
+    if not subs:
+        await _safe_edit_text(query, context,
+            "⭐ *Мои подписки*\n\nУ вас пока нет подписок.\nИспользуйте /search для поиска манги.", back_kb)
+        return
+
+    keyboard = []
+    for m in subs:
+        keyboard.append([InlineKeyboardButton(f"⭐ {m['manga_title'][:34]}", callback_data=f"manga_{m['manga_id']}")])
+    context.user_data['catalog_back'] = 'cat_subs'
+    keyboard.append([InlineKeyboardButton("◀️ К подборкам", callback_data="catalog")])
+    await _safe_edit_text(query, context, f"⭐ *Мои подписки* ({len(subs)}):", InlineKeyboardMarkup(keyboard))
+
+
+async def cat_history_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """История чтения."""
+    from main import get_user_by_telegram_id, get_user_reading
+    query = update.callback_query
+    await query.answer()
+    user = get_user_by_telegram_id(update.effective_user.id)
+    if not user:
+        await _safe_edit_text(query, context, "❌ Сначала зарегистрируйтесь через /start", None)
+        return
+    history = get_user_reading(user['id'], 15)
+    back_kb = InlineKeyboardMarkup([[InlineKeyboardButton("◀️ К подборкам", callback_data="catalog")]])
+    if not history:
+        await _safe_edit_text(query, context, "📖 *История чтения*\n\nВы ещё ничего не читали.", back_kb)
+        return
+
+    keyboard = []
+    for item in history:
+        title = item['manga_title'][:28]
+        ch = f" · Гл.{item['last_chapter_number']}" if item.get('last_chapter_number') else ""
+        keyboard.append([InlineKeyboardButton(f"📖 {title}{ch}", callback_data=f"manga_{item['manga_id']}")])
+    context.user_data['catalog_back'] = 'cat_history'
+    keyboard.append([InlineKeyboardButton("◀️ К подборкам", callback_data="catalog")])
+    await _safe_edit_text(query, context, f"📖 *История чтения* ({len(history)}):", InlineKeyboardMarkup(keyboard))
+
+
+def _manga_caption(manga: dict, subscribed: bool) -> tuple[str, InlineKeyboardMarkup]:
+    """Возвращает (caption, keyboard) для карточки манги."""
+    title        = manga['manga_title']
+    manga_id     = manga['manga_id']
+    manga_slug   = manga['manga_slug']
+    manga_type   = manga.get('manga_type') or ''
+    manga_status = manga.get('manga_status') or ''
+    rating       = manga.get('rating')
+    views        = manga.get('views') or 0
+    description  = (manga.get('description') or '').strip()
+
+    type_map   = {'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа', 'NOVEL': 'Новелла'}
+    status_map = {'ONGOING': '🟢 Онгоинг', 'COMPLETED': '✅ Завершена', 'HIATUS': '⏸ Хиатус', 'ANNOUNCED': '📢 Анонс'}
+
+    caption = f"*{title}*\n"
+    meta = []
+    if manga_type:   meta.append(type_map.get(manga_type, manga_type))
+    if manga_status: meta.append(status_map.get(manga_status, manga_status))
+    if meta: caption += " · ".join(meta) + "\n"
+    info = []
+    try:
+        if rating: info.append(f"⭐ {float(rating):.1f}")
+    except (ValueError, TypeError):
+        pass
+    if views: info.append(f"👁 {views // 1000}к" if views >= 1000 else f"👁 {views}")
+    if info: caption += " · ".join(info) + "\n"
+    if description:
+        caption += "\n" + description[:280] + ("…" if len(description) > 280 else "")
+
+    back_cb  = f"_back_manga_{manga_id}"
+    sub_text = "❌ Отписаться" if subscribed else "⭐ Подписаться"
+    sub_cb   = f"unsub_manga_{manga_id}" if subscribed else f"sub_manga_{manga_id}"
+    manga_url = f"{SITE_URL}/manga/{manga_slug}"
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 Список глав", callback_data=f"chs_{manga_id}_0")],
+        [InlineKeyboardButton(sub_text, callback_data=sub_cb),
+         InlineKeyboardButton("🌐 На сайте", web_app=WebAppInfo(url=manga_url))],
+        [InlineKeyboardButton("◀️ Назад", callback_data=back_cb)],
+    ])
+    return caption, keyboard
+
+
+async def _edit_or_send_photo(
+    context, query, chat_id: int,
+    cover_url: str, caption: str, keyboard: InlineKeyboardMarkup
+):
+    """
+    Плавно обновляет сообщение:
+    - если текущее — фото: редактирует caption+keyboard (без мигания)
+    - если текущее — текст и cover есть: удаляет + шлёт фото
+    - иначе: редактирует текст
+    """
+    is_photo = bool(query.message.photo)
+
+    if is_photo:
+        # Самый плавный путь — просто меняем caption и кнопки
+        try:
+            await query.edit_message_caption(caption=caption, reply_markup=keyboard, parse_mode="Markdown")
+            return
+        except Exception as e:
+            logger.warning(f"edit_message_caption failed: {e}")
+
+    if cover_url.startswith("http"):
+        # Переход от текста к фото — удаляем и шлём фото
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        try:
+            await context.bot.send_photo(
+                chat_id=chat_id, photo=cover_url,
+                caption=caption, parse_mode="Markdown", reply_markup=keyboard,
+            )
+            return
+        except Exception as e:
+            logger.warning(f"send_photo failed: {e}")
+
+    # Fallback: текстовое сообщение
+    try:
+        await query.edit_message_text(caption, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception:
+        await context.bot.send_message(chat_id=chat_id, text=caption, reply_markup=keyboard, parse_mode="Markdown")
+
+
+async def manga_card_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, manga_id: str):
+    """Карточка манги с обложкой."""
+    from main import get_user_by_telegram_id, is_subscribed as _is_subscribed
+    query = update.callback_query
+    await query.answer()
+
+    conn = get_db()
+    manga = conn.execute('SELECT * FROM manga WHERE manga_id = ?', (manga_id,)).fetchone()
+    conn.close()
+    if not manga:
+        await query.edit_message_text("❌ Манга не найдена")
+        return
+
+    manga = dict(manga)
+    user = get_user_by_telegram_id(update.effective_user.id)
+    subscribed = _is_subscribed(user['id'], manga_id) if user else False
+
+    # Сохраняем контекст для кнопки «Назад» и обложки в списке глав
+    context.user_data[f'manga_{manga_id}'] = manga
+    context.user_data['current_manga_id'] = manga_id
+
+    caption, keyboard = _manga_caption(manga, subscribed)
+    cover_url = manga.get('cover_url') or ''
+    await _edit_or_send_photo(context, query, query.message.chat_id, cover_url, caption, keyboard)
+
+
+async def chapters_list_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, manga_id: str, page: int):
+    """Список глав с пагинацией — фото остаётся, меняется только caption и кнопки."""
+    query = update.callback_query
+    await query.answer()
+
+    PER_PAGE = 8
+    conn = get_db()
+    manga_row = conn.execute('SELECT manga_title, manga_slug, cover_url FROM manga WHERE manga_id = ?', (manga_id,)).fetchone()
+    if not manga_row:
+        conn.close()
+        await query.edit_message_text("❌ Манга не найдена")
+        return
+
+    total = conn.execute('SELECT COUNT(*) as cnt FROM chapters WHERE manga_id = ?', (manga_id,)).fetchone()['cnt']
+    offset = page * PER_PAGE
+    chapters = conn.execute(
+        'SELECT chapter_slug, chapter_number, chapter_volume, chapter_name FROM chapters '
+        'WHERE manga_id = ? ORDER BY CAST(chapter_number AS FLOAT) ASC LIMIT ? OFFSET ?',
+        (manga_id, PER_PAGE, offset)
+    ).fetchall()
+    conn.close()
+
+    manga_slug  = manga_row['manga_slug']
+    manga_title = manga_row['manga_title']
+    cover_url   = manga_row.get('cover_url') or ''
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+
+    keyboard = []
+    for ch in chapters:
+        vol  = f"Т{ch['chapter_volume']} " if ch.get('chapter_volume') else ""
+        num  = f"Гл.{ch['chapter_number']}" if ch.get('chapter_number') else ""
+        name = f" — {ch['chapter_name']}" if ch.get('chapter_name') else ""
+        label = f"▶ {vol}{num}{name}"[:38]
+        ch_url = f"{SITE_URL}/read/{manga_slug}/{ch['chapter_slug']}"
+        keyboard.append([InlineKeyboardButton(label, web_app=WebAppInfo(url=ch_url))])
+
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("◀", callback_data=f"chs_{manga_id}_{page - 1}"))
+    nav.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton("▶", callback_data=f"chs_{manga_id}_{page + 1}"))
+    if nav:
+        keyboard.append(nav)
+    keyboard.append([InlineKeyboardButton("◀️ К манге", callback_data=f"manga_{manga_id}")])
+
+    caption = f"📋 *{manga_title[:40]}*\nГлав: {total} · страница {page + 1}/{total_pages}"
+    kb = InlineKeyboardMarkup(keyboard)
+
+    # Если сообщение — фото, просто меняем caption (плавно, без мигания)
+    if query.message.photo:
+        try:
+            await query.edit_message_caption(caption=caption, reply_markup=kb, parse_mode="Markdown")
+            return
+        except Exception as e:
+            logger.warning(f"chapters edit_message_caption failed: {e}")
+
+    # Переход от текста: удаляем и шлём фото
+    if cover_url.startswith("http"):
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        try:
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id, photo=cover_url,
+                caption=caption, parse_mode="Markdown", reply_markup=kb,
+            )
+            return
+        except Exception as e:
+            logger.warning(f"chapters send_photo failed: {e}")
+
+    try:
+        await query.edit_message_text(caption, reply_markup=kb, parse_mode="Markdown")
+    except Exception:
+        await context.bot.send_message(
+            chat_id=query.message.chat_id, text=caption, reply_markup=kb, parse_mode="Markdown"
+        )
+
+
+async def sub_manga_toggle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, manga_id: str):
+    """Подписаться/отписаться — плавно меняет только caption и кнопки."""
+    from main import get_user_by_telegram_id, toggle_subscription, is_subscribed as _is_subscribed
+    query = update.callback_query
+    user = get_user_by_telegram_id(update.effective_user.id)
+    if not user:
+        await query.answer("Сначала зарегистрируйтесь через /start", show_alert=True)
+        return
+    toggle_subscription(user['id'], manga_id)
+    now_subscribed = _is_subscribed(user['id'], manga_id)
+    await query.answer("✅ Подписались!" if now_subscribed else "❌ Отписались")
+
+    # Берём мангу из кеша user_data или из БД
+    manga = context.user_data.get(f'manga_{manga_id}')
+    if not manga:
+        conn = get_db()
+        row = conn.execute('SELECT * FROM manga WHERE manga_id = ?', (manga_id,)).fetchone()
+        conn.close()
+        if not row:
+            return
+        manga = dict(row)
+        context.user_data[f'manga_{manga_id}'] = manga
+
+    caption, keyboard = _manga_caption(manga, now_subscribed)
+
+    # Обновляем только caption + keyboard — без мигания
+    if query.message.photo:
+        try:
+            await query.edit_message_caption(caption=caption, reply_markup=keyboard, parse_mode="Markdown")
+            return
+        except Exception as e:
+            logger.warning(f"sub_toggle edit_caption failed: {e}")
+    try:
+        await query.edit_message_text(caption, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception:
+        pass
 
 
 async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -703,7 +1079,47 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     data = query.data
-    if data == "my_subscriptions":
+    # ── Подборки ──────────────────────────────────────────
+    if data == "catalog":
+        await catalog_callback(update, context)
+    elif data == "cat_popular":
+        await cat_popular_callback(update, context)
+    elif data == "cat_new":
+        await cat_new_callback(update, context)
+    elif data == "cat_subs":
+        await cat_subs_callback(update, context)
+    elif data == "cat_history":
+        await cat_history_callback(update, context)
+    elif data.startswith("manga_"):
+        await manga_card_callback(update, context, data[len("manga_"):])
+    elif data.startswith("chs_"):
+        # chs_<manga_id>_<page>
+        parts = data.split("_", 2)  # ["chs", manga_id_part, page]
+        # manga_id может содержать _, поэтому берём последний элемент как страницу
+        raw = data[len("chs_"):]
+        page_str = raw.rsplit("_", 1)[-1]
+        manga_id = raw.rsplit("_", 1)[0]
+        await chapters_list_callback(update, context, manga_id, int(page_str))
+    elif data.startswith("sub_manga_"):
+        await sub_manga_toggle_callback(update, context, data[len("sub_manga_"):])
+    elif data.startswith("unsub_manga_"):
+        await sub_manga_toggle_callback(update, context, data[len("unsub_manga_"):])
+    elif data.startswith("_back_manga_"):
+        back_cb = context.user_data.get('catalog_back', 'catalog')
+        if back_cb == 'cat_popular':
+            await cat_popular_callback(update, context)
+        elif back_cb == 'cat_new':
+            await cat_new_callback(update, context)
+        elif back_cb == 'cat_subs':
+            await cat_subs_callback(update, context)
+        elif back_cb == 'cat_history':
+            await cat_history_callback(update, context)
+        else:
+            await catalog_callback(update, context)
+    elif data == "noop":
+        pass  # кнопка-счётчик страниц
+    # ── Прочее ────────────────────────────────────────────
+    elif data == "my_subscriptions":
         await my_subscriptions_callback(update, context)
     elif data == "search_manga":
         await search_manga_command(update, context)

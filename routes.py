@@ -1102,16 +1102,15 @@ def subscribe(manga_id):
         return jsonify({'error': 'Not authenticated'}), 401
 
     subscribed = toggle_subscription(user_id, manga_id)
-    # When subscribing, auto-set status to 'reading'; when unsubscribing, clear it
     conn = get_db()
     if subscribed:
         conn.execute(
-            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (?,?,?) '
-            'ON CONFLICT(user_id, manga_id) DO UPDATE SET status=excluded.status, updated_at=CURRENT_TIMESTAMP',
+            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (%s,%s,%s) '
+            'ON CONFLICT(user_id, manga_id) DO UPDATE SET status=EXCLUDED.status, updated_at=CURRENT_TIMESTAMP',
             (user_id, manga_id, 'reading')
         )
     else:
-        conn.execute('DELETE FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id))
+        conn.execute('DELETE FROM user_manga_status WHERE user_id=%s AND manga_id=%s', (user_id, manga_id))
     conn.commit()
     conn.close()
     return jsonify({'subscribed': subscribed, 'status': 'reading' if subscribed else None})
@@ -1552,13 +1551,17 @@ def api_read_chapters(manga_slug):
 
 
 def _calc_chapter_reward(pages_count: int) -> tuple[int, int]:
-    """Вернуть (xp, coins) за прочитанную главу в зависимости от длины."""
+    """Вернуть (xp, coins) за прочитанную главу в зависимости от длины.
+
+    Целевая экономика: ~200 глав = ~300 монет → можно купить 1 предмет из магазина.
+    Типичная глава манги: 20-40 стр. → 1-2 монеты.
+    """
     if pages_count <= 5:
         return 5, 0
     elif pages_count <= 15:
-        return 15, 0
+        return 15, 1
     elif pages_count <= 30:
-        return 25, 1
+        return 25, 2
     elif pages_count <= 50:
         return 40, 2
     else:
@@ -1579,9 +1582,9 @@ def api_reading_progress():
         return jsonify({'ok': False}), 400
     conn = get_db()
     conn.execute(
-        '''UPDATE reading_history SET page_number = ?
-           WHERE user_id = ? AND manga_id = ? AND chapter_id = ?''',
-        (int(page), user_id, int(manga_id), int(chapter_id))
+        '''UPDATE reading_history SET page_number = %s
+           WHERE user_id = %s AND manga_id = %s AND chapter_id = %s''',
+        (int(page), user_id, manga_id, chapter_id)
     )
     conn.commit()
     conn.close()

@@ -6,10 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#e09535"/>
   <title>Каталог манги — Манговая</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+    <link rel="stylesheet" href="/static/fonts/poppins.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -505,7 +502,7 @@ function buildCard(m) {
       ${userBadge}
     </div>
     <img src="${m.cover_url || ''}" class="manga-cover" loading="lazy"
-         onerror="this.onerror=null;this.src='https://via.placeholder.com/150x225/1c160f/f59e0b'">
+         onerror="this.onerror=null;this.src='/static/no-cover.svg'">
     <div class="manga-info">
       <div class="manga-title">${esc(m.manga_title)}</div>
       <div class="manga-meta">

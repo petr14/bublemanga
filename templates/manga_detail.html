@@ -6,10 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <meta name="theme-color" content="#e09535">
     <title>{{ manga.manga_title }} - Манговая</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+    <link rel="stylesheet" href="/static/fonts/poppins.css">
     <style>
         * {
             margin: 0;
@@ -1288,7 +1285,7 @@
             <div class="manga-header">
                 <div class="manga-cover-container">
                     <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}" class="manga-cover" loading="eager"
-                         onerror="this.onerror=null;this.src='https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки'">
+                         onerror="this.onerror=null;this.src='/static/no-cover.svg'">
                     
                     {% if manga.manga_status %}
                     <div class="manga-status-badge">
@@ -2069,11 +2066,11 @@
             if (coverImage) {
                 if (coverImage.complete) {
                     if (coverImage.naturalHeight === 0) {
-                        coverImage.src = 'https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки';
+                        coverImage.src = '/static/no-cover.svg';
                     }
                 } else {
                     coverImage.onerror = function() {
-                        this.src = 'https://via.placeholder.com/350x467/1a1a1a/667eea?text=Нет+обложки';
+                        this.src = '/static/no-cover.svg';
                     };
                 }
             }

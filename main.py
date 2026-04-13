@@ -59,21 +59,23 @@ else:
 
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'   # Telegram WebApp требует None (cross-context)
+app.config['SESSION_COOKIE_SECURE'] = True         # SameSite=None требует Secure
 
 @app.after_request
 def _set_security_headers(resp):
     resp.headers['X-Content-Type-Options'] = 'nosniff'
-    resp.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    # X-Frame-Options убран — Telegram WebApp открывается в iframe
     resp.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     resp.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://telegram.org https://esm.sh https://cdn.socket.io; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; "
-        "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; "
+        "script-src 'self' 'unsafe-inline' https://telegram.org; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self' data:; "
         "img-src 'self' data: blob: https:; "
         "media-src 'self' blob: https:; "
-        "connect-src 'self' https://api.senkuro.com https://esm.sh; "
+        "connect-src 'self' wss: https:; "
+        "worker-src 'self' blob:; "
         "frame-ancestors 'self' https://web.telegram.org;"
     )
     return resp
@@ -1977,20 +1979,19 @@ def get_user_reading(user_id, limit=12):
 def toggle_subscription(user_id, manga_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT id FROM subscriptions WHERE user_id = ? AND manga_id = ?', 
+    c.execute('SELECT id FROM subscriptions WHERE user_id = %s AND manga_id = %s',
               (user_id, manga_id))
     existing = c.fetchone()
-    
+
     if existing:
-        c.execute('DELETE FROM subscriptions WHERE user_id = ? AND manga_id = ?',
+        c.execute('DELETE FROM subscriptions WHERE user_id = %s AND manga_id = %s',
                   (user_id, manga_id))
         subscribed = False
     else:
-        c.execute('INSERT INTO subscriptions (user_id, manga_id) VALUES (?, ?)',
+        c.execute('INSERT INTO subscriptions (user_id, manga_id) VALUES (%s, %s)',
                   (user_id, manga_id))
-        # Автоматически ставим статус "Читаю" если статус не установлен
         c.execute(
-            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (?,?,?) '
+            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (%s,%s,%s) '
             'ON CONFLICT(user_id, manga_id) DO NOTHING',
             (user_id, manga_id, 'reading')
         )
@@ -2003,7 +2004,7 @@ def toggle_subscription(user_id, manga_id):
 def is_subscribed(user_id, manga_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT id FROM subscriptions WHERE user_id = ? AND manga_id = ?', 
+    c.execute('SELECT id FROM subscriptions WHERE user_id = %s AND manga_id = %s',
               (user_id, manga_id))
     result = c.fetchone()
     conn.close()
@@ -2038,33 +2039,46 @@ def _init_manga_tracker():
     """Создаёт таблицу manga_tracker если не существует, и заполняет из manga."""
     conn = get_db()
     conn.execute('''CREATE TABLE IF NOT EXISTS manga_tracker (
-        manga_id       TEXT PRIMARY KEY,
-        last_chapter_id TEXT,
-        last_checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        manga_id            TEXT PRIMARY KEY,
+        last_chapter_id     TEXT,
+        last_chapter_number REAL,
+        last_checked_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     # Синхронизируем трекер с manga-таблицей при каждом старте:
     # INSERT OR REPLACE обновляет существующие строки + добавляет новые.
     # Это гарантирует что после перезапуска трекер не содержит устаревших ID.
-    conn.execute('''INSERT OR REPLACE INTO manga_tracker (manga_id, last_chapter_id, last_checked_at)
+    conn.execute('''INSERT INTO manga_tracker (manga_id, last_chapter_id, last_checked_at)
                     SELECT manga_id, last_chapter_id, CURRENT_TIMESTAMP FROM manga
-                    WHERE last_chapter_id IS NOT NULL''')
+                    WHERE last_chapter_id IS NOT NULL
+                    ON CONFLICT(manga_id) DO UPDATE SET
+                        last_chapter_id = EXCLUDED.last_chapter_id,
+                        last_checked_at = EXCLUDED.last_checked_at''')
     conn.commit()
     conn.close()
 
 
 def _get_tracked(manga_id):
     conn = get_db()
-    row = conn.execute('SELECT last_chapter_id FROM manga_tracker WHERE manga_id = ?', (manga_id,)).fetchone()
+    row = conn.execute(
+        'SELECT last_chapter_id, last_chapter_number FROM manga_tracker WHERE manga_id = %s',
+        (manga_id,)
+    ).fetchone()
     conn.close()
-    return row['last_chapter_id'] if row else None
+    if not row:
+        return None, None
+    return row['last_chapter_id'], row['last_chapter_number']
 
 
-def _set_tracked(manga_id, chapter_id):
+def _set_tracked(manga_id, chapter_id, chapter_number=None):
     conn = get_db()
     conn.execute(
-        '''INSERT OR REPLACE INTO manga_tracker (manga_id, last_chapter_id, last_checked_at)
-           VALUES (?, ?, ?)''',
-        (manga_id, chapter_id, datetime.now())
+        '''INSERT INTO manga_tracker (manga_id, last_chapter_id, last_chapter_number, last_checked_at)
+           VALUES (%s, %s, %s, %s)
+           ON CONFLICT(manga_id) DO UPDATE SET
+               last_chapter_id     = EXCLUDED.last_chapter_id,
+               last_chapter_number = EXCLUDED.last_chapter_number,
+               last_checked_at     = EXCLUDED.last_checked_at''',
+        (manga_id, chapter_id, chapter_number, datetime.now())
     )
     conn.commit()
     conn.close()
@@ -2157,23 +2171,37 @@ def _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, chapte
 
     save_manga_and_chapter_to_db(manga_id, manga_slug, manga_title, cover_url, chapter_info)
 
-    last_known = _get_tracked(manga_id)
+    last_known_id, last_known_num = _get_tracked(manga_id)
 
-    if last_known is None:
+    # Пробуем распарсить номер текущей главы
+    try:
+        new_chapter_num = float(chapter_info.get('number') or chapter_info.get('chapter_number') or 0)
+    except (TypeError, ValueError):
+        new_chapter_num = 0.0
+
+    if last_known_id is None:
         # Первый раз видим эту мангу — регистрируем без уведомления.
-        # (initial fill уже заполнил трекер из manga-таблицы при старте,
-        #  поэтому сюда попадают только реально новые манги)
-        _set_tracked(manga_id, chapter_id)
+        _set_tracked(manga_id, chapter_id, new_chapter_num)
         logger.info(f"📝 Зарегистрирована манга: {manga_title}")
         return False
 
-    if last_known != chapter_id:
-        logger.info(f"🆕 Новая глава: {manga_title} — гл. {chapter_info.get('number', '?')}")
-        notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_url)
-        _set_tracked(manga_id, chapter_id)
-        return True
+    if last_known_id == chapter_id:
+        return False
 
-    return False
+    # chapter_id изменился — проверяем, не является ли это более старой главой
+    # (бывает когда разные источники следят за разными ветками перевода)
+    if last_known_num and new_chapter_num and new_chapter_num <= last_known_num:
+        logger.debug(
+            f"⏩ Пропуск: {manga_title} гл.{new_chapter_num} ≤ уже отправленной гл.{last_known_num} "
+            f"(другая ветка перевода?)"
+        )
+        # Не обновляем трекер — он остаётся на более новой главе
+        return False
+
+    logger.info(f"🆕 Новая глава: {manga_title} — гл. {chapter_info.get('number', '?')}")
+    notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_url)
+    _set_tracked(manga_id, chapter_id, new_chapter_num)
+    return True
 
 
 # ── Проверка глобального фида (топ обновлений) ───────────────────────────────

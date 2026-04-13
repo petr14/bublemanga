@@ -443,7 +443,7 @@
             {% endif %}
             <img src="{{ manga.cover_url }}" alt="{{ manga.manga_title }}"
                  class="manga-cover" loading="lazy"
-                 onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
+                 onerror="this.onerror=null;this.src='/static/no-cover.svg'">
             <div class="manga-info">
                 <div class="manga-title">{{ manga.manga_title }}</div>
                 <div class="manga-meta">
@@ -533,7 +533,7 @@
         card.innerHTML = `
             ${badge}
             <img src="${esc(m.cover_url)}" alt="${esc(m.manga_title)}" class="manga-cover" loading="lazy"
-                 onerror="this.onerror=null;this.src='https://via.placeholder.com/200x300/1a1a1a/ffffff?text=No+Image'">
+                 onerror="this.onerror=null;this.src='/static/no-cover.svg'">
             <div class="manga-info">
                 <div class="manga-title">${esc(m.manga_title)}</div>
                 <div class="manga-meta">

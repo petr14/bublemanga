@@ -6,10 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
     <title>{{ chapter.manga_title }} - Глава {{ chapter.chapter_number }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"></noscript>
+    <link rel="stylesheet" href="/static/fonts/poppins.css">
     <style>
         * {
             margin: 0;
@@ -203,17 +200,81 @@
             background: #0a0a0a;
         }
 
-        /* Скелетон для загрузки */
-        .page-image.loading {
-            min-height: 100vh;
-            background: linear-gradient(90deg, #0a0a0a 25%, #1a1a1a 50%, #0a0a0a 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s ease-in-out infinite;
+        /* Обёртка страницы */
+        .page-wrap {
+            position: relative;
+            display: block;
+            width: 100%;
+            background: #0d0d0d;
         }
 
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+        /* Preloader */
+        .page-preloader {
+            position: absolute;
+            inset: 0;
+            min-height: 100vh;
+            pointer-events: none;
+            z-index: 2;
+            overflow: hidden;
+        }
+
+        /* Shimmer-волна */
+        .page-preloader::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                105deg,
+                #0d0d0d 0%,
+                #0d0d0d 30%,
+                rgba(255,255,255,0.04) 45%,
+                rgba(255,255,255,0.08) 50%,
+                rgba(255,255,255,0.04) 55%,
+                #0d0d0d 70%,
+                #0d0d0d 100%
+            );
+            background-size: 250% 100%;
+            animation: shimmer 1.8s ease-in-out infinite;
+        }
+
+        /* Спиннер по центру верхней части */
+        .page-preloader::after {
+            content: '';
+            position: sticky;
+            top: calc(50vh - 24px);
+            display: block;
+            width: 44px;
+            height: 44px;
+            margin: 0 auto;
+            border-radius: 50%;
+            border: 2.5px solid rgba(255,255,255,0.08);
+            border-top-color: rgba(224,149,53,0.85);
+            border-right-color: rgba(224,149,53,0.4);
+            animation: spin 1s cubic-bezier(0.4,0,0.2,1) infinite;
+            box-shadow: 0 0 18px rgba(224,149,53,0.15);
+        }
+
+        .page-wrap.loaded .page-preloader {
+            display: none;
+        }
+
+        /* Картинка: невидима пока loading, плавно появляется */
+        .page-image.loading {
+            display: block;
+            min-height: 100vh;
+            opacity: 0;
+        }
+        .page-image:not(.loading) {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 150% 0; }
+            100% { background-position: -150% 0; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         /* ==================== СЧЕТЧИК СТРАНИЦ ==================== */
@@ -805,7 +866,7 @@
             navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister()));
         }
     </script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="/static/telegram-web-app.js"></script>
     <script>
     (function(){
       var tg = window.Telegram && window.Telegram.WebApp;
@@ -817,11 +878,29 @@
       if (tg.initData) {
         fetch('/api/auth/webapp', {
           method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({initData: tg.initData}), credentials: 'same-origin'
-        }).then(function(r){ return r.json(); }).then(function(d){ if(d.ok && !d._already) location.reload(); }).catch(function(){});
+          body: JSON.stringify({initData: tg.initData}), credentials: 'include'
+        }).then(function(r){ return r.json(); }).then(function(d){
+          if (d.ok) {
+            window._tgAuthed = true;
+            // Показываем кнопку подписки без перезагрузки страницы
+            var btn = document.getElementById('subscribeBtn');
+            if (!btn) {
+              var nav = document.querySelector('.nav-buttons');
+              if (nav) {
+                btn = document.createElement('button');
+                btn.id = 'subscribeBtn';
+                btn.className = 'btn btn-subscribe';
+                btn.textContent = 'Подписаться';
+                btn.onclick = function(){ toggleSubscribe(window._mangaId); };
+                nav.appendChild(btn);
+              }
+            }
+          }
+        }).catch(function(){});
       }
       window._tgWebApp = tg;
     })();
+    window._mangaId = {{ chapter.manga_id | tojson }};
     </script>
 </head>
 <body>
@@ -842,12 +921,10 @@
             <div class="nav-buttons">
                 <a href="/manga/{{ chapter.manga_slug }}" class="btn btn-primary">К манге</a>
                 <a href="/" class="btn">Главная</a>
-                {% if session.user_id %}
                 <button id="subscribeBtn" class="btn btn-subscribe {% if subscribed %}subscribed{% endif %}"
-                        onclick="toggleSubscribe({{ chapter.manga_id | tojson }})">
+                        onclick="toggleSubscribe(window._mangaId)">
                     {% if subscribed %}Подписан{% else %}Подписаться{% endif %}
                 </button>
-                {% endif %}
             </div>
         </div>
     </header>
@@ -855,26 +932,29 @@
     <!-- Контейнер страниц -->
     <div class="pages-container" id="pagesContainer">
         {% for page_url in chapter.pages %}
-        <img
-            {% if loop.index <= 3 %}
-            src="{{ page_url }}"
-            {% else %}
-            src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-            data-src="{{ page_url }}"
-            {% endif %}
-            alt="Страница {{ loop.index }}"
-            class="page-image loading"
-            data-page="{{ loop.index }}"
-            data-chapter="{{ chapter.chapter_slug }}"
-            onload="this.classList.remove('loading')"
-            onerror="this.classList.remove('loading');if(this.dataset.src||this.src.length>100)this.style.display='none'"
-        >
+        <div class="page-wrap">
+            <div class="page-preloader"></div>
+            <img
+                {% if loop.index <= 3 %}
+                src="{{ page_url }}"
+                {% else %}
+                src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                data-src="{{ page_url }}"
+                {% endif %}
+                alt="Страница {{ loop.index }}"
+                class="page-image loading"
+                data-page="{{ loop.index }}"
+                data-chapter="{{ chapter.chapter_slug }}"
+                onload="this.classList.remove('loading');this.closest('.page-wrap').classList.add('loaded')"
+                onerror="this.classList.remove('loading');this.closest('.page-wrap').classList.add('loaded');if(this.dataset.src||this.src.length>100)this.style.display='none'"
+            >
+        </div>
         {% endfor %}
     </div>
 
     <!-- Счетчик страниц -->
     <div class="page-counter" id="pageCounter">
-        Стр. <span id="currentPage">1</span> / {{ chapter.pages|length }}
+        Стр. <span id="currentPage">1</span> / <span id="totalPages">{{ chapter.pages|length }}</span>
     </div>
 
     <!-- Навигация между главами -->
@@ -1070,7 +1150,8 @@
     <script>
         // ==================== БЕЗОПАСНЫЕ ДАННЫЕ ИЗ ШАБЛОНА ====================
         // Все значения из Jinja2 экранируются через | tojson — защита от XSS и SyntaxError
-        const totalPages      = {{ chapter.pages|length }};
+        let totalPages        = {{ chapter.pages|length }};
+        const _chapterPageCounts = { {{ chapter.chapter_slug | tojson }}: {{ chapter.pages|length }} };
         const mangaSlug       = {{ chapter.manga_slug | tojson }};
         const chapterSlug     = {{ chapter.chapter_slug | tojson }};
         const chapterNumber   = {{ chapter.chapter_number | tojson }};
@@ -1162,6 +1243,14 @@
                 _activeProgressKey = 'reading_' + mangaSlug + '_ch_' + visibleChapter;
                 chapterCompleted = false;
                 maxPageSeen = 0;
+                // Обновляем счётчик страниц для новой главы
+                const newTotal = _chapterPageCounts[visibleChapter];
+                if (newTotal) {
+                    totalPages = newTotal;
+                    COMPLETE_THRESHOLD = Math.max(1, Math.ceil(newTotal * 0.8));
+                    const totalEl = document.getElementById('totalPages');
+                    if (totalEl) totalEl.textContent = newTotal;
+                }
             }
             if (page !== currentPage) {
                 currentPage = page;
@@ -1201,31 +1290,53 @@
         }
 
         // ==================== ПОДПИСКА/ОТПИСКА ====================
-        async function toggleSubscribe(mangaId) {
+        async function _doAuth() {
+            var tg = window._tgWebApp || (window.Telegram && window.Telegram.WebApp);
+            if (!tg || !tg.initData) return false;
             try {
-                const btn = document.getElementById('subscribeBtn');
-                btn.disabled = true;
+                var r = await fetch('/api/auth/webapp', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({initData: tg.initData}), credentials: 'include'
+                });
+                var d = await r.json();
+                return d.ok === true;
+            } catch(e) { return false; }
+        }
 
-                const response = await fetch('/api/subscribe/' + mangaId, { method: 'POST' });
-                const data = await response.json();
+        async function toggleSubscribe(mangaId) {
+            const btn = document.getElementById('subscribeBtn');
+            if (btn) btn.disabled = true;
+            try {
+                let response = await fetch('/api/subscribe/' + mangaId, {
+                    method: 'POST', credentials: 'include'
+                });
 
-                if (data.subscribed) {
-                    btn.classList.add('subscribed');
-                    btn.innerHTML = '<span>✓</span>';
-                    showTooltip('Подписка оформлена!');
-                } else {
-                    btn.classList.remove('subscribed');
-                    btn.innerHTML = '<span></span>';
-                    showTooltip('Подписка отменена');
+                // Если 401 — сначала авторизуемся и повторяем
+                if (response.status === 401) {
+                    const ok = await _doAuth();
+                    if (!ok) { showTooltip('Войдите через бота (/start)'); if (btn) btn.disabled = false; return; }
+                    response = await fetch('/api/subscribe/' + mangaId, {
+                        method: 'POST', credentials: 'include'
+                    });
                 }
 
-                btn.disabled = false;
+                const data = await response.json();
+                if (data.subscribed !== undefined) {
+                    if (data.subscribed) {
+                        if (btn) { btn.classList.add('subscribed'); btn.innerHTML = '<span>✓</span>'; }
+                        showTooltip('Подписка оформлена!');
+                    } else {
+                        if (btn) { btn.classList.remove('subscribed'); btn.innerHTML = '<span></span>'; }
+                        showTooltip('Подписка отменена');
+                    }
+                } else {
+                    showTooltip(data.error || 'Ошибка');
+                }
             } catch (error) {
                 console.error('Ошибка подписки:', error);
                 showTooltip('Ошибка подписки');
-                const btn = document.getElementById('subscribeBtn');
-                if (btn) btn.disabled = false;
             }
+            if (btn) btn.disabled = false;
         }
 
         // ==================== ТУЛТИП ====================
@@ -1440,7 +1551,7 @@
         // ==================== ЗАВЕРШЕНИЕ ГЛАВЫ ====================
         let chapterCompleted = false;
         let maxPageSeen = 0;
-        const COMPLETE_THRESHOLD = Math.max(1, Math.ceil(totalPages * 0.8));
+        let COMPLETE_THRESHOLD = Math.max(1, Math.ceil(totalPages * 0.8));
 
         function checkCompletion(pageNum) {
             if (pageNum > maxPageSeen) maxPageSeen = pageNum;
@@ -1758,23 +1869,33 @@
 
                 // Страницы
                 data.pages.forEach((url, i) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'page-wrap';
+                    const preloader = document.createElement('div');
+                    preloader.className = 'page-preloader';
+                    wrap.appendChild(preloader);
+
                     const img = document.createElement('img');
                     img.alt = `Страница ${i + 1}`;
                     img.className = 'page-image loading';
                     img.dataset.page = i + 1;
                     img.dataset.chapter = data.chapter_slug;
-                    img.onerror = function() { this.style.display = 'none'; };
+                    img.onload = function() { this.classList.remove('loading'); this.closest('.page-wrap').classList.add('loaded'); };
+                    img.onerror = function() { this.closest('.page-wrap').classList.add('loaded'); this.style.display = 'none'; };
                     if (i < 2) {
                         img.src = url;
+                        wrap.classList.add('loaded');
                         img.classList.remove('loading');
                     } else {
                         img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                         img.dataset.src = url;
                         _lazyObserveImg(img);
                     }
-                    container.appendChild(img);
+                    wrap.appendChild(img);
+                    container.appendChild(wrap);
                 });
 
+                _chapterPageCounts[data.chapter_slug] = data.pages.length;
                 _infiniteNextSlug = data.next_chapter ? data.next_chapter.chapter_slug : null;
                 if (!_infiniteNextSlug) {
                     _infiniteEnd = true;

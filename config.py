@@ -11,7 +11,7 @@ TELEGRAM_BOT_TOKEN  = "7082209603:AAG97jX6MHgYOywy5hdDl03hduVMD6VBsW0"
 ADMIN_TELEGRAM_IDS: list = [319026942, 649144994]
 
 # ── Сайт ─────────────────────────────────────────────────────────────────────
-SITE_URL = 'https://bubblemanga.ru:8443'
+SITE_URL = 'https://bubblemanga.ru'
 
 # ── База данных ───────────────────────────────────────────────────────────────
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://mangauser:Retpoloer2@localhost/mangadb')

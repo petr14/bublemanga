@@ -10,7 +10,7 @@ preload_app = False
 def post_fork(server, worker):
     import threading
     import sys
-    sys.path.insert(0, '/var/tgbot/manga')
+    sys.path.insert(0, '/var/tgbot/mmm')
     from main import run_telegram_bot, background_checker, init_pg_schema, _USE_PG, init_db
 
     if not _USE_PG:

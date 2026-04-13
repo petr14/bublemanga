@@ -6,10 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#141414">
     <title>Манговая — Читай мангу</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"></noscript>
+    <link rel="stylesheet" href="/static/fonts/poppins.css">
     <style>
         *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         :root{
@@ -575,7 +572,7 @@
                     <!-- <span class="reading-num">{{ loop.index }}</span> -->
                     <span class="manga-type-badge">{{ TYPE_RU.get((manga.manga_type or '')|upper, manga.manga_type or 'Манга') }}</span>
                     <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
-                         onerror="this.onerror=null;this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
+                         onerror="this.onerror=null;this.src='/static/no-cover.svg'">
                 </div>
                 <div class="manga-info">
                     <div class="manga-title">{{ manga.manga_title }}</div>
@@ -659,7 +656,7 @@
                     <span class="manga-badge new">Гл.{{ manga.last_chapter_number }}</span>
                     {% endif %}
                     <img src="{{ manga.cover_url }}" alt="" class="manga-cover" loading="lazy"
-                         onerror="this.onerror=null;this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
+                         onerror="this.onerror=null;this.src='/static/no-cover.svg'">
                 </div>
                 <div class="manga-info">
                     <div class="manga-title">{{ manga.manga_title }}</div>
@@ -710,7 +707,7 @@
                 <span class="manga-type-badge">${esc(typeRu(m.type))}</span>
                 ${badge?`<span class="manga-badge ${badgeCls||''}">${badge}</span>`:''}
                 <img src="${esc(m.cover_url)}" alt="" class="manga-cover" loading="lazy"
-                     onerror="this.onerror=null;this.src='https://via.placeholder.com/180x270/1a1a1a/555?text=×'">
+                     onerror="this.onerror=null;this.src='/static/no-cover.svg'">
             </div>
             <div class="manga-info">
                 <div class="manga-title">${esc(m.title)}</div>
@@ -794,7 +791,7 @@
             <div class="update-item${i>=6?' hidden':''}" onclick="location.href='${esc(ch.chapter_url)}'">
                 ${i<2?'<span class="update-new"></span>':''}
                 <img src="${esc(ch.cover_url)}" class="update-cover" loading="lazy"
-                     onerror="this.onerror=null;this.src='https://via.placeholder.com/46x62/1a1a1a/555?text=×'">
+                     onerror="this.onerror=null;this.src='/static/no-cover.svg'">
                 <div class="update-info">
                     <div class="update-title">${esc(ch.manga_title)}</div>
                     <div class="update-chapter">Глава ${esc(ch.chapter_number)}${ch.chapter_name?' — '+esc(ch.chapter_name):''}</div>
@@ -1000,7 +997,7 @@
 <script>
 function _initSocketIO(){
     if(typeof io==='undefined')return;
-    const socket=io({transports:['websocket','polling']});
+    const socket=io({transports:['websocket'],reconnectionAttempts:0,timeout:3000});
 
     function addLiveDot(){
         const t=document.getElementById('recentTitle');
@@ -1029,8 +1026,7 @@ function _initSocketIO(){
     });
 }
 </script>
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"
-        crossorigin="anonymous" async onload="_initSocketIO()"></script>
+<script>window.addEventListener('load',function(){var s=document.createElement('script');s.src='/static/socket.io.min.js';s.onload=_initSocketIO;document.body.appendChild(s);});</script>
 <style>@keyframes livepulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.3);}}</style>
 
 </body>
