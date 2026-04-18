@@ -237,32 +237,10 @@
             animation: shimmer 1.8s ease-in-out infinite;
         }
 
-        /* Спиннер — реальный DOM-элемент с position:sticky (работает на iOS Safari) */
-        .page-spinner {
-            position: sticky;
-            top: calc(50vh - 22px);
-            display: block;
-            width: 44px;
-            height: 44px;
-            margin: 0 auto;
-            border-radius: 50%;
-            border: 2.5px solid rgba(255,255,255,0.08);
-            border-top-color: rgba(224,149,53,0.9);
-            border-right-color: rgba(224,149,53,0.45);
-            animation: spin 1s cubic-bezier(0.4,0,0.2,1) infinite;
-            box-shadow: 0 0 18px rgba(224,149,53,0.2);
-            pointer-events: none;
-            z-index: 5;
-        }
-        .page-wrap.loaded .page-spinner {
-            display: none;
-        }
-
-        /* Прогресс-бар — sticky 10% от верха экрана, с отступами по бокам */
+        /* Прогресс-бар — зафиксирован на 100px от верха экрана */
         .page-progress {
             position: sticky;
-            top: 30vh;
-            left: 0;
+            top: 100px;
             width: calc(100% - 32px);
             margin: 0 16px;
             height: 10px;
@@ -284,6 +262,27 @@
         }
 
         .page-wrap.loaded .page-preloader {
+            display: none;
+        }
+
+        /* Спиннер — зафиксирован под прогресс-баром (100px + 10px бар + 20px отступ) */
+        .page-spinner {
+            position: sticky;
+            top: 148px;
+            display: block;
+            width: 44px;
+            height: 44px;
+            margin: 12px auto 0;
+            border-radius: 50%;
+            border: 2.5px solid rgba(255,255,255,0.08);
+            border-top-color: rgba(224,149,53,0.9);
+            border-right-color: rgba(224,149,53,0.45);
+            animation: spin 1s cubic-bezier(0.4,0,0.2,1) infinite;
+            box-shadow: 0 0 18px rgba(224,149,53,0.2);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .page-wrap.loaded .page-spinner {
             display: none;
         }
 
