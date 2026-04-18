@@ -63,9 +63,11 @@ from main import (
     get_popular_manga_from_api, toggle_subscription,
 )
 import bot as _bot_module
-from remanga_api import RemangaAPI as _RemangaAPI
-
-_remanga_api = _RemangaAPI()
+try:
+    from remanga_api import RemangaAPI as _RemangaAPI
+    _remanga_api = _RemangaAPI()
+except ModuleNotFoundError:
+    _remanga_api = None
 
 def _m():
     """Lazy reference to main module for items not imported at top level."""
@@ -86,6 +88,8 @@ def _set_user_session(user: dict):
 
 
 def _get_remanga_pages(manga_slug: str, chapter_number: str, conn) -> list:
+    if not _remanga_api:
+        return []
     """
     Вернуть страницы из remanga для главы chapter_number.
 
@@ -1327,11 +1331,16 @@ def chapter_json(manga_slug, chapter_slug):
 
     manga_id_nav = chapter_dict['manga_id']
     chapter_num_nav = chapter_dict['chapter_number']
-    c.execute('''SELECT chapter_slug, chapter_number, chapter_name FROM chapters
+    c.execute('''SELECT chapter_slug, chapter_number, chapter_name, chapter_volume FROM chapters
                  WHERE manga_id=? AND CAST(chapter_number AS FLOAT) > CAST(? AS FLOAT)
                  ORDER BY CAST(chapter_number AS FLOAT) ASC LIMIT 1''',
               (manga_id_nav, chapter_num_nav))
     next_ch = c.fetchone()
+    c.execute('''SELECT chapter_slug, chapter_number, chapter_name, chapter_volume FROM chapters
+                 WHERE manga_id=? AND CAST(chapter_number AS FLOAT) < CAST(? AS FLOAT)
+                 ORDER BY CAST(chapter_number AS FLOAT) DESC LIMIT 1''',
+              (manga_id_nav, chapter_num_nav))
+    prev_ch = c.fetchone()
 
     # Запись прочтения
     user_id = session.get('user_id')
@@ -1348,9 +1357,11 @@ def chapter_json(manga_slug, chapter_slug):
         'chapter_slug': chapter_slug,
         'chapter_number': chapter_dict.get('chapter_number'),
         'chapter_name': chapter_dict.get('chapter_name'),
+        'chapter_volume': chapter_dict.get('chapter_volume'),
         'manga_slug': manga_slug,
         'pages': chapter_dict['pages'],
         'next_chapter': dict(next_ch) if next_ch else None,
+        'prev_chapter': dict(prev_ch) if prev_ch else None,
     })
 
 

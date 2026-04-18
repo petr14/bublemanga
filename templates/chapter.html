@@ -1190,6 +1190,17 @@
         const nextChapterUrl  = {% if next_chapter %}{{ ('/read/' + chapter.manga_slug + '/' + next_chapter.chapter_slug) | tojson }}{% else %}null{% endif %};
         const mangaPageUrl    = {{ ('/manga/' + chapter.manga_slug) | tojson }};
 
+        // Карта данных глав для обновления шапки/навигации в режиме "все подряд"
+        const _chapterDataMap = {};
+        _chapterDataMap[chapterSlug] = {
+            number:    {{ chapter.chapter_number | tojson }},
+            name:      {{ chapter.chapter_name | tojson }},
+            volume:    {{ chapter.chapter_volume | tojson }},
+            pages:     {{ chapter.pages|length }},
+            next_slug: {% if next_chapter %}{{ next_chapter.chapter_slug | tojson }}{% else %}null{% endif %},
+            prev_slug: {% if prev_chapter %}{{ prev_chapter.chapter_slug | tojson }}{% else %}null{% endif %},
+        };
+
         // Ключ для localStorage — собирается из уже безопасных JS-переменных
         const PROGRESS_KEY = 'reading_' + mangaSlug + '_' + chapterNumber;
 
@@ -1278,6 +1289,8 @@
                     const totalEl = document.getElementById('totalPages');
                     if (totalEl) totalEl.textContent = newTotal;
                 }
+                // Обновляем шапку и кнопки навигации
+                _updateHeaderAndNav(visibleChapter);
             }
             if (page !== currentPage) {
                 currentPage = page;
@@ -1848,6 +1861,45 @@
         let _infiniteEnd      = false;
         let _mangaSlug        = {{ chapter.manga_slug | tojson }};
 
+        function _updateHeaderAndNav(chSlug) {
+            const d = _chapterDataMap[chSlug];
+            if (!d) return;
+
+            // Обновляем описание главы в шапке
+            const infoEl = document.querySelector('.chapter-info');
+            if (infoEl) {
+                let info = 'Глава ' + d.number;
+                if (d.volume) info += ' (Том ' + d.volume + ')';
+                if (d.name) info += ' — ' + d.name;
+                info += ' · ' + d.pages + ' стр.';
+                infoEl.textContent = info;
+            }
+
+            // Обновляем кнопку "Следующая глава"
+            const nextBtn = document.getElementById('nextChapterBtn');
+            if (nextBtn) {
+                if (d.next_slug) {
+                    nextBtn.href = '/read/' + _mangaSlug + '/' + d.next_slug;
+                    nextBtn.classList.remove('disabled');
+                } else {
+                    nextBtn.removeAttribute('href');
+                    nextBtn.classList.add('disabled');
+                }
+            }
+
+            // Обновляем кнопку "Предыдущая глава"
+            const prevBtn = document.getElementById('prevChapterBtn');
+            if (prevBtn) {
+                if (d.prev_slug) {
+                    prevBtn.href = '/read/' + _mangaSlug + '/' + d.prev_slug;
+                    prevBtn.classList.remove('disabled');
+                } else {
+                    prevBtn.removeAttribute('href');
+                    prevBtn.classList.add('disabled');
+                }
+            }
+        }
+
         function _makeLoadingEl() {
             const d = document.createElement('div');
             d.className = 'chapter-loading'; d.id = '_infLoad';
@@ -1963,20 +2015,22 @@
                     img.className = 'page-image loading';
                     img.dataset.page = i + 1;
                     img.dataset.chapter = data.chapter_slug;
-                    img.onload = function() { this.classList.remove('loading'); this.closest('.page-wrap').classList.add('loaded'); };
-                    img.onerror = function() { this.closest('.page-wrap').classList.add('loaded'); this.style.display = 'none'; };
-                    if (i < 2) {
-                        img.src = url;
-                        wrap.classList.add('loaded');
-                        img.classList.remove('loading');
-                    } else {
-                        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                        img.dataset.src = url;
-                        _lazyObserveImg(img);
-                    }
+                    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    img.dataset.src = url;
+                    _lazyObserveImg(img);
                     wrap.appendChild(img);
                     container.appendChild(wrap);
                 });
+
+                // Сохраняем данные главы для обновления шапки и навигации
+                _chapterDataMap[data.chapter_slug] = {
+                    number:    data.chapter_number,
+                    name:      data.chapter_name || null,
+                    volume:    data.chapter_volume || null,
+                    pages:     data.pages.length,
+                    next_slug: data.next_chapter ? data.next_chapter.chapter_slug : null,
+                    prev_slug: data.prev_chapter ? data.prev_chapter.chapter_slug : null,
+                };
 
                 _chapterPageCounts[data.chapter_slug] = data.pages.length;
                 _infiniteNextSlug = data.next_chapter ? data.next_chapter.chapter_slug : null;
