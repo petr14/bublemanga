@@ -237,41 +237,44 @@
             animation: shimmer 1.8s ease-in-out infinite;
         }
 
-        /* Спиннер sticky в центре viewport */
-        .page-preloader::after {
-            content: '';
+        /* Спиннер — реальный DOM-элемент с position:sticky (работает на iOS Safari) */
+        .page-spinner {
             position: sticky;
-            top: calc(50vh - 24px);
+            top: calc(50vh - 22px);
             display: block;
             width: 44px;
             height: 44px;
             margin: 0 auto;
             border-radius: 50%;
             border: 2.5px solid rgba(255,255,255,0.08);
-            border-top-color: rgba(224,149,53,0.85);
-            border-right-color: rgba(224,149,53,0.4);
+            border-top-color: rgba(224,149,53,0.9);
+            border-right-color: rgba(224,149,53,0.45);
             animation: spin 1s cubic-bezier(0.4,0,0.2,1) infinite;
-            box-shadow: 0 0 18px rgba(224,149,53,0.15);
+            box-shadow: 0 0 18px rgba(224,149,53,0.2);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .page-wrap.loaded .page-spinner {
+            display: none;
         }
 
-        /* Прогресс-бар загрузки */
         /* Прогресс-бар — поверх всего, в самом верху блока страницы */
         .page-progress {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 3px;
+            height: 5px;
             z-index: 10;
-            background: rgba(255,255,255,0.06);
-            overflow: visible;
+            background: rgba(255,255,255,0.07);
+            overflow: hidden;
         }
         .page-progress-bar {
             height: 100%;
-            width: 0%;
+            width: 5%;
             background: linear-gradient(90deg, #c07020, #e09535, #f5c06a);
-            box-shadow: 0 0 8px 1px rgba(224,149,53,0.8);
-            border-radius: 0 2px 2px 0;
+            box-shadow: 0 0 10px 2px rgba(224,149,53,0.7);
+            border-radius: 0 3px 3px 0;
             transition: none;
         }
         .page-wrap.loaded .page-progress {
@@ -816,6 +819,8 @@
         body.theme-light .sp-close { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
         body.theme-light .tooltip { background: rgba(242,242,242,0.97); color: #1a1a1a; border-color: rgba(0,0,0,0.1); }
         body.theme-light .progress-bar { background: var(--primary-gradient); }
+        body.theme-light .page-preloader::before { background: linear-gradient(105deg,#e8e8e8 0%,#e8e8e8 30%,rgba(0,0,0,0.06) 45%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.06) 55%,#e8e8e8 70%,#e8e8e8 100%); background-size: 250% 100%; animation: shimmer 1.8s ease-in-out infinite; }
+        body.theme-light .page-preloader { background: #e8e8e8; }
 
         /* ==================== АВТОПРОКРУТКА — ИНДИКАТОР ==================== */
         .autoscroll-fab {
@@ -959,6 +964,7 @@
         <div class="page-wrap">
             <div class="page-progress"><div class="page-progress-bar"></div></div>
             <div class="page-preloader"></div>
+            <div class="page-spinner"></div>
             <img
                 src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 data-src="{{ page_url }}"
@@ -1853,16 +1859,16 @@
             const wrap = img.closest('.page-wrap');
             const bar = wrap && wrap.querySelector('.page-progress-bar');
 
-            // Симуляция прогресса: быстро до ~70%, затем тормозит до загрузки
-            let pct = 0;
+            // Симуляция прогресса: начинаем с 5% (сразу видно), быстро до ~70%, затем тормозит
+            let pct = 5;
             let raf = null;
             let done = false;
+            const startedAt = Date.now();
 
             function animateBar() {
                 if (done) return;
-                // Скорость уменьшается по мере приближения к 90%
-                const speed = pct < 30 ? 2.5 : pct < 60 ? 1.2 : pct < 80 ? 0.5 : 0.15;
-                pct = Math.min(pct + speed, 90);
+                const speed = pct < 30 ? 2.0 : pct < 60 ? 1.0 : pct < 80 ? 0.4 : 0.12;
+                pct = Math.min(pct + speed, 92);
                 if (bar) bar.style.width = pct.toFixed(1) + '%';
                 raf = requestAnimationFrame(animateBar);
             }
@@ -1871,16 +1877,17 @@
                 done = true;
                 if (raf) cancelAnimationFrame(raf);
                 if (bar) {
-                    bar.style.transition = 'width 0.25s ease';
+                    bar.style.transition = 'width 0.3s ease';
                     bar.style.width = '100%';
                 }
-                setTimeout(() => {
-                    if (wrap) wrap.classList.add('loaded');
-                }, 250);
+                // Показываем финальный бар минимум 300ms, даже если картинка загрузилась мгновенно
+                const elapsed = Date.now() - startedAt;
+                const delay = Math.max(300, 300 - elapsed);
+                setTimeout(() => { if (wrap) wrap.classList.add('loaded'); }, delay);
             }
 
             if (bar) {
-                bar.style.width = '0%';
+                bar.style.width = '5%';
                 bar.style.transition = 'none';
                 raf = requestAnimationFrame(animateBar);
             }
@@ -1945,6 +1952,9 @@
                     const preloader = document.createElement('div');
                     preloader.className = 'page-preloader';
                     wrap.appendChild(preloader);
+                    const spinner = document.createElement('div');
+                    spinner.className = 'page-spinner';
+                    wrap.appendChild(spinner);
 
                     const img = document.createElement('img');
                     img.alt = `Страница ${i + 1}`;
