@@ -208,11 +208,11 @@
             background: #0d0d0d;
         }
 
-        /* Preloader */
+        /* Preloader — занимает 2 высоты экрана пока не загружена */
         .page-preloader {
             position: absolute;
             inset: 0;
-            min-height: 100vh;
+            min-height: 200vh;
             pointer-events: none;
             z-index: 2;
             overflow: hidden;
@@ -237,7 +237,7 @@
             animation: shimmer 1.8s ease-in-out infinite;
         }
 
-        /* Спиннер по центру верхней части */
+        /* Спиннер sticky в центре viewport */
         .page-preloader::after {
             content: '';
             position: sticky;
@@ -254,6 +254,30 @@
             box-shadow: 0 0 18px rgba(224,149,53,0.15);
         }
 
+        /* Прогресс-бар загрузки */
+        /* Прогресс-бар — поверх всего, в самом верху блока страницы */
+        .page-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            z-index: 10;
+            background: rgba(255,255,255,0.06);
+            overflow: visible;
+        }
+        .page-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #c07020, #e09535, #f5c06a);
+            box-shadow: 0 0 8px 1px rgba(224,149,53,0.8);
+            border-radius: 0 2px 2px 0;
+            transition: none;
+        }
+        .page-wrap.loaded .page-progress {
+            display: none;
+        }
+
         .page-wrap.loaded .page-preloader {
             display: none;
         }
@@ -261,7 +285,7 @@
         /* Картинка: невидима пока loading, плавно появляется */
         .page-image.loading {
             display: block;
-            min-height: 100vh;
+            min-height: 200vh;
             opacity: 0;
         }
         .page-image:not(.loading) {
@@ -933,20 +957,15 @@
     <div class="pages-container" id="pagesContainer">
         {% for page_url in chapter.pages %}
         <div class="page-wrap">
+            <div class="page-progress"><div class="page-progress-bar"></div></div>
             <div class="page-preloader"></div>
             <img
-                {% if loop.index <= 3 %}
-                src="{{ page_url }}"
-                {% else %}
                 src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 data-src="{{ page_url }}"
-                {% endif %}
                 alt="Страница {{ loop.index }}"
                 class="page-image loading"
                 data-page="{{ loop.index }}"
                 data-chapter="{{ chapter.chapter_slug }}"
-                onload="this.classList.remove('loading');this.closest('.page-wrap').classList.add('loaded')"
-                onerror="this.classList.remove('loading');this.closest('.page-wrap').classList.add('loaded');if(this.dataset.src||this.src.length>100)this.style.display='none'"
             >
         </div>
         {% endfor %}
@@ -1458,9 +1477,12 @@
                     for (var i = 0; i < needed; i++) {
                         var img = images[i];
                         if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                            delete img.dataset.src;
+                            var _url = img.dataset.src;
+                            img.removeAttribute('data-src');
                             img.classList.remove('loading');
+                            var _wrap = img.closest('.page-wrap');
+                            if (_wrap) _wrap.classList.add('loaded');
+                            img.src = _url;
                         }
                         if (img.complete) { refineScroll(); }
                         else { img.addEventListener('load', refineScroll, { once: true }); img.addEventListener('error', refineScroll, { once: true }); }
@@ -1474,16 +1496,13 @@
             const images = document.querySelectorAll('.page-image');
 
             if ('IntersectionObserver' in window) {
-                // Ленивая загрузка
+                // Ленивая загрузка с прогресс-баром
                 const imageObserver = new IntersectionObserver((entries, observer) => {
                     entries.forEach(entry => {
                         if (!entry.isIntersecting) return;
                         const img = entry.target;
-                        if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                            delete img.dataset.src;
-                        }
                         observer.unobserve(img);
+                        if (img.dataset.src) _loadImgWithProgress(img);
                     });
                 }, { rootMargin: '400px 0px' });
 
@@ -1828,16 +1847,64 @@
             return d;
         }
 
+        function _loadImgWithProgress(img) {
+            const url = img.dataset.src;
+            if (!url) return;
+            const wrap = img.closest('.page-wrap');
+            const bar = wrap && wrap.querySelector('.page-progress-bar');
+
+            // Симуляция прогресса: быстро до ~70%, затем тормозит до загрузки
+            let pct = 0;
+            let raf = null;
+            let done = false;
+
+            function animateBar() {
+                if (done) return;
+                // Скорость уменьшается по мере приближения к 90%
+                const speed = pct < 30 ? 2.5 : pct < 60 ? 1.2 : pct < 80 ? 0.5 : 0.15;
+                pct = Math.min(pct + speed, 90);
+                if (bar) bar.style.width = pct.toFixed(1) + '%';
+                raf = requestAnimationFrame(animateBar);
+            }
+
+            function finishBar() {
+                done = true;
+                if (raf) cancelAnimationFrame(raf);
+                if (bar) {
+                    bar.style.transition = 'width 0.25s ease';
+                    bar.style.width = '100%';
+                }
+                setTimeout(() => {
+                    if (wrap) wrap.classList.add('loaded');
+                }, 250);
+            }
+
+            if (bar) {
+                bar.style.width = '0%';
+                bar.style.transition = 'none';
+                raf = requestAnimationFrame(animateBar);
+            }
+
+            img.onload = function() {
+                img.classList.remove('loading');
+                finishBar();
+            };
+            img.onerror = function() {
+                img.style.display = 'none';
+                finishBar();
+            };
+            img.src = url;
+            img.removeAttribute('data-src');
+        }
+
         function _lazyObserveImg(img) {
             if (!img.dataset.src) return;
             const ob = new IntersectionObserver(entries => {
                 if (entries[0].isIntersecting) {
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    img.classList.remove('loading');
                     ob.disconnect();
+                    _loadImgWithProgress(img);
                 }
-            }, { rootMargin: '400px' });
+            }, { rootMargin: '300px' });
             ob.observe(img);
         }
 
@@ -1871,6 +1938,10 @@
                 data.pages.forEach((url, i) => {
                     const wrap = document.createElement('div');
                     wrap.className = 'page-wrap';
+                    const prog = document.createElement('div');
+                    prog.className = 'page-progress';
+                    prog.innerHTML = '<div class="page-progress-bar"></div>';
+                    wrap.appendChild(prog);
                     const preloader = document.createElement('div');
                     preloader.className = 'page-preloader';
                     wrap.appendChild(preloader);
