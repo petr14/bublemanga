@@ -207,6 +207,10 @@
             width: 100%;
             background: #0d0d0d;
         }
+        /* Незагруженный блок занимает 2 высоты экрана */
+        .page-wrap:not(.loaded) {
+            min-height: 200vh;
+        }
 
         /* Preloader — занимает 2 высоты экрана пока не загружена */
         .page-preloader {
@@ -237,10 +241,10 @@
             animation: shimmer 1.8s ease-in-out infinite;
         }
 
-        /* Прогресс-бар — зафиксирован на 100px от верха экрана */
+        /* Прогресс-бар — зафиксирован на 200px от верха экрана */
         .page-progress {
             position: sticky;
-            top: 100px;
+            top: 200px;
             width: calc(100% - 32px);
             margin: 0 16px;
             height: 10px;
@@ -265,10 +269,10 @@
             display: none;
         }
 
-        /* Спиннер — зафиксирован под прогресс-баром (100px + 10px бар + 20px отступ) */
+        /* Спиннер — зафиксирован под прогресс-баром (200px + 10px бар + 20px отступ) */
         .page-spinner {
             position: sticky;
-            top: 148px;
+            top: 248px;
             display: block;
             width: 44px;
             height: 44px;
