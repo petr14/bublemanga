@@ -258,23 +258,25 @@
             display: none;
         }
 
-        /* Прогресс-бар — поверх всего, в самом верху блока страницы */
+        /* Прогресс-бар — sticky 10% от верха экрана, с отступами по бокам */
         .page-progress {
-            position: absolute;
-            top: 0;
+            position: sticky;
+            top: 10vh;
             left: 0;
-            width: 100%;
-            height: 5px;
+            width: calc(100% - 32px);
+            margin: 0 16px;
+            height: 10px;
             z-index: 10;
-            background: rgba(255,255,255,0.07);
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
             overflow: hidden;
         }
         .page-progress-bar {
             height: 100%;
             width: 5%;
             background: linear-gradient(90deg, #c07020, #e09535, #f5c06a);
-            box-shadow: 0 0 10px 2px rgba(224,149,53,0.7);
-            border-radius: 0 3px 3px 0;
+            box-shadow: 0 0 12px 3px rgba(224,149,53,0.75);
+            border-radius: 10px;
             transition: none;
         }
         .page-wrap.loaded .page-progress {
