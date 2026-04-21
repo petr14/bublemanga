@@ -2323,8 +2323,8 @@ def get_chapter_pages(chapter_slug):
 
 # ── Заполнение пропущенных глав ───────────────────────────────────────────────
 
-_FILL_GAPS_CYCLE_DAYS = 3       # полный проход каталога за N дней
-_FILL_GAPS_BATCH      = 15      # манг за один запуск
+_FILL_GAPS_CYCLE_DAYS = 7       # полный проход каталога за N дней
+_FILL_GAPS_BATCH      = 5       # манг за один запуск
 _fill_gaps_offset     = 0       # текущая позиция в каталоге
 _fill_gaps_last_run   = 0.0     # timestamp последнего батча
 _fill_gaps_interval   = 3600.0  # динамически пересчитывается при старте цикла
@@ -2342,7 +2342,7 @@ def _fill_gaps_recalc_interval(total: int) -> float:
     return max(60.0, cycle_seconds / batches_needed)
 
 
-def _paginate_all_chapters(branch_id, manga_slug, delay=0.3):
+def _paginate_all_chapters(branch_id, manga_slug, delay=2.0):
     """Загружает все главы манги из API через пагинацию."""
     chapters = []
     after = None
@@ -2472,7 +2472,7 @@ def fill_missing_chapters():
                     )
 
                 conn2.close()
-                time.sleep(0.3)
+                time.sleep(5.0)  # пауза между мангами
 
             except Exception as e_row:
                 logger.warning(f"⚠️ fill_gaps [{manga_slug}]: {e_row}")
