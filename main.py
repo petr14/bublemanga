@@ -2320,6 +2320,173 @@ def get_chapter_pages(chapter_slug):
     logger.info(f"Загрузка страниц для главы: {chapter_slug}")
     return api.fetch_chapter_pages(chapter_slug)
 
+
+# ── Заполнение пропущенных глав ───────────────────────────────────────────────
+
+_FILL_GAPS_CYCLE_DAYS = 3       # полный проход каталога за N дней
+_FILL_GAPS_BATCH      = 15      # манг за один запуск
+_fill_gaps_offset     = 0       # текущая позиция в каталоге
+_fill_gaps_last_run   = 0.0     # timestamp последнего батча
+_fill_gaps_interval   = 3600.0  # динамически пересчитывается при старте цикла
+_fill_gaps_total      = 0       # всего манг в текущем цикле
+
+
+def _fill_gaps_recalc_interval(total: int) -> float:
+    """Рассчитывает паузу между батчами так, чтобы весь каталог прошёл за CYCLE_DAYS."""
+    import math
+    if total <= 0:
+        return 3600.0
+    batches_needed = math.ceil(total / _FILL_GAPS_BATCH)
+    cycle_seconds  = _FILL_GAPS_CYCLE_DAYS * 24 * 3600
+    # Минимум 60 сек чтобы не давить на API
+    return max(60.0, cycle_seconds / batches_needed)
+
+
+def _paginate_all_chapters(branch_id, manga_slug, delay=0.3):
+    """Загружает все главы манги из API через пагинацию."""
+    chapters = []
+    after = None
+    while True:
+        result = api.fetch_manga_chapters_page(branch_id, after)
+        if not result:
+            break
+        edges     = result.get("edges") or []
+        page_info = result.get("pageInfo") or {}
+        for edge in edges:
+            node = edge.get("node") or {}
+            if not node:
+                continue
+            chapters.append({
+                "chapter_id":     node.get("id"),
+                "chapter_slug":   node.get("slug"),
+                "chapter_number": node.get("number"),
+                "chapter_volume": node.get("volume"),
+                "chapter_name":   node.get("name"),
+                "chapter_url":    f"/read/{manga_slug}/{node.get('slug')}",
+                "created_at":     node.get("createdAt"),
+            })
+        if not page_info.get("hasNextPage") or not page_info.get("endCursor"):
+            break
+        after = page_info["endCursor"]
+        if delay > 0:
+            time.sleep(delay)
+    return chapters
+
+
+def fill_missing_chapters():
+    """
+    Ротационно проходит по всем мангам и досасывает пропущенные главы из API.
+
+    Интервал между батчами рассчитывается автоматически:
+      interval = (CYCLE_DAYS * 86400) / ceil(total_manga / BATCH_SIZE)
+    Это гарантирует полный проход каталога ровно за CYCLE_DAYS дней.
+
+    Страницы (pages_json) не загружаются — они кэшируются лениво при чтении.
+    """
+    global _fill_gaps_offset, _fill_gaps_last_run, _fill_gaps_interval, _fill_gaps_total
+
+    now = time.time()
+    if now - _fill_gaps_last_run < _fill_gaps_interval:
+        return
+    _fill_gaps_last_run = now
+
+    try:
+        conn = get_db()
+
+        # При старте нового цикла (offset=0) — считаем каталог и пересчитываем интервал
+        if _fill_gaps_offset == 0:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM manga WHERE branch_id IS NOT NULL"
+            ).fetchone()[0]
+            _fill_gaps_total    = total
+            _fill_gaps_interval = _fill_gaps_recalc_interval(total)
+            logger.info(
+                f"🔄 fill_missing_chapters: новый цикл, манг={total}, "
+                f"батч={_FILL_GAPS_BATCH}, интервал={_fill_gaps_interval/60:.1f} мин "
+                f"(полный проход за {_FILL_GAPS_CYCLE_DAYS} дня)"
+            )
+
+        rows = conn.execute(
+            '''SELECT manga_id, manga_slug, branch_id
+               FROM manga
+               WHERE branch_id IS NOT NULL
+               ORDER BY manga_id
+               LIMIT ? OFFSET ?''',
+            (_FILL_GAPS_BATCH, _fill_gaps_offset)
+        ).fetchall()
+        conn.close()
+
+        if not rows:
+            # Цикл завершён — сбрасываем offset, interval пересчитается при следующем старте
+            logger.info(
+                f"✅ fill_missing_chapters: цикл завершён "
+                f"(прошли {_fill_gaps_total} манг за {_FILL_GAPS_CYCLE_DAYS} дня)"
+            )
+            _fill_gaps_offset = 0
+            return
+
+        total_inserted = 0
+
+        for row in rows:
+            manga_id   = row["manga_id"]
+            manga_slug = row["manga_slug"]
+            branch_id  = row["branch_id"]
+
+            try:
+                api_chapters = _paginate_all_chapters(branch_id, manga_slug)
+                if not api_chapters:
+                    continue
+
+                conn2 = get_db()
+                known_ids = set(
+                    r[0] for r in conn2.execute(
+                        "SELECT chapter_id FROM chapters WHERE manga_id = ?", (manga_id,)
+                    ).fetchall()
+                )
+
+                to_insert = [ch for ch in api_chapters if ch["chapter_id"] not in known_ids]
+
+                if to_insert:
+                    conn2.executemany(
+                        '''INSERT OR IGNORE INTO chapters
+                           (manga_id, chapter_id, chapter_slug, chapter_number,
+                            chapter_volume, chapter_name, chapter_url, created_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                        [
+                            (manga_id, ch["chapter_id"], ch["chapter_slug"],
+                             ch["chapter_number"], ch["chapter_volume"],
+                             ch["chapter_name"], ch["chapter_url"],
+                             ch["created_at"] or datetime.now())
+                            for ch in to_insert
+                        ]
+                    )
+                    conn2.execute(
+                        "UPDATE manga SET chapters_count = ? WHERE manga_id = ?",
+                        (len(api_chapters), manga_id)
+                    )
+                    conn2.commit()
+                    total_inserted += len(to_insert)
+                    logger.info(
+                        f"🩹 fill_gaps [{manga_slug}]: вставлено {len(to_insert)} глав "
+                        f"(API={len(api_chapters)}, в DB было={len(known_ids)})"
+                    )
+
+                conn2.close()
+                time.sleep(0.3)
+
+            except Exception as e_row:
+                logger.warning(f"⚠️ fill_gaps [{manga_slug}]: {e_row}")
+
+        _fill_gaps_offset += _FILL_GAPS_BATCH
+        progress_pct = min(100, round(_fill_gaps_offset / max(_fill_gaps_total, 1) * 100))
+        logger.info(
+            f"📦 fill_missing_chapters: батч offset={_fill_gaps_offset - _FILL_GAPS_BATCH}–{_fill_gaps_offset}, "
+            f"прогресс {progress_pct}%, вставлено {total_inserted} глав"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Ошибка fill_missing_chapters: {e}")
+
 def save_chapter_to_db(chapter_data):
     """Сохранить главу в БД"""
     conn = get_db()
@@ -2354,6 +2521,7 @@ def background_checker():
             time.sleep(60)
             check_new_chapters()          # Глобальный фид: быстрая детекция популярных манг
             check_subscribed_mangas()     # Ротация: гарантированное покрытие всех подписок
+            fill_missing_chapters()       # Заполнение пропусков (раз в 6 ч, батч по 10 манг)
 
             # Ежедневный дайджест в 22:00 МСК
             now_msk = datetime.utcnow() + timedelta(hours=3)
