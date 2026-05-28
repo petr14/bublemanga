@@ -36,7 +36,7 @@
             left: 0;
             height: 3px;
             background: var(--primary-gradient);
-            z-index: 1002;
+            z-index: 1011;
             width: 0%;
             transition: width 0.1s ease;
         }
@@ -47,7 +47,7 @@
             top: 0;
             left: 0;
             right: 0;
-            z-index: 1001;
+            z-index: 1010;
             background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -241,53 +241,55 @@
             animation: shimmer 1.8s ease-in-out infinite;
         }
 
-        /* Прогресс-бар — зафиксирован на 200px от верха экрана */
-        .page-progress {
-            position: sticky;
-            top: 200px;
-            width: calc(100% - 32px);
-            margin: 0 16px;
-            height: 10px;
-            z-index: 10;
-            background: rgba(255,255,255,0.08);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .page-progress-bar {
-            height: 100%;
-            width: 5%;
-            background: linear-gradient(90deg, #c07020, #e09535, #f5c06a);
-            box-shadow: 0 0 12px 3px rgba(224,149,53,0.75);
-            border-radius: 10px;
-            transition: none;
-        }
-        .page-wrap.loaded .page-progress {
-            display: none;
-        }
-
         .page-wrap.loaded .page-preloader {
             display: none;
         }
 
-        /* Спиннер — зафиксирован под прогресс-баром (200px + 10px бар + 20px отступ) */
-        .page-spinner {
-            position: sticky;
-            top: 248px;
-            display: block;
+        /* Глобальный фиксированный прогресс-бар (создаётся через JS, top задаётся динамически) */
+        #_loadBar {
+            position: fixed;
+            top: 200px; /* перезаписывается JS */
+            left: 16px;
+            right: 16px;
+            height: 10px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.08);
+            z-index: 1002;
+            display: none;
+        }
+        #_loadFill {
+            height: 100%;
+            width: 5%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #c07020, #e09535, #f5c06a);
+            box-shadow: 0 0 12px 3px rgba(224,149,53,0.75);
+            transition: none;
+        }
+        /* Контейнер спиннера — растянут по ширине бара, центрирует круг через flex */
+        #_loadSpinner {
+            position: fixed;
+            top: 222px; /* перезаписывается JS */
+            left: 16px;
+            right: 16px;
+            height: 44px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 1002;
+        }
+        /* Сам вращающийся круг — transform только rotate, без translateX */
+        #_loadSpinner::after {
+            content: '';
             width: 44px;
             height: 44px;
-            margin: 12px auto 0;
+            flex-shrink: 0;
             border-radius: 50%;
             border: 2.5px solid rgba(255,255,255,0.08);
             border-top-color: rgba(224,149,53,0.9);
             border-right-color: rgba(224,149,53,0.45);
             animation: spin 1s cubic-bezier(0.4,0,0.2,1) infinite;
             box-shadow: 0 0 18px rgba(224,149,53,0.2);
-            pointer-events: none;
-            z-index: 5;
-        }
-        .page-wrap.loaded .page-spinner {
-            display: none;
         }
 
         /* Картинка: невидима пока loading, плавно появляется */
@@ -321,46 +323,24 @@
             border-radius: 50px;
             font-size: 13px;
             font-weight: 600;
-            z-index: 999;
+            z-index: 1010;
             border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             user-select: none;
+            transition: font-size 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            white-space: nowrap;
         }
 
         .page-counter span {
             color: #e09535;
         }
 
-        /* ==================== КНОПКА "НАВЕРХ" ==================== */
-        .scroll-top {
-            position: fixed;
-            bottom: 24px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            background: var(--primary-gradient);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-            z-index: 999;
-            font-size: 20px;
-            user-select: none;
+        .page-counter.compact {
+            font-size: 10px;
+            padding: 5px 12px;
+            opacity: 0.55;
         }
 
-        .scroll-top.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .scroll-top:active {
-            transform: scale(0.9);
-        }
 
         /* ==================== НАВИГАЦИЯ МЕЖДУ ГЛАВАМИ ==================== */
         .chapter-navigation {
@@ -373,7 +353,7 @@
             opacity: 1;
             visibility: visible;
             transition: all 0.3s ease;
-            z-index: 998;
+            z-index: 1010;
         }
 
         .nav-chapter-btn {
@@ -416,7 +396,7 @@
             border-radius: 16px;
             font-size: 14px;
             font-weight: 600;
-            z-index: 1003;
+            z-index: 1011;
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
             opacity: 0;
@@ -497,18 +477,6 @@
                 box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
             }
 
-            .scroll-top {
-                bottom: 30px;
-                right: 40px;
-                width: 56px;
-                height: 56px;
-                font-size: 24px;
-            }
-
-            .scroll-top:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
-            }
 
             .page-counter {
                 font-size: 15px;
@@ -532,7 +500,6 @@
         }
 
         body.reading-mode .page-counter,
-        body.reading-mode .scroll-top,
         body.reading-mode .chapter-navigation {
             opacity: 0;
             visibility: hidden;
@@ -840,7 +807,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            z-index: 999;
+            z-index: 1010;
             font-size: 20px;
             opacity: 0;
             visibility: hidden;
@@ -868,7 +835,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            z-index: 998;
+            z-index: 1010;
             font-size: 17px;
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
@@ -967,9 +934,7 @@
     <div class="pages-container" id="pagesContainer">
         {% for page_url in chapter.pages %}
         <div class="page-wrap">
-            <div class="page-progress"><div class="page-progress-bar"></div></div>
             <div class="page-preloader"></div>
-            <div class="page-spinner"></div>
             <img
                 src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 data-src="{{ page_url }}"
@@ -1015,9 +980,6 @@
         </a>
         {% endif %}
     </div>
-
-    <!-- Кнопка "Наверх" -->
-    <div class="scroll-top" id="scrollTop" onclick="scrollToTop()" aria-label="Наверх">↑</div>
 
     <!-- Тултип -->
     <div class="tooltip" id="tooltip"></div>
@@ -1218,7 +1180,6 @@
 
         const header           = document.getElementById('header');
         const progressBar      = document.getElementById('progressBar');
-        const scrollTopBtn     = document.getElementById('scrollTop');
         const pageCounter      = document.getElementById('pageCounter');
         const chapterNavigation = document.getElementById('chapterNavigation');
         const currentPageSpan  = document.getElementById('currentPage');
@@ -1244,9 +1205,11 @@
                 if (scrollTop > lastScrollTop && scrollTop > 100) {
                     header.classList.add('hidden');
                     chapterNavigation.classList.add('ch-hidden');
+                    pageCounter.classList.add('compact');
                 } else if (scrollTop < lastScrollTop) {
                     header.classList.remove('hidden');
                     chapterNavigation.classList.remove('ch-hidden');
+                    pageCounter.classList.remove('compact');
                 }
             }
 
@@ -1254,11 +1217,11 @@
 
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
 
-            scrollTopBtn.classList.toggle('visible', scrollTop > 300);
 
             updateProgressBar();
             updateCurrentPage();
             resetHideControlsTimer();
+            _refreshGlobalLoader();
         }
 
         // ==================== СЧЁТЧИК СТРАНИЦ ====================
@@ -1327,10 +1290,6 @@
         }
 
         // ==================== ПРОКРУТКА НАВЕРХ ====================
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            showTooltip('Возврат к началу');
-        }
 
         // ==================== ПОДПИСКА/ОТПИСКА ====================
         async function _doAuth() {
@@ -1515,24 +1474,68 @@
             } catch(e) {}
         })();
 
+        // ==================== ОЧЕРЕДЬ ПРЕДЗАГРУЗКИ ====================
+        // Грузим все страницы подряд, 3 параллельно.
+        // Если страница уже видна в экране — она загружается немедленно вне очереди.
+        const _PRELOAD_CONCURRENCY = 3;
+        let   _preloadActive = 0;
+        const _preloadQueue  = [];   // [ img, ... ] в порядке страниц
+        const _preloadSet    = new Set(); // img-элементы уже поставленные в очередь/грузящиеся
+
+        function _preloadEnqueue(img) {
+            if (!img.dataset.src || _preloadSet.has(img)) return;
+            _preloadSet.add(img);
+            _preloadQueue.push(img);
+            _preloadDrain();
+        }
+
+        function _preloadDrain() {
+            while (_preloadActive < _PRELOAD_CONCURRENCY && _preloadQueue.length > 0) {
+                const img = _preloadQueue.shift();
+                if (!img.dataset.src) { _preloadDrain(); return; } // уже загружена
+                _preloadActive++;
+                _loadImgWithProgress(img, function() {
+                    _preloadActive--;
+                    _preloadDrain();
+                });
+            }
+        }
+
+        // Немедленная загрузка (приоритет — страница уже видна)
+        function _preloadNow(img) {
+            if (!img.dataset.src || _preloadSet.has(img)) return;
+            _preloadSet.add(img);
+            // Убираем из очереди если там была
+            const idx = _preloadQueue.indexOf(img);
+            if (idx !== -1) _preloadQueue.splice(idx, 1);
+            _preloadActive++;
+            _loadImgWithProgress(img, function() {
+                _preloadActive--;
+                _preloadDrain();
+            });
+        }
+
         // ==================== ЛЕНИВАЯ ЗАГРУЗКА + СЧЁТЧИК СТРАНИЦ ====================
         document.addEventListener('DOMContentLoaded', function() {
             const images = document.querySelectorAll('.page-image');
 
             if ('IntersectionObserver' in window) {
-                // Ленивая загрузка с прогресс-баром
-                const imageObserver = new IntersectionObserver((entries, observer) => {
+                // Страницы уже в экране или рядом — грузим немедленно вне очереди
+                const priorityObserver = new IntersectionObserver((entries, observer) => {
                     entries.forEach(entry => {
                         if (!entry.isIntersecting) return;
                         const img = entry.target;
                         observer.unobserve(img);
-                        if (img.dataset.src) _loadImgWithProgress(img);
+                        _preloadNow(img);
                     });
-                }, { rootMargin: '400px 0px' });
+                }, { rootMargin: '200px 0px' });
 
                 images.forEach(img => {
-                    if (img.dataset.src) imageObserver.observe(img);
+                    if (img.dataset.src) priorityObserver.observe(img);
                 });
+
+                // Ставим все страницы в очередь последовательной предзагрузки
+                images.forEach(img => _preloadEnqueue(img));
 
                 // Счётчик страниц через центральную 20%-ю полосу
                 const pageObserver = new IntersectionObserver((entries) => {
@@ -1646,6 +1649,7 @@
             if (diff < -50) {
                 header.classList.remove('hidden');
                 chapterNavigation.classList.remove('ch-hidden');
+                pageCounter.classList.remove('compact');
             }
         }, { passive: true });
 
@@ -1817,7 +1821,9 @@
             if (readerSettings.menu !== 'click') return;
             if (e.target.classList.contains('click-zone')) return;
             header.classList.toggle('hidden');
-            chapterNavigation.classList.toggle('ch-hidden', header.classList.contains('hidden'));
+            const navHidden = header.classList.contains('hidden');
+            chapterNavigation.classList.toggle('ch-hidden', navHidden);
+            pageCounter.classList.toggle('compact', navHidden);
         });
 
         // ==================== АВТОПРОКРУТКА ====================
@@ -1910,44 +1916,94 @@
             return d;
         }
 
-        function _loadImgWithProgress(img) {
-            const url = img.dataset.src;
-            if (!url) return;
-            const wrap = img.closest('.page-wrap');
-            const bar = wrap && wrap.querySelector('.page-progress-bar');
+        // Глобальные фиксированные элементы индикатора загрузки
+        const _loadBar = document.createElement('div');
+        _loadBar.id = '_loadBar';
+        _loadBar.innerHTML = '<div id="_loadFill"></div>';
+        document.body.appendChild(_loadBar);
+        const _loadSpinner = document.createElement('div');
+        _loadSpinner.id = '_loadSpinner';
+        document.body.appendChild(_loadSpinner);
+        const _loadFill = document.getElementById('_loadFill');
 
-            // Симуляция прогресса: начинаем с 5% (сразу видно), быстро до ~70%, затем тормозит
+        // Счётчик активных загрузок — скрываем индикатор только когда все завершены
+        let _loadingCount = 0;
+
+        // Показываем индикатор только если незагруженная страница сейчас видна в экране,
+        // и позиционируем его на 200px ниже верха этой страницы
+        function _refreshGlobalLoader() {
+            if (_loadingCount === 0) {
+                _loadBar.style.display = 'none';
+                _loadSpinner.style.display = 'none';
+                return;
+            }
+            const wraps = document.querySelectorAll('.page-wrap:not(.loaded)');
+            let show = false;
+            for (const w of wraps) {
+                const r = w.getBoundingClientRect();
+                if (r.top < window.innerHeight - 80 && r.bottom > 80) {
+                    show = true;
+                    // 200px ниже верха незагруженной страницы, но в пределах экрана
+                    const barTop = Math.min(Math.max(r.top + 200, r.top + 20), window.innerHeight - 80);
+                    _loadBar.style.top = barTop + 'px';
+                    _loadSpinner.style.top = (barTop + 36) + 'px';
+                    break;
+                }
+            }
+            _loadBar.style.display = show ? 'block' : 'none';
+            _loadSpinner.style.display = show ? 'flex' : 'none';
+        }
+
+        function _showGlobalLoader() {
+            _loadingCount++;
+            _refreshGlobalLoader();
+        }
+        function _hideGlobalLoader() {
+            _loadingCount = Math.max(0, _loadingCount - 1);
+            if (_loadingCount === 0) {
+                _loadFill.style.transition = 'none';
+                _loadFill.style.width = '5%';
+            }
+            _refreshGlobalLoader();
+        }
+
+        function _loadImgWithProgress(img, onDone) {
+            const url = img.dataset.src;
+            if (!url) { if (onDone) onDone(); return; }
+            const wrap = img.closest('.page-wrap');
+
             let pct = 5;
             let raf = null;
             let done = false;
             const startedAt = Date.now();
 
+            _showGlobalLoader();
+            _loadFill.style.transition = 'none';
+            _loadFill.style.width = '5%';
+
             function animateBar() {
                 if (done) return;
                 const speed = pct < 30 ? 2.0 : pct < 60 ? 1.0 : pct < 80 ? 0.4 : 0.12;
                 pct = Math.min(pct + speed, 92);
-                if (bar) bar.style.width = pct.toFixed(1) + '%';
+                _loadFill.style.width = pct.toFixed(1) + '%';
                 raf = requestAnimationFrame(animateBar);
             }
 
             function finishBar() {
                 done = true;
                 if (raf) cancelAnimationFrame(raf);
-                if (bar) {
-                    bar.style.transition = 'width 0.3s ease';
-                    bar.style.width = '100%';
-                }
-                // Показываем финальный бар минимум 300ms, даже если картинка загрузилась мгновенно
+                _loadFill.style.transition = 'width 0.3s ease';
+                _loadFill.style.width = '100%';
                 const elapsed = Date.now() - startedAt;
                 const delay = Math.max(300, 300 - elapsed);
-                setTimeout(() => { if (wrap) wrap.classList.add('loaded'); }, delay);
+                setTimeout(() => {
+                    if (wrap) wrap.classList.add('loaded');
+                    _hideGlobalLoader();
+                    if (onDone) onDone();
+                }, delay);
             }
 
-            if (bar) {
-                bar.style.width = '5%';
-                bar.style.transition = 'none';
-                raf = requestAnimationFrame(animateBar);
-            }
+            raf = requestAnimationFrame(animateBar);
 
             img.onload = function() {
                 img.classList.remove('loading');
@@ -1963,12 +2019,14 @@
 
         function _lazyObserveImg(img) {
             if (!img.dataset.src) return;
+            // Для страниц бесконечного скролла — ждём пока пользователь близко
+            // (не пихаем сразу в очередь, чтобы не мешать текущей главе)
             const ob = new IntersectionObserver(entries => {
                 if (entries[0].isIntersecting) {
                     ob.disconnect();
-                    _loadImgWithProgress(img);
+                    _preloadNow(img);
                 }
-            }, { rootMargin: '300px' });
+            }, { rootMargin: '1500px 0px' });
             ob.observe(img);
         }
 
@@ -2002,16 +2060,9 @@
                 data.pages.forEach((url, i) => {
                     const wrap = document.createElement('div');
                     wrap.className = 'page-wrap';
-                    const prog = document.createElement('div');
-                    prog.className = 'page-progress';
-                    prog.innerHTML = '<div class="page-progress-bar"></div>';
-                    wrap.appendChild(prog);
                     const preloader = document.createElement('div');
                     preloader.className = 'page-preloader';
                     wrap.appendChild(preloader);
-                    const spinner = document.createElement('div');
-                    spinner.className = 'page-spinner';
-                    wrap.appendChild(spinner);
 
                     const img = document.createElement('img');
                     img.alt = `Страница ${i + 1}`;

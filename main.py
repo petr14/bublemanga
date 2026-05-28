@@ -2516,12 +2516,31 @@ def background_checker():
     check_new_chapters()
     _last_digest_hour_key = None
 
+    _BACKOFF_NORMAL = 60          # обычная пауза (сек)
+    _BACKOFF_MAX    = 30 * 60     # максимальная пауза при 429 (30 мин)
+    _backoff        = _BACKOFF_NORMAL
+
     while True:
         try:
-            time.sleep(60)
-            check_new_chapters()          # Глобальный фид: быстрая детекция популярных манг
-            check_subscribed_mangas()     # Ротация: гарантированное покрытие всех подписок
-            fill_missing_chapters()       # Заполнение пропусков (раз в 6 ч, батч по 10 манг)
+            time.sleep(_backoff)
+
+            # Проверяем новые главы; при 429 увеличиваем паузу
+            try:
+                check_new_chapters()
+                check_subscribed_mangas()
+                fill_missing_chapters()
+                # Успех — постепенно возвращаем паузу к норме
+                if _backoff > _BACKOFF_NORMAL:
+                    _backoff = max(_BACKOFF_NORMAL, _backoff // 2)
+                    logger.info(f"✅ API в норме, пауза снижена до {_backoff}с")
+            except Exception as e_api:
+                err_str = str(e_api)
+                if '429' in err_str or 'Too Many Requests' in err_str.lower():
+                    _backoff = min(_backoff * 2 if _backoff > _BACKOFF_NORMAL else 300, _BACKOFF_MAX)
+                    logger.warning(f"⚠️ 429 от API — следующая проверка через {_backoff}с")
+                else:
+                    logger.error(f"❌ Ошибка API в background_checker: {e_api}")
+                continue
 
             # Ежедневный дайджест в 22:00 МСК
             now_msk = datetime.utcnow() + timedelta(hours=3)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Скрипт проверки пропущенных глав в манге.
+Скрипт проверки и исправления пропущенных глав в манге.
 
 Сравнивает главы из API Senkuro с тем, что есть в PostgreSQL БД,
 и выявляет пропуски в нумерации.
@@ -11,9 +11,14 @@
     python check_chapters.py --slug ... --no-db
     python check_chapters.py --all          # проверить ВСЕ манги в БД
     python check_chapters.py --all --gaps-only  # только манги с пропусками
+    python check_chapters.py --all --from 15          # начать с 15-й манги
+    python check_chapters.py --all --from some-slug --to other-slug
+    python check_chapters.py --slug some-slug --fix   # проверить и добавить пропущенные
+    python check_chapters.py --all --fix              # исправить все манги с пропусками
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -139,7 +144,7 @@ def _list_missing(gap_start, gap_end, existing_numbers):
 
 # ── API helpers ───────────────────────────────────────────────────────────────
 
-def fetch_all_chapters_from_api(api, branch_id, manga_slug, delay=0.2):
+def fetch_all_chapters_from_api(api, branch_id, manga_slug, delay=2):
     """Загружает ВСЕ главы манги из API через пагинацию."""
     chapters = []
     after    = None
@@ -176,20 +181,21 @@ def fetch_all_chapters_from_api(api, branch_id, manga_slug, delay=0.2):
 
 # ── Analysis ──────────────────────────────────────────────────────────────────
 
-def analyze_manga(api, manga_slug, branch_id, manga_id=None, no_db=False, delay=0.2):
+def analyze_manga(api, manga_slug, branch_id, manga_id=None, no_db=False, delay=2):
     api_chapters = fetch_all_chapters_from_api(api, branch_id, manga_slug, delay)
     api_numbers  = [parse_number(ch["chapter_number"]) for ch in api_chapters]
     api_valid    = sorted(set(n for n in api_numbers if n is not None))
 
     result = {
-        "manga_slug":  manga_slug,
-        "api_count":   len(api_chapters),
-        "api_numbers": api_valid,
-        "api_gaps":    find_gaps(api_valid),
-        "db_count":    0,
-        "db_missing":  [],
-        "db_extra":    [],
-        "no_number":   [ch for ch in api_chapters if parse_number(ch["chapter_number"]) is None],
+        "manga_slug":    manga_slug,
+        "api_count":     len(api_chapters),
+        "api_numbers":   api_valid,
+        "api_gaps":      find_gaps(api_valid),
+        "db_count":      0,
+        "db_missing":    [],
+        "db_extra":      [],
+        "no_number":     [ch for ch in api_chapters if parse_number(ch["chapter_number"]) is None],
+        "_api_chapters": api_chapters,  # для --fix
     }
 
     if not no_db and manga_id:
@@ -327,19 +333,130 @@ def parse_args():
 
     p.add_argument("--no-db",     action="store_true",
                    help="Только анализировать API, без сравнения с БД")
-    p.add_argument("--delay",     type=float, default=0.2,
-                   help="Пауза между запросами страниц (сек, default=0.2)")
+    p.add_argument("--delay",     type=float, default=1,
+                   help="Пауза между запросами (сек, минимум 0.9)")
     p.add_argument("--gaps-only", action="store_true",
                    help="При --all показывать только манги с пропусками")
     p.add_argument("--verbose",   action="store_true",
                    help="Показывать все номера глав")
+    p.add_argument("--from",  dest="from_manga", default=None,
+                   help="При --all: с какой манги начать (slug, часть названия или номер)")
+    p.add_argument("--to",    dest="to_manga",   default=None,
+                   help="При --all: на какой манге закончить (slug, часть названия или номер)")
+    p.add_argument("--fix",   action="store_true",
+                   help="Скачать и добавить в БД главы, которые есть в API но отсутствуют в DB")
     return p.parse_args()
+
+
+# ── DB write ──────────────────────────────────────────────────────────────────
+
+def fix_missing_chapters(api, manga_slug, manga_id, manga_title, db_missing_numbers, api_chapters, delay):
+    """Скачивает страницы пропущенных глав и вставляет их в БД."""
+
+    api_by_number = {}
+    for ch in api_chapters:
+        n = parse_number(ch["chapter_number"])
+        if n is not None:
+            api_by_number[n] = ch
+
+    to_fix = [api_by_number[n] for n in db_missing_numbers if n in api_by_number]
+    not_found = [n for n in db_missing_numbers if n not in api_by_number]
+
+    if not_found:
+        print(f"  [?] Не найдены в API: {', '.join(str(int(n) if n == int(n) else n) for n in not_found[:10])}")
+
+    if not to_fix:
+        print("  Нечего добавлять.")
+        return 0
+
+    print(f"  Добавляю {len(to_fix)} глав...")
+    inserted = 0
+
+    for ch in to_fix:
+        chapter_slug = ch["chapter_slug"]
+        num_label    = ch["chapter_number"]
+
+        pages_raw = api.fetch_chapter_pages(chapter_slug)
+        page_urls = [
+            p.get("image", {}).get("compress", {}).get("url", "")
+            for p in pages_raw
+            if p.get("image", {}).get("compress", {}).get("url")
+        ]
+
+        chapter_url = f"/read/{manga_slug}/{chapter_slug}"
+
+        conn = get_db()
+        try:
+            conn.execute(
+                """INSERT INTO chapters
+                       (manga_id, chapter_id, chapter_slug, chapter_number, chapter_volume,
+                        chapter_name, chapter_url, pages_json, pages_count, created_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (chapter_id) DO NOTHING""",
+                (
+                    manga_id, ch["chapter_id"], chapter_slug,
+                    ch["chapter_number"], ch.get("chapter_volume"), ch.get("chapter_name"),
+                    chapter_url, json.dumps(page_urls), len(page_urls),
+                    ch.get("created_at"),
+                )
+            )
+            conn.commit()
+            inserted += 1
+            print(f"    ✓ Гл. {num_label} — {len(page_urls)} стр.")
+        except Exception as e:
+            print(f"    ✗ Гл. {num_label}: {e}")
+        finally:
+            conn.close()
+
+        time.sleep(delay)
+
+    return inserted
+
+
+def _find_entry_index(entries, key, label):
+    """Ищет индекс манги по номеру, slug или части названия."""
+    if key is None:
+        return None
+    # По номеру (1-based)
+    try:
+        idx = int(key) - 1
+        if 0 <= idx < len(entries):
+            return idx
+        print(f"[!] Номер {key} вне диапазона 1–{len(entries)}, игнорируется --{label}")
+        return None
+    except ValueError:
+        pass
+    # По slug или части названия (без учёта регистра)
+    key_lower = key.lower()
+    for i, (slug, _, _, title) in enumerate(entries):
+        if key_lower == slug.lower() or key_lower in (title or "").lower():
+            return i
+    print(f"[!] --{label}={key!r}: манга не найдена, игнорируется")
+    return None
 
 
 def main():
     args    = parse_args()
+    # Минимальный перерыв между запросами — 0.9 сек
+    args.delay = max(0.9, args.delay)
+
+    if args.fix and args.no_db:
+        print("[!] --fix несовместим с --no-db, игнорируется")
+        args.fix = False
+
     api     = SenkuroAPI()
     entries = resolve_manga(api, args)
+
+    if args.all and (args.from_manga or args.to_manga):
+        from_idx = _find_entry_index(entries, args.from_manga, "from")
+        to_idx   = _find_entry_index(entries, args.to_manga,   "to")
+        start = from_idx if from_idx is not None else 0
+        end   = (to_idx + 1) if to_idx is not None else len(entries)
+        entries = entries[start:end]
+        if from_idx is not None or to_idx is not None:
+            s = entries[0][0] if entries else "?"
+            e = entries[-1][0] if entries else "?"
+            print(f"Диапазон: [{start+1}] {s} → [{start+len(entries)}] {e}")
 
     print(f"\nМанг для проверки: {len(entries)}")
 
@@ -373,6 +490,15 @@ def main():
         print_report(result, manga_title)
         if has_issues:
             mangas_with_issues.append(manga_title or slug)
+
+        if args.fix and result["db_missing"] and manga_id:
+            fixed = fix_missing_chapters(
+                api, slug, manga_id, manga_title or slug,
+                result["db_missing"], result.get("_api_chapters", []),
+                args.delay,
+            )
+            total_missing -= fixed
+            print(f"  → Добавлено: {fixed} глав")
 
         if args.verbose and result["api_numbers"]:
             nums = result["api_numbers"]

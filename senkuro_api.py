@@ -6,6 +6,8 @@
 ответов. Логика сохранения в БД и бизнес-логика остаются в main.py.
 """
 
+import time
+
 import requests
 import logging
 
@@ -42,28 +44,33 @@ class SenkuroAPI:
 
     # ── Вспомогательный метод ──────────────────────────────────────────────
 
+    # Базовая пауза при 429 (сек). Удваивается с каждой попыткой.
+    _RETRY_BASE  = 5
+    _RETRY_MAX   = 3
+
     def _post(self, payload, timeout=10):
-        """Выполнить POST-запрос к GraphQL API и вернуть распарсенный JSON."""
-        import json
-        
-        # Сериализуем payload в JSON строку
-        json_payload = json.dumps(payload)
-        # print(f"Сериализованный JSON для отправки: {json_payload}")
-        
-        # # Проверим, есть ли в строке "after": null
-        # if '"after": null' in json_payload:
-        #     print("✅ after успешно преобразован в null")
-        # else:
-        #     print("❌ after НЕ преобразован в null")
-        
-        response = requests.post(
-            self.GRAPHQL_URL,
-            json=payload,  # или можно использовать data=json_payload с правильными headers
-            headers=self.HEADERS,
-            timeout=timeout
-        )
-        response.raise_for_status()
-        return response.json()
+        """POST к GraphQL API с автоматическим retry при 429."""
+        for attempt in range(self._RETRY_MAX):
+            response = requests.post(
+                self.GRAPHQL_URL,
+                json=payload,
+                headers=self.HEADERS,
+                timeout=timeout,
+            )
+
+            if response.status_code == 429:
+                # Уважаем Retry-After если сервер его прислал
+                retry_after = response.headers.get("Retry-After")
+                wait = float(retry_after) if retry_after else self._RETRY_BASE * (2 ** attempt)
+                logger.warning(f"429 Too Many Requests — ждём {wait:.0f}с (попытка {attempt+1}/{self._RETRY_MAX})")
+                time.sleep(wait)
+                continue
+
+            response.raise_for_status()
+            return response.json()
+
+        # Все попытки исчерпаны
+        raise requests.exceptions.HTTPError(f"429 после {self._RETRY_MAX} попыток")
 
     # ── Спотлайты (блоки главной страницы) ────────────────────────────────
 
