@@ -91,12 +91,14 @@
         }
         .tabs::-webkit-scrollbar{display:none;}
         .tab{
-            padding:7px 18px; background:rgba(255,255,255,.06);
+            padding:12px 18px; min-height:44px; display:inline-flex; align-items:center;
+            background:rgba(255,255,255,.06);
             border:1px solid var(--border); border-radius:40px;
             font-size:13px; font-weight:600; color:var(--muted);
-            white-space:nowrap; cursor:pointer; transition:.15s;
+            white-space:nowrap; cursor:pointer; transition:background .15s, color .15s, transform .15s;
         }
         .tab.active{background:var(--gp); color:#fff; border-color:transparent;}
+        .tab:active{transform:scale(.95);}
 
         /* ── Manga grid ── */
         .manga-grid{
@@ -117,6 +119,7 @@
             display:flex; flex-direction:column;
         }
         .manga-card:hover{transform:translateY(-5px); border-color:rgba(102,126,234,.4);}
+        .manga-card:active{transform:scale(.96); transition:transform .1s;}
         @media(min-width:400px){.manga-card{flex:0 0 145px;}}
         @media(min-width:640px){.manga-card{flex:0 0 160px;}}
         @media(min-width:1024px){.manga-card{flex:0 0 185px;}}
@@ -325,15 +328,16 @@
         /* ── Scroll to top ── */
         .to-top{
             position:fixed; bottom:calc(80px + env(safe-area-inset-bottom,0px)); right:16px;
-            width:40px; height:40px; border-radius:50%;
+            width:44px; height:44px; border-radius:50%;
             background:#333; border:1px solid rgba(255,255,255,.12);
             color:#fff; font-size:18px;
             display:flex; align-items:center; justify-content:center;
             cursor:pointer; z-index:80;
-            opacity:0; visibility:hidden; transition:.2s;
+            opacity:0; visibility:hidden; transition:opacity .2s, visibility .2s, transform .15s;
             box-shadow:0 4px 16px rgba(0,0,0,.5);
         }
         .to-top.on{opacity:1; visibility:visible;}
+        .to-top:active{transform:scale(.9);}
 
         .hidden{display:none !important;}
 
@@ -376,7 +380,7 @@
         .hero-btns{display:flex; gap:10px; flex-wrap:wrap;}
         .hero-btn{
             display:inline-flex; align-items:center; justify-content:center;
-            flex:1; min-width:0;
+            flex:1; min-width:0; min-height:44px;
             padding:11px 24px; border-radius:40px;
             font-size:14px; font-weight:700; text-decoration:none;
             transition:opacity .2s, transform .2s;
@@ -403,6 +407,7 @@
             display:block; position:relative; overflow:hidden;
             margin:0 0 20px;
             aspect-ratio:4/3;
+            background:linear-gradient(135deg, var(--card), var(--card2));
             animation:float 4s ease-in-out infinite;
             -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 75%, transparent 100%);
             mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 75%, transparent 100%);
@@ -508,6 +513,22 @@
         }
         /* контент поверх орбов */
         .wrap, .hero{ position:relative; z-index:1; }
+
+        /* ── Доступность: клавиатурная навигация ── */
+        a:focus-visible, button:focus-visible, .manga-card:focus-visible,
+        .tab:focus-visible, .update-item:focus-visible{
+            outline:2px solid var(--p-light); outline-offset:2px; border-radius:6px;
+        }
+
+        /* ── Уважаем системную настройку "уменьшить движение" ── */
+        @media (prefers-reduced-motion: reduce){
+            .orb1, .orb2, .orb3, .orb4, .hero-img-wrap,
+            .reading-connector-beam, .reading-connector-dot,
+            .sk, [data-live]{
+                animation:none !important;
+            }
+            *{ scroll-behavior:auto !important; }
+        }
     </style>
     <script>if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister()));</script>
 </head>
@@ -544,7 +565,7 @@
         <!-- <img src="https://i.pinimg.com/originals/04/3c/c7/043cc74e58d17f6715746baecddc99d3.jpg"
              alt="Манга" class="hero-img" loading="lazy"> -->
         <img src="/static/mango_eye.jpg"
-            alt="Манга" class="hero-img" loading="lazy">
+            alt="Манга" class="hero-img" loading="eager" fetchpriority="high">
     </div>
 </section>
 
@@ -941,6 +962,25 @@
     const btn=document.getElementById('toTop');
     window.addEventListener('scroll',()=>btn.classList.toggle('on',scrollY>300),{passive:true});
     btn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+    /* ── доступность: клавиатурная навигация по карточкам ── */
+    (function(){
+        function markFocusable(){
+            document.querySelectorAll('.manga-card:not([tabindex]), .update-item:not([tabindex])').forEach(el=>{
+                el.setAttribute('tabindex','0');
+                el.setAttribute('role','button');
+            });
+        }
+        markFocusable();
+        new MutationObserver(markFocusable).observe(document.body,{childList:true,subtree:true});
+        document.addEventListener('keydown',e=>{
+            if(e.key!=='Enter'&&e.key!==' ')return;
+            const el=e.target.closest('.manga-card,.update-item');
+            if(!el)return;
+            e.preventDefault();
+            el.click();
+        });
+    })();
 
     /* ── плавный скролл к якорю ── */
     document.addEventListener('click',e=>{

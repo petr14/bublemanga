@@ -129,6 +129,12 @@
             transform: scale(0.95);
         }
 
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+            pointer-events: none;
+        }
+
         .btn-primary {
             background: var(--primary-gradient);
             border-color: transparent;
@@ -358,6 +364,7 @@
 
         .nav-chapter-btn {
             padding: 12px 20px;
+            min-height: 44px;
             background: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -370,6 +377,7 @@
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             transition: all 0.3s ease;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -411,6 +419,12 @@
         .tooltip.show {
             opacity: 1;
             visibility: visible;
+        }
+
+        /* ==================== ДОСТУПНОСТЬ: КЛАВИАТУРНАЯ НАВИГАЦИЯ ==================== */
+        a:focus-visible, button:focus-visible, .sp-radio:focus-visible {
+            outline: 2px solid #e09535;
+            outline-offset: 2px;
         }
 
         /* ==================== АДАПТИВНОСТЬ ДЛЯ ПЛАНШЕТОВ ==================== */
@@ -674,6 +688,7 @@
         }
         .sp-toggle input:checked + .sp-knob { background: #e09535; }
         .sp-toggle input:checked + .sp-knob::before { transform: translateX(20px); }
+        .sp-toggle input:focus-visible + .sp-knob { outline: 2px solid #e09535; outline-offset: 2px; }
 
         /* Radio group */
         .sp-radios {
