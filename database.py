@@ -998,5 +998,27 @@ def init_pg_schema():
         print("✅ PostgreSQL: таблица chapter_rewards готова")
     except Exception as e:
         logger.warning(f"init_pg_schema chapter_rewards: {e}")
+
+    try:
+        # Уведомления о новых главах в Telegram: храним message_id, чтобы
+        # бот мог отредактировать сообщение и проставить "✅ Прочитано"
+        # когда пользователь реально дочитает главу на сайте.
+        conn.execute('''CREATE TABLE IF NOT EXISTS chapter_notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            chapter_slug TEXT NOT NULL,
+            chat_id BIGINT NOT NULL,
+            message_id BIGINT NOT NULL,
+            has_photo BOOLEAN DEFAULT FALSE,
+            caption TEXT NOT NULL,
+            keyboard_json TEXT,
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW()
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_chapter_notif_lookup ON chapter_notifications(user_id, chapter_slug)')
+        conn.commit()
+        print("✅ PostgreSQL: таблица chapter_notifications готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema chapter_notifications: {e}")
     finally:
         conn.close()

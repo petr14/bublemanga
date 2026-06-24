@@ -2134,7 +2134,7 @@ def notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_ur
                 f'Глава {chapter_number}' if chapter_number else None,
                 chapter_url, ref_id=str(chapter_id), cover_url=cover_url
             )
-            coro = send_telegram_notification(uid, manga_title, notify_data, chapter_url, cover_url)
+            coro = send_telegram_notification(uid, manga_title, notify_data, chapter_url, cover_url, chapter_slug=chapter_slug)
             _loop = _get_bot_loop()
             if _loop and _loop.is_running():
                 asyncio.run_coroutine_threadsafe(coro, _loop)

@@ -1685,6 +1685,17 @@ def api_chapter_complete(chapter_slug):
         if not reward_row:
             return jsonify({'ok': False, 'error': 'already_rewarded'}), 200
 
+        # Первое реальное прочтение — отмечаем уведомление в Telegram как "✅ Прочитано"
+        try:
+            _bot_loop_ref = _bot_module._bot_loop
+            if _bot_loop_ref and _bot_loop_ref.is_running():
+                asyncio.run_coroutine_threadsafe(
+                    _bot_module.mark_chapter_notification_read(user_id, chapter_slug),
+                    _bot_loop_ref
+                )
+        except Exception as e_notif:
+            logger.warning(f"⚠️ mark_chapter_notification_read dispatch: {e_notif}")
+
         # Счётчики
         conn.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
         conn.execute(

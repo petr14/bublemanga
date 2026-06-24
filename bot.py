@@ -47,7 +47,7 @@ _bot_loop = None   # event loop потока Telegram-бота (для run_corou
 
 # ==================== УВЕДОМЛЕНИЯ ====================
 
-async def send_telegram_notification(user_id, manga_title, chapter_info, chapter_url, cover_url=None):
+async def send_telegram_notification(user_id, manga_title, chapter_info, chapter_url, cover_url=None, chapter_slug=None):
     """Отправка мгновенного уведомления через Telegram (только Premium)."""
     global telegram_app
 
@@ -71,26 +71,148 @@ async def send_telegram_notification(user_id, manga_title, chapter_info, chapter
         conn.close()
         if result:
             chat_id = result[0]
+            sent_msg = None
+            has_photo = False
             if cover_url:
                 try:
-                    await telegram_app.bot.send_photo(
+                    sent_msg = await telegram_app.bot.send_photo(
                         chat_id=chat_id,
                         photo=cover_url,
                         caption=caption,
                         parse_mode='HTML',
                         reply_markup=keyboard,
                     )
-                    return
+                    has_photo = True
                 except Exception:
-                    pass  # fallback на текст если фото не загрузилось
-            await telegram_app.bot.send_message(
-                chat_id=chat_id,
-                text=caption,
-                parse_mode='HTML',
-                reply_markup=keyboard,
-            )
+                    sent_msg = None  # fallback на текст если фото не загрузилось
+            if sent_msg is None:
+                sent_msg = await telegram_app.bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    parse_mode='HTML',
+                    reply_markup=keyboard,
+                )
+
+            # Запоминаем сообщение, чтобы потом отметить "✅ Прочитано"
+            if chapter_slug and sent_msg:
+                try:
+                    conn3 = get_db()
+                    conn3.execute(
+                        '''INSERT INTO chapter_notifications
+                           (user_id, chapter_slug, chat_id, message_id, has_photo, caption)
+                           VALUES (?, ?, ?, ?, ?, ?)''',
+                        (user_id, chapter_slug, chat_id, sent_msg.message_id, has_photo, caption)
+                    )
+                    conn3.commit()
+                    conn3.close()
+                except Exception as e_log:
+                    logger.warning(f"⚠️ Не удалось сохранить chapter_notifications: {e_log}")
     except Exception as e:
         logger.error(f"❌ Ошибка отправки уведомления: {e}")
+
+
+async def mark_chapter_notification_read(user_id, chapter_slug):
+    """Отмечает уведомление(я) о главе как прочитанное — редактирует сообщение в Telegram."""
+    global telegram_app
+    if not telegram_app:
+        return
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            '''SELECT id, chat_id, message_id, has_photo, caption FROM chapter_notifications
+               WHERE user_id = ? AND chapter_slug = ? AND is_read = FALSE''',
+            (user_id, chapter_slug)
+        ).fetchall()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"⚠️ mark_chapter_notification_read lookup: {e}")
+        return
+
+    for row in rows:
+        notif_id   = row['id']
+        chat_id    = row['chat_id']
+        message_id = row['message_id']
+        has_photo  = row['has_photo']
+        caption    = row['caption']
+
+        new_caption = caption + "\n\n✅ <b>Прочитано</b>"
+        new_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("↩️ Снять отметку «прочитано»", callback_data=f"unread_notif:{notif_id}")]
+        ])
+        try:
+            if has_photo:
+                await telegram_app.bot.edit_message_caption(
+                    chat_id=chat_id, message_id=message_id,
+                    caption=new_caption, parse_mode='HTML', reply_markup=new_keyboard
+                )
+            else:
+                await telegram_app.bot.edit_message_text(
+                    chat_id=chat_id, message_id=message_id,
+                    text=new_caption, parse_mode='HTML', reply_markup=new_keyboard
+                )
+            conn2 = get_db()
+            conn2.execute('UPDATE chapter_notifications SET is_read = TRUE WHERE id = ?', (notif_id,))
+            conn2.commit()
+            conn2.close()
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось отредактировать уведомление {notif_id}: {e}")
+
+
+async def unread_notification_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Кнопка «Снять отметку «прочитано»» — возвращает сообщение в исходный вид."""
+    query = update.callback_query
+    await query.answer("Отметка снята")
+    try:
+        notif_id = int(query.data.split(':', 1)[1])
+    except (IndexError, ValueError):
+        return
+
+    conn = get_db()
+    row = conn.execute(
+        'SELECT chat_id, message_id, has_photo, caption, chapter_slug FROM chapter_notifications WHERE id = ?',
+        (notif_id,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return
+
+    chat_id      = row['chat_id']
+    message_id   = row['message_id']
+    has_photo    = row['has_photo']
+    caption      = row['caption']
+    chapter_slug = row['chapter_slug']
+
+    conn.execute('UPDATE chapter_notifications SET is_read = FALSE WHERE id = ?', (notif_id,))
+    conn.commit()
+
+    # Восстанавливаем ссылку на главу для кнопки "Читать"
+    chapter_url = None
+    ch_row = conn.execute(
+        '''SELECT c.chapter_slug, m.manga_slug FROM chapters c
+           JOIN manga m ON m.manga_id = c.manga_id WHERE c.chapter_slug = ?''',
+        (chapter_slug,)
+    ).fetchone()
+    conn.close()
+    if ch_row:
+        chapter_url = f"{SITE_URL}/read/{ch_row['manga_slug']}/{ch_row['chapter_slug']}"
+
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📖 Читать", web_app=WebAppInfo(url=chapter_url))
+    ]]) if chapter_url else None
+
+    try:
+        if has_photo:
+            await context.bot.edit_message_caption(
+                chat_id=chat_id, message_id=message_id,
+                caption=caption, parse_mode='HTML', reply_markup=keyboard
+            )
+        else:
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=message_id,
+                text=caption, parse_mode='HTML', reply_markup=keyboard
+            )
+    except Exception as e:
+        logger.warning(f"⚠️ Не удалось вернуть уведомление {notif_id} в исходный вид: {e}")
 
 
 async def send_daily_digest():
@@ -1118,6 +1240,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await catalog_callback(update, context)
     elif data == "noop":
         pass  # кнопка-счётчик страниц
+    elif data.startswith("unread_notif:"):
+        await unread_notification_callback(update, context)
     # ── Прочее ────────────────────────────────────────────
     elif data == "my_subscriptions":
         await my_subscriptions_callback(update, context)
