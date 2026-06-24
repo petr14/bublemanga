@@ -1350,11 +1350,11 @@
                         </div>
                         {% endif %}
                         
-                        {% if manga.chapters_count %}
+                        {% if total_in_db or manga.chapters_count %}
                         <div class="meta-item">
                             <span class="meta-label">Глав</span>
                             <span class="meta-value">
-                                {{ manga.chapters_count }}
+                                {{ total_in_db or manga.chapters_count }}
                             </span>
                         </div>
                         {% endif %}
@@ -1570,7 +1570,7 @@
                     <div class="chapters-controls">
                         <span class="chapters-count">
                             {% if chapters %}
-                            Всего: {{ manga.chapters_count or chapters|length }} глав
+                            Всего: {{ total_in_db or manga.chapters_count or chapters|length }} глав
                             {% else %}
                             Нет глав
                             {% endif %}
@@ -1587,7 +1587,7 @@
                 <div class="chapters-list" id="chapters-list"
                      data-manga-slug="{{ manga.manga_slug }}"
                      data-loaded="{{ chapters|length }}"
-                     data-total="{{ manga.chapters_count or 0 }}"
+                     data-total="{{ total_in_db or manga.chapters_count or 0 }}"
                      data-is-loading="{{ 'true' if is_loading_more else 'false' }}">
                     {% for chapter in chapters %}
                     <a href="/read/{{ manga.manga_slug }}/{{ chapter.chapter_slug }}"

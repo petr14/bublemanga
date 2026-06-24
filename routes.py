@@ -2015,6 +2015,7 @@ def manga_detail(manga_slug):
     return render_template('manga_detail.html',
                            manga=manga_data,
                            chapters=chapters,
+                           total_in_db=total_in_db,
                            first_chapter=first_chapter,
                            last_chapter=last_chapter,
                            subscribed=subscribed,
