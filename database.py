@@ -981,5 +981,22 @@ def init_pg_schema():
         print("✅ PostgreSQL: таблица remanga_chapters готова")
     except Exception as e:
         logger.warning(f"init_pg_schema remanga_chapters: {e}")
+
+    try:
+        # Дедупликация награды за главу: один раз навсегда на (user_id, chapter_slug).
+        # Атомарная проверка через UNIQUE + ON CONFLICT — защищает от гонки состояний
+        # при одновременных запросах (двойной тап, повтор сети, две вкладки) и от
+        # повторного начисления XP за перечитывание уже пройденной главы.
+        conn.execute('''CREATE TABLE IF NOT EXISTS chapter_rewards (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            chapter_slug TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(user_id, chapter_slug)
+        )''')
+        conn.commit()
+        print("✅ PostgreSQL: таблица chapter_rewards готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema chapter_rewards: {e}")
     finally:
         conn.close()

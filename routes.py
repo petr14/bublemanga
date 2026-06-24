@@ -1673,13 +1673,16 @@ def api_chapter_complete(chapter_slug):
 
     conn = get_db()
     try:
-        # Антиспам: не начислять повторно за одну главу в течение 1 часа
-        dup = conn.execute(
-            "SELECT id FROM xp_log WHERE user_id=? AND ref_id=? AND reason='chapter_complete'"
-            " AND created_at > datetime('now', '-1 hour')",
+        # Награда за главу начисляется один раз навсегда: атомарная проверка
+        # через UNIQUE-индекс (user_id, chapter_slug) защищает от гонки состояний
+        # при одновременных запросах (двойной тап, повтор сети, две вкладки).
+        reward_row = conn.execute(
+            "INSERT INTO chapter_rewards (user_id, chapter_slug) VALUES (?, ?)"
+            " ON CONFLICT (user_id, chapter_slug) DO NOTHING RETURNING id",
             (user_id, chapter_slug)
         ).fetchone()
-        if dup:
+        conn.commit()
+        if not reward_row:
             return jsonify({'ok': False, 'error': 'already_rewarded'}), 200
 
         # Счётчики
