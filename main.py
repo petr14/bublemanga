@@ -150,6 +150,7 @@ api = SenkuroAPI()
 
 # Словарь для отслеживания фоновой загрузки глав: manga_slug -> True
 _manga_loading = {}
+_manga_loading_lock = threading.Lock()
 
 # ── In-memory кеш user_stats для /api/user/stats ─────────────────────────
 _stats_cache: dict = {}          # {user_id: {'data': dict, 'expires': float}}
@@ -158,11 +159,22 @@ _stats_cache_lock = threading.Lock()
 # ── Rate limiting ────────────────────────────────────────────────────────────
 _rl_store: dict = {}
 _rl_lock = threading.Lock()
+_rl_call_count = 0
+_RL_CLEANUP_INTERVAL = 500  # sweep stale keys every 500 calls
 
 def _rate_limit_check(key: str, max_calls: int, period: int) -> bool:
     """Возвращает True если запрос разрешён, False если превышен лимит."""
+    global _rl_call_count
     now = time.time()
     with _rl_lock:
+        _rl_call_count += 1
+        if _rl_call_count >= _RL_CLEANUP_INTERVAL:
+            _rl_call_count = 0
+            cutoff = now - 3600  # удаляем ключи, где последний запрос >1ч назад
+            stale = [k for k, v in _rl_store.items() if not v or max(v) < cutoff]
+            for k in stale:
+                del _rl_store[k]
+
         calls = _rl_store.get(key, [])
         calls = [t for t in calls if now - t < period]
         if len(calls) >= max_calls:
@@ -364,55 +376,55 @@ def award_xp(user_id, amount, reason, ref_id=None):
 
     conn = get_db()
     c = conn.cursor()
+    new_achievements = []
+    try:
+        # Антиспам: не начислять XP дважды за один и тот же ref_id
+        if ref_id:
+            c.execute(
+                'SELECT id FROM xp_log WHERE user_id = ? AND ref_id = ? AND reason = ? '
+                "AND created_at > datetime('now', '-1 hour')",
+                (user_id, str(ref_id), reason)
+            )
+            if c.fetchone():
+                return None
 
-    # Антиспам: не начислять XP дважды за один и тот же ref_id
-    if ref_id:
+        # Создаём запись статистики если нет
+        c.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
+
+        # Текущий XP
+        c.execute('SELECT xp, level FROM user_stats WHERE user_id = ?', (user_id,))
+        row = c.fetchone()
+        old_xp = row['xp'] if row else 0
+        old_level = row['level'] if row else 1
+
+        new_xp = old_xp + amount
+        new_level = get_level_from_xp(new_xp)
+
+        # Обновляем статистику
         c.execute(
-            'SELECT id FROM xp_log WHERE user_id = ? AND ref_id = ? AND reason = ? '
-            "AND created_at > datetime('now', '-1 hour')",
-            (user_id, str(ref_id), reason)
+            '''UPDATE user_stats SET xp = ?, coins = coins + ?, level = ? WHERE user_id = ?''',
+            (new_xp, amount, new_level, user_id)
         )
-        if c.fetchone():
-            conn.close()
-            return None
 
-    # Создаём запись статистики если нет
-    c.execute('INSERT OR IGNORE INTO user_stats (user_id) VALUES (?)', (user_id,))
+        # Лог начисления
+        c.execute(
+            'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
+            (user_id, reason, str(ref_id) if ref_id else None, amount)
+        )
 
-    # Текущий XP
-    c.execute('SELECT xp, level FROM user_stats WHERE user_id = ?', (user_id,))
-    row = c.fetchone()
-    old_xp = row['xp'] if row else 0
-    old_level = row['level'] if row else 1
+        conn.commit()
 
-    new_xp = old_xp + amount
-    new_level = get_level_from_xp(new_xp)
+        # Уведомление о новом уровне
+        if new_level > old_level:
+            create_site_notification(user_id, 'level_up', f'Уровень {new_level}!',
+                                     f'Поздравляем с {new_level} уровнем!',
+                                     f'/profile/{user_id}', conn=conn)
 
-    # Обновляем статистику
-    c.execute(
-        '''UPDATE user_stats SET xp = ?, coins = coins + ?, level = ? WHERE user_id = ?''',
-        (new_xp, amount, new_level, user_id)
-    )
-
-    # Лог начисления
-    c.execute(
-        'INSERT INTO xp_log (user_id, reason, ref_id, amount) VALUES (?, ?, ?, ?)',
-        (user_id, reason, str(ref_id) if ref_id else None, amount)
-    )
-
-    conn.commit()
-
-    # Уведомление о новом уровне
-    if new_level > old_level:
-        create_site_notification(user_id, 'level_up', f'Уровень {new_level}!',
-                                 f'Поздравляем с {new_level} уровнем!',
-                                 f'/profile/{user_id}', conn=conn)
-
-    # Проверяем ачивки и квесты
-    new_achievements = check_achievements(user_id, conn)
-    check_quests(user_id, conn)
-
-    conn.close()
+        # Проверяем ачивки и квесты
+        new_achievements = check_achievements(user_id, conn)
+        check_quests(user_id, conn)
+    finally:
+        conn.close()
 
     # Инвалидируем кеш статистики
     with _stats_cache_lock:
@@ -1931,14 +1943,14 @@ def save_manga_and_chapter_to_db(manga_id, manga_slug, manga_title, cover_url, c
         existing = c.fetchone()
         
         if not existing:
-            # Сохраняем главу
-            c.execute('''INSERT INTO chapters 
-                         (manga_id, chapter_id, chapter_slug, chapter_number, 
-                          chapter_volume, chapter_name, created_at) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            chapter_url = f"/read/{manga_slug}/{chapter_info.get('slug')}"
+            c.execute('''INSERT INTO chapters
+                         (manga_id, chapter_id, chapter_slug, chapter_number,
+                          chapter_volume, chapter_name, chapter_url, created_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                       (manga_id, chapter_info.get('id'), chapter_info.get('slug'),
                        chapter_info.get('number'), chapter_info.get('volume'),
-                       chapter_info.get('name'), chapter_info.get('createdAt') or datetime.now()))
+                       chapter_info.get('name'), chapter_url, chapter_info.get('createdAt') or datetime.now()))
         
         conn.commit()
     except Exception as e:
@@ -2142,18 +2154,20 @@ def notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_ur
             # Не премиум: только в очередь дайджеста
             try:
                 conn2 = get_db()
-                conn2.execute(
-                    '''INSERT OR IGNORE INTO notification_queue
-                       (user_id, manga_id, manga_title, manga_slug,
-                        chapter_number, chapter_volume, chapter_name)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                    (uid, manga_id, manga_title, manga_slug,
-                     str(chapter_number) if chapter_number else None,
-                     str(chapter_volume) if chapter_volume else None,
-                     chapter_name)
-                )
-                conn2.commit()
-                conn2.close()
+                try:
+                    conn2.execute(
+                        '''INSERT OR IGNORE INTO notification_queue
+                           (user_id, manga_id, manga_title, manga_slug,
+                            chapter_number, chapter_volume, chapter_name)
+                           VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                        (uid, manga_id, manga_title, manga_slug,
+                         str(chapter_number) if chapter_number else None,
+                         str(chapter_volume) if chapter_volume else None,
+                         chapter_name)
+                    )
+                    conn2.commit()
+                finally:
+                    conn2.close()
             except Exception as e:
                 logger.error(f"❌ Ошибка добавления в дайджест: {e}")
 
@@ -2234,7 +2248,9 @@ def check_new_chapters():
             last_chapters = node.get("lastChapters") or []
             if not last_chapters:
                 continue
-            _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, last_chapters[0])
+            # Process oldest first so tracker increments correctly and all chapters are saved
+            for ch_info in reversed(last_chapters):
+                _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, ch_info)
 
         logger.info(f"✅ Проверка завершена. Обработано {len(edges)} глав")
 
@@ -2291,21 +2307,23 @@ def check_subscribed_mangas():
                 edges   = (ch_data or {}).get('edges') or []
                 if not edges:
                     continue
-                node = (edges[0].get('node') or {}) or edges[0]
-                if not node:
-                    continue
-                chapter_info = {
-                    'id':        node.get('id'),
-                    'slug':      node.get('slug'),
-                    'number':    node.get('number'),
-                    'volume':    node.get('volume'),
-                    'name':      node.get('name'),
-                    'createdAt': node.get('createdAt'),
-                }
-                _process_chapter_if_new(
-                    row['manga_id'], row['manga_title'], row['manga_slug'],
-                    row['cover_url'] or '', chapter_info
-                )
+                # Process oldest first so tracker increments correctly
+                for edge in reversed(edges):
+                    node = (edge.get('node') or {}) or edge
+                    if not node:
+                        continue
+                    chapter_info = {
+                        'id':        node.get('id'),
+                        'slug':      node.get('slug'),
+                        'number':    node.get('number'),
+                        'volume':    node.get('volume'),
+                        'name':      node.get('name'),
+                        'createdAt': node.get('createdAt'),
+                    }
+                    _process_chapter_if_new(
+                        row['manga_id'], row['manga_title'], row['manga_slug'],
+                        row['cover_url'] or '', chapter_info
+                    )
             except Exception as e_row:
                 logger.debug(f"⚠️ Ошибка проверки {row.get('manga_slug', '?')}: {e_row}")
 
@@ -2438,40 +2456,42 @@ def fill_missing_chapters():
                     continue
 
                 conn2 = get_db()
-                known_ids = set(
-                    r[0] for r in conn2.execute(
-                        "SELECT chapter_id FROM chapters WHERE manga_id = ?", (manga_id,)
-                    ).fetchall()
-                )
-
-                to_insert = [ch for ch in api_chapters if ch["chapter_id"] not in known_ids]
-
-                if to_insert:
-                    conn2.executemany(
-                        '''INSERT OR IGNORE INTO chapters
-                           (manga_id, chapter_id, chapter_slug, chapter_number,
-                            chapter_volume, chapter_name, chapter_url, created_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                        [
-                            (manga_id, ch["chapter_id"], ch["chapter_slug"],
-                             ch["chapter_number"], ch["chapter_volume"],
-                             ch["chapter_name"], ch["chapter_url"],
-                             ch["created_at"] or datetime.now())
-                            for ch in to_insert
-                        ]
-                    )
-                    conn2.execute(
-                        "UPDATE manga SET chapters_count = ? WHERE manga_id = ?",
-                        (len(api_chapters), manga_id)
-                    )
-                    conn2.commit()
-                    total_inserted += len(to_insert)
-                    logger.info(
-                        f"🩹 fill_gaps [{manga_slug}]: вставлено {len(to_insert)} глав "
-                        f"(API={len(api_chapters)}, в DB было={len(known_ids)})"
+                try:
+                    known_ids = set(
+                        r[0] for r in conn2.execute(
+                            "SELECT chapter_id FROM chapters WHERE manga_id = ?", (manga_id,)
+                        ).fetchall()
                     )
 
-                conn2.close()
+                    to_insert = [ch for ch in api_chapters if ch["chapter_id"] not in known_ids]
+
+                    if to_insert:
+                        conn2.executemany(
+                            '''INSERT OR IGNORE INTO chapters
+                               (manga_id, chapter_id, chapter_slug, chapter_number,
+                                chapter_volume, chapter_name, chapter_url, created_at)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                            [
+                                (manga_id, ch["chapter_id"], ch["chapter_slug"],
+                                 ch["chapter_number"], ch["chapter_volume"],
+                                 ch["chapter_name"], ch["chapter_url"],
+                                 ch["created_at"] or datetime.now())
+                                for ch in to_insert
+                            ]
+                        )
+                        conn2.execute(
+                            "UPDATE manga SET chapters_count = ? WHERE manga_id = ?",
+                            (len(api_chapters), manga_id)
+                        )
+                        conn2.commit()
+                        total_inserted += len(to_insert)
+                        logger.info(
+                            f"🩹 fill_gaps [{manga_slug}]: вставлено {len(to_insert)} глав "
+                            f"(API={len(api_chapters)}, в DB было={len(known_ids)})"
+                        )
+                finally:
+                    conn2.close()
+
                 time.sleep(5.0)  # пауза между мангами
 
             except Exception as e_row:
@@ -2565,44 +2585,49 @@ def background_checker():
             try:
                 now_iso = datetime.utcnow().isoformat()
                 conn_bg = get_db()
-                c_bg = conn_bg.cursor()
-                c_bg.execute(
-                    'SELECT id FROM users WHERE is_premium=1 AND premium_expires_at IS NOT NULL AND premium_expires_at < ?',
-                    (now_iso,)
-                )
-                expired = c_bg.fetchall()
-                for row in expired:
-                    c_bg.execute('UPDATE users SET is_premium=0, premium_expires_at=NULL WHERE id=?', (row['id'],))
-                    _revoke_premium_loans(c_bg, row['id'])
-                if expired:
-                    conn_bg.commit()
-                    logger.info(f"⏰ Premium истёк у {len(expired)} пользователей")
-                conn_bg.close()
+                try:
+                    c_bg = conn_bg.cursor()
+                    c_bg.execute(
+                        'SELECT id FROM users WHERE is_premium=1 AND premium_expires_at IS NOT NULL AND premium_expires_at < ?',
+                        (now_iso,)
+                    )
+                    expired = c_bg.fetchall()
+                    for row in expired:
+                        c_bg.execute('UPDATE users SET is_premium=0, premium_expires_at=NULL WHERE id=?', (row['id'],))
+                        _revoke_premium_loans(c_bg, row['id'])
+                    if expired:
+                        conn_bg.commit()
+                        logger.info(f"⏰ Premium истёк у {len(expired)} пользователей")
+                finally:
+                    conn_bg.close()
             except Exception as e_prem:
                 logger.error(f"❌ Ошибка проверки Premium: {e_prem}")
 
             # Удаляем истёкшие временные предметы
             try:
                 conn_tmp = get_db()
-                now_iso = datetime.utcnow().isoformat()
-                exp_rows = conn_tmp.execute(
-                    '''SELECT ui.id, ui.user_id, ui.item_id, si.type, si.name
-                       FROM user_items ui JOIN shop_items si ON ui.item_id = si.id
-                       WHERE ui.expires_at IS NOT NULL AND ui.expires_at < ?''',
-                    (now_iso,)
-                ).fetchall()
-                col_map = {'frame': 'frame_item_id', 'badge': 'badge_item_id', 'title': 'title_item_id'}
-                for row in exp_rows:
-                    col = col_map.get(row['type'])
-                    if col:
-                        conn_tmp.execute(
-                            f'UPDATE user_profile SET {col}=NULL WHERE user_id=? AND {col}=?',
-                            (row['user_id'], row['item_id'])
-                        )
-                    conn_tmp.execute('DELETE FROM user_items WHERE id=?', (row['id'],))
-                if exp_rows:
-                    conn_tmp.commit()
-                conn_tmp.close()
+                exp_rows = []
+                try:
+                    now_iso = datetime.utcnow().isoformat()
+                    exp_rows = conn_tmp.execute(
+                        '''SELECT ui.id, ui.user_id, ui.item_id, si.type, si.name
+                           FROM user_items ui JOIN shop_items si ON ui.item_id = si.id
+                           WHERE ui.expires_at IS NOT NULL AND ui.expires_at < ?''',
+                        (now_iso,)
+                    ).fetchall()
+                    col_map = {'frame': 'frame_item_id', 'badge': 'badge_item_id', 'title': 'title_item_id'}
+                    for row in exp_rows:
+                        col = col_map.get(row['type'])
+                        if col:
+                            conn_tmp.execute(
+                                f'UPDATE user_profile SET {col}=NULL WHERE user_id=? AND {col}=?',
+                                (row['user_id'], row['item_id'])
+                            )
+                        conn_tmp.execute('DELETE FROM user_items WHERE id=?', (row['id'],))
+                    if exp_rows:
+                        conn_tmp.commit()
+                finally:
+                    conn_tmp.close()
                 for row in exp_rows:
                     create_site_notification(
                         row['user_id'], 'item_expired',
@@ -2614,11 +2639,13 @@ def background_checker():
             # Удаляем истёкшие токены привязки Telegram
             try:
                 conn_tlt = get_db()
-                conn_tlt.execute(
-                    "DELETE FROM telegram_link_tokens WHERE expires_at < datetime('now')"
-                )
-                conn_tlt.commit()
-                conn_tlt.close()
+                try:
+                    conn_tlt.execute(
+                        "DELETE FROM telegram_link_tokens WHERE expires_at < datetime('now')"
+                    )
+                    conn_tlt.commit()
+                finally:
+                    conn_tlt.close()
             except Exception:
                 pass
         except Exception as e:

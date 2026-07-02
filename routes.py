@@ -43,7 +43,7 @@ from main import (
     is_subscribed, get_manga_chapters_api,
     check_quests, create_site_notification,
     increment_manga_views,
-    _manga_loading,
+    _manga_loading, _manga_loading_lock,
     _stats_cache, _stats_cache_lock,
     _suggest_similar_manga,
     _BOT_UA_KEYWORDS, _is_bot_request,
@@ -1121,159 +1121,141 @@ def subscribe(manga_id):
 
 @bp.route('/read/<manga_slug>/<chapter_slug>')
 def read_chapter(manga_slug, chapter_slug):
-    # Сначала попробуем найти в БД
     conn = get_db()
     c = conn.cursor()
-    c.execute('''SELECT c.*, m.manga_title, m.manga_id, m.manga_slug 
-                 FROM chapters c 
-                 JOIN manga m ON c.manga_id = m.manga_id 
-                 WHERE c.chapter_slug = ?''', (chapter_slug,))
-    chapter = c.fetchone()
-    
-    if not chapter:
-        # Если главы нет в БД, получаем через API
-        pages = get_chapter_pages(chapter_slug)
-        if not pages:
-            conn.close()
-            return "Глава не найдена", 404
-        
-        # Ищем manga_id по slug
-        c.execute('SELECT manga_id, manga_title, manga_slug FROM manga WHERE manga_slug = ?', (manga_slug,))
-        manga_result = c.fetchone()
-        
-        if not manga_result:
-            conn.close()
-            return "Манга не найдена", 404
-        
-        manga_id = manga_result['manga_id']
-        manga_title = manga_result['manga_title']
-        manga_slug_db = manga_result['manga_slug']  # Получаем manga_slug из БД
-        
-        # Получаем URL страниц
-        page_urls = [p.get("image", {}).get("compress", {}).get("url", "") 
-                     for p in pages if p.get("image", {}).get("compress", {}).get("url")]
-        
-        # Создаем временный объект главы
-        chapter_dict = {
-            'chapter_id': f"temp_{chapter_slug}",
-            'chapter_slug': chapter_slug,
-            'chapter_number': '1',
-            'chapter_volume': None,
-            'chapter_name': 'Глава из API',
-            'manga_title': manga_title,
-            'manga_id': manga_id,
-            'manga_slug': manga_slug_db,  # Используем manga_slug из БД
-            'pages_json': json.dumps(page_urls),
-            'pages': page_urls,
-            'chapter_url': f"{SITE_URL}/read/{manga_slug_db}/{chapter_slug}"
-        }
-        
-        # Показываем главу без сохранения в БД
-        subscribed = False
+    try:
+        c.execute('''SELECT c.*, m.manga_title, m.manga_id, m.manga_slug
+                     FROM chapters c
+                     JOIN manga m ON c.manga_id = m.manga_id
+                     WHERE c.chapter_slug = ?''', (chapter_slug,))
+        chapter = c.fetchone()
+
+        if not chapter:
+            # Если главы нет в БД, получаем через API
+            pages = get_chapter_pages(chapter_slug)
+            if not pages:
+                return "Глава не найдена", 404
+
+            c.execute('SELECT manga_id, manga_title, manga_slug FROM manga WHERE manga_slug = ?', (manga_slug,))
+            manga_result = c.fetchone()
+
+            if not manga_result:
+                return "Манга не найдена", 404
+
+            manga_id = manga_result['manga_id']
+            manga_title = manga_result['manga_title']
+            manga_slug_db = manga_result['manga_slug']
+
+            page_urls = [p.get("image", {}).get("compress", {}).get("url", "")
+                         for p in pages if p.get("image", {}).get("compress", {}).get("url")]
+
+            chapter_dict = {
+                'chapter_id': f"temp_{chapter_slug}",
+                'chapter_slug': chapter_slug,
+                'chapter_number': '1',
+                'chapter_volume': None,
+                'chapter_name': 'Глава из API',
+                'manga_title': manga_title,
+                'manga_id': manga_id,
+                'manga_slug': manga_slug_db,
+                'pages_json': json.dumps(page_urls),
+                'pages': page_urls,
+                'chapter_url': f"{SITE_URL}/read/{manga_slug_db}/{chapter_slug}"
+            }
+
+            subscribed = False
+            user_id = session.get('user_id')
+            if user_id:
+                subscribed = is_subscribed(user_id, manga_id)
+
+            return render_template('chapter.html',
+                                  chapter=chapter_dict,
+                                  subscribed=subscribed,
+                                  user_id=user_id,
+                                  prev_chapter=None,
+                                  next_chapter=None)
+
+        chapter_dict = dict(chapter)
+
+        if 'manga_slug' not in chapter_dict:
+            chapter_dict['manga_slug'] = manga_slug
+
+        if chapter_dict.get('pages_json'):
+            try:
+                chapter_dict['pages'] = json.loads(chapter_dict['pages_json'])
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"❌ Ошибка загрузки JSON для главы {chapter_slug}: {e}")
+                chapter_dict['pages'] = []
+        else:
+            chapter_dict['pages'] = []
+
+        # Для user_id=1: проверяем, выбран ли MangaBuff как источник
+        _active_source = 'senkuro'
+        if session.get('user_id') == 1:
+            _active_source = session.get(f'src_{manga_slug}', 'senkuro')
+        if _active_source == 'mangabuff':
+            chapter_dict['pages'] = _get_mangabuff_pages(
+                manga_slug, chapter_dict.get('chapter_number', ''), conn
+            ) or chapter_dict['pages']
+        elif _active_source == 'remanga':
+            chapter_dict['pages'] = _get_remanga_pages(
+                manga_slug, chapter_dict.get('chapter_number', ''), conn
+            ) or chapter_dict['pages']
+        chapter_dict['active_source'] = _active_source
+
+        if not chapter_dict['pages']:
+            print(f"📄 Получение страниц через API для главы {chapter_slug}")
+            pages = get_chapter_pages(chapter_slug)
+
+            if pages:
+                page_urls = [p.get("image", {}).get("compress", {}).get("url", "")
+                            for p in pages if p.get("image", {}).get("compress", {}).get("url")]
+
+                chapter_dict['pages'] = page_urls
+
+                c.execute('UPDATE chapters SET pages_json = ?, pages_count = ? WHERE chapter_slug = ?',
+                          (json.dumps(page_urls), len(page_urls), chapter_slug))
+                conn.commit()
+                print(f"✅ Обновлено {len(page_urls)} страниц для главы {chapter_slug}")
+            else:
+                print(f"⚠️ Не удалось получить страницы для главы {chapter_slug}")
+
+        increment_manga_views(chapter_dict['manga_id'])
+
         user_id = session.get('user_id')
         if user_id:
-            subscribed = is_subscribed(user_id, manga_id)
-        
-        conn.close()
-        return render_template('chapter.html',
-                              chapter=chapter_dict,
-                              subscribed=subscribed,
-                              user_id=user_id,
-                              prev_chapter=None,
-                              next_chapter=None)
-    
-    # Преобразуем результат запроса в словарь
-    chapter_dict = dict(chapter)
-    
-    # Убедимся, что manga_slug присутствует в словаре
-    # (он должен быть в запросе из-за JOIN с таблицей manga)
-    if 'manga_slug' not in chapter_dict:
-        chapter_dict['manga_slug'] = manga_slug
-    
-    # Проверяем, что pages_json не None и содержит данные
-    if chapter_dict.get('pages_json'):
-        try:
-            chapter_dict['pages'] = json.loads(chapter_dict['pages_json'])
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"❌ Ошибка загрузки JSON для главы {chapter_slug}: {e}")
-            chapter_dict['pages'] = []
-    else:
-        chapter_dict['pages'] = []
-
-    # Для user_id=1: проверяем, выбран ли MangaBuff как источник
-    _active_source = 'senkuro'
-    if session.get('user_id') == 1:
-        _active_source = session.get(f'src_{manga_slug}', 'senkuro')
-    if _active_source == 'mangabuff':
-        chapter_dict['pages'] = _get_mangabuff_pages(
-            manga_slug, chapter_dict.get('chapter_number', ''), conn
-        ) or chapter_dict['pages']
-    elif _active_source == 'remanga':
-        chapter_dict['pages'] = _get_remanga_pages(
-            manga_slug, chapter_dict.get('chapter_number', ''), conn
-        ) or chapter_dict['pages']
-    chapter_dict['active_source'] = _active_source
-
-    # Если страниц нет или они пустые, получаем через API
-    if not chapter_dict['pages']:
-        print(f"📄 Получение страниц через API для главы {chapter_slug}")
-        pages = get_chapter_pages(chapter_slug)
-
-        if pages:
-            # Извлекаем URL страниц
-            page_urls = [p.get("image", {}).get("compress", {}).get("url", "")
-                        for p in pages if p.get("image", {}).get("compress", {}).get("url")]
-
-            chapter_dict['pages'] = page_urls
-
-            # Обновляем в БД
-            c.execute('UPDATE chapters SET pages_json = ?, pages_count = ? WHERE chapter_slug = ?',
-                      (json.dumps(page_urls), len(page_urls), chapter_slug))
+            c.execute('''INSERT OR REPLACE INTO reading_history
+                         (user_id, manga_id, chapter_id, last_read)
+                         VALUES (?, ?, ?, ?)''',
+                      (user_id, chapter_dict['manga_id'],
+                       chapter_dict['chapter_id'], datetime.now()))
+            c.execute('''INSERT OR IGNORE INTO chapters_read
+                         (user_id, chapter_id, manga_id)
+                         VALUES (?, ?, ?)''',
+                      (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
             conn.commit()
-            print(f"✅ Обновлено {len(page_urls)} страниц для главы {chapter_slug}")
-        else:
-            print(f"⚠️ Не удалось получить страницы для главы {chapter_slug}")
-    
-    # Обновляем счетчик просмотров
-    increment_manga_views(chapter_dict['manga_id'])
-    
-    # Обновляем историю чтения и начисляем XP
-    user_id = session.get('user_id')
-    if user_id:
-        c.execute('''INSERT OR REPLACE INTO reading_history
-                     (user_id, manga_id, chapter_id, last_read)
-                     VALUES (?, ?, ?, ?)''',
-                  (user_id, chapter_dict['manga_id'],
-                   chapter_dict['chapter_id'], datetime.now()))
-        # Сохраняем каждую прочитанную главу отдельно
-        c.execute('''INSERT OR IGNORE INTO chapters_read
-                     (user_id, chapter_id, manga_id)
-                     VALUES (?, ?, ?)''',
-                  (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
-        conn.commit()
-        # XP / счётчики / стрик — только при реальном прочтении (80%+),
-        # обрабатываются в POST /api/chapter/<slug>/complete
+            # XP / счётчики / стрик — только при реальном прочтении (80%+),
+            # обрабатываются в POST /api/chapter/<slug>/complete
 
-    # Предыдущая и следующая главы
-    manga_id_nav = chapter_dict['manga_id']
-    chapter_num_nav = chapter_dict['chapter_number']
+        manga_id_nav = chapter_dict['manga_id']
+        chapter_num_nav = chapter_dict['chapter_number']
 
-    c.execute('''SELECT chapter_slug, chapter_number FROM chapters
-                 WHERE manga_id = ? AND CAST(chapter_number AS FLOAT) < CAST(? AS FLOAT)
-                 ORDER BY CAST(chapter_number AS FLOAT) DESC LIMIT 1''',
-              (manga_id_nav, chapter_num_nav))
-    prev_ch = c.fetchone()
+        c.execute('''SELECT chapter_slug, chapter_number FROM chapters
+                     WHERE manga_id = ? AND CAST(chapter_number AS FLOAT) < CAST(? AS FLOAT)
+                     ORDER BY CAST(chapter_number AS FLOAT) DESC LIMIT 1''',
+                  (manga_id_nav, chapter_num_nav))
+        prev_ch = c.fetchone()
 
-    c.execute('''SELECT chapter_slug, chapter_number FROM chapters
-                 WHERE manga_id = ? AND CAST(chapter_number AS FLOAT) > CAST(? AS FLOAT)
-                 ORDER BY CAST(chapter_number AS FLOAT) ASC LIMIT 1''',
-              (manga_id_nav, chapter_num_nav))
-    next_ch = c.fetchone()
+        c.execute('''SELECT chapter_slug, chapter_number FROM chapters
+                     WHERE manga_id = ? AND CAST(chapter_number AS FLOAT) > CAST(? AS FLOAT)
+                     ORDER BY CAST(chapter_number AS FLOAT) ASC LIMIT 1''',
+                  (manga_id_nav, chapter_num_nav))
+        next_ch = c.fetchone()
 
-    prev_chapter = dict(prev_ch) if prev_ch else None
-    next_chapter = dict(next_ch) if next_ch else None
-
-    conn.close()
+        prev_chapter = dict(prev_ch) if prev_ch else None
+        next_chapter = dict(next_ch) if next_ch else None
+    finally:
+        conn.close()
 
     # Если пользователь дочитал последнюю доступную главу — предложить похожую мангу
     if user_id and next_chapter is None:
@@ -1948,15 +1930,20 @@ def manga_detail(manga_slug):
 
     # Запускаем фоновую загрузку глав если они неполные (#14)
     expected_chapters = manga_data.get('chapters_count', 0)
-    is_loading_more = manga_slug in _manga_loading
-    if manga_id and not is_loading_more and expected_chapters > 0 and total_in_db < expected_chapters:
-        _manga_loading[manga_slug] = True
-        threading.Thread(
-            target=_bg_load_all_chapters,
-            args=(manga_slug,),
-            daemon=True
-        ).start()
-        is_loading_more = True
+    is_loading_more = False
+    if manga_id and expected_chapters > 0 and total_in_db < expected_chapters:
+        with _manga_loading_lock:
+            if manga_slug not in _manga_loading:
+                _manga_loading[manga_slug] = True
+                is_loading_more = True
+        if is_loading_more:
+            threading.Thread(
+                target=_bg_load_all_chapters,
+                args=(manga_slug,),
+                daemon=True
+            ).start()
+    if not is_loading_more:
+        is_loading_more = manga_slug in _manga_loading
         logger.info(f"🔄 Фоновая загрузка глав: {manga_slug} ({total_in_db}/{expected_chapters})")
 
     # Проверяем подписку
