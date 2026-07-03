@@ -2059,11 +2059,17 @@ def _init_manga_tracker():
     # Синхронизируем трекер с manga-таблицей при каждом старте:
     # INSERT OR REPLACE обновляет существующие строки + добавляет новые.
     # Это гарантирует что после перезапуска трекер не содержит устаревших ID.
-    conn.execute('''INSERT INTO manga_tracker (manga_id, last_chapter_id, last_checked_at)
-                    SELECT manga_id, last_chapter_id, CURRENT_TIMESTAMP FROM manga
+    # last_chapter_number обязательно заполняется — иначе NULL отключает
+    # защиту от повторной рассылки в _process_chapter_if_new (see incident 2026-07-03).
+    conn.execute('''INSERT INTO manga_tracker (manga_id, last_chapter_id, last_chapter_number, last_checked_at)
+                    SELECT manga_id, last_chapter_id,
+                           CASE WHEN last_chapter_number ~ '^-?[0-9]+(\\.[0-9]+)?$'
+                                THEN last_chapter_number::REAL ELSE NULL END,
+                           CURRENT_TIMESTAMP FROM manga
                     WHERE last_chapter_id IS NOT NULL
                     ON CONFLICT(manga_id) DO UPDATE SET
                         last_chapter_id = EXCLUDED.last_chapter_id,
+                        last_chapter_number = COALESCE(manga_tracker.last_chapter_number, EXCLUDED.last_chapter_number),
                         last_checked_at = EXCLUDED.last_checked_at''')
     conn.commit()
     conn.close()
@@ -2204,7 +2210,7 @@ def _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, chapte
 
     # chapter_id изменился — проверяем, не является ли это более старой главой
     # (бывает когда разные источники следят за разными ветками перевода)
-    if last_known_num and new_chapter_num and new_chapter_num <= last_known_num:
+    if last_known_num is not None and new_chapter_num is not None and new_chapter_num <= last_known_num:
         logger.debug(
             f"⏩ Пропуск: {manga_title} гл.{new_chapter_num} ≤ уже отправленной гл.{last_known_num} "
             f"(другая ветка перевода?)"
