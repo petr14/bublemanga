@@ -2218,6 +2218,21 @@ def _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, chapte
         # Не обновляем трекер — он остаётся на более новой главе
         return False
 
+    # Защита от аномальных скачков номера главы (битые данные источника —
+    # например разовый выброс вроде "1647" вместо "165"). Без этой проверки
+    # такой скачок навсегда поднимает потолок трекера и блокирует уведомления
+    # обо всех последующих реальных главах (new_chapter_num <= потолка).
+    if (last_known_num is not None and last_known_num >= 3
+            and new_chapter_num > last_known_num * 5
+            and new_chapter_num - last_known_num > 20):
+        logger.warning(
+            f"⚠️ Подозрительный скачок номера главы: {manga_title} "
+            f"гл.{last_known_num} → гл.{new_chapter_num} (>5x и >20). "
+            f"Похоже на битые данные источника — глава сохранена в БД, "
+            f"но трекер и уведомления пропущены до следующей нормальной главы."
+        )
+        return False
+
     logger.info(f"🆕 Новая глава: {manga_title} — гл. {chapter_info.get('number', '?')}")
     notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_url)
     _set_tracked(manga_id, chapter_id, new_chapter_num)
