@@ -1951,7 +1951,9 @@ def save_manga_and_chapter_to_db(manga_id, manga_slug, manga_title, cover_url, c
                       (manga_id, chapter_info.get('id'), chapter_info.get('slug'),
                        chapter_info.get('number'), chapter_info.get('volume'),
                        chapter_info.get('name'), chapter_url, chapter_info.get('createdAt') or datetime.now()))
-        
+            # Дедупликация: если уже есть глава с таким же номером — оставляем лучшую
+            _dedup_chapters_for_manga(conn, manga_id)
+
         conn.commit()
     except Exception as e:
         logger.error(f"❌ Ошибка сохранения манги/главы в БД: {e}")
@@ -2412,6 +2414,60 @@ def _paginate_all_chapters(branch_id, manga_slug, delay=2.0):
     return chapters
 
 
+def _dedup_chapters_for_manga(conn, manga_id):
+    """
+    Удаляет дублирующиеся главы (одинаковый manga_id + chapter_number, разные chapter_id).
+    Оставляет главу с наибольшим pages_count; при равенстве — более позднюю (created_at DESC).
+    Переносит reading_history на winner перед удалением.
+    Возвращает количество удалённых записей.
+    """
+    dupes_by_num = conn.execute(
+        '''SELECT chapter_number
+           FROM chapters
+           WHERE manga_id = %s
+           GROUP BY chapter_number
+           HAVING COUNT(*) > 1''',
+        (manga_id,)
+    ).fetchall()
+
+    deleted = 0
+    for row in dupes_by_num:
+        chapter_number = row['chapter_number'] if hasattr(row, '__getitem__') else row[0]
+        candidates = conn.execute(
+            '''SELECT chapter_id, chapter_slug, COALESCE(pages_count, 0) as pages_count, created_at
+               FROM chapters
+               WHERE manga_id = %s AND chapter_number = %s
+               ORDER BY COALESCE(pages_count, 0) DESC, created_at DESC NULLS LAST''',
+            (manga_id, chapter_number)
+        ).fetchall()
+
+        if not candidates or len(candidates) < 2:
+            continue
+
+        winner   = candidates[0]
+        losers   = candidates[1:]
+        win_id   = winner['chapter_id'] if hasattr(winner, '__getitem__') else winner[0]
+        win_slug = winner['chapter_slug'] if hasattr(winner, '__getitem__') else winner[1]
+        win_pages = winner['pages_count'] if hasattr(winner, '__getitem__') else winner[2]
+
+        for loser in losers:
+            lose_id   = loser['chapter_id'] if hasattr(loser, '__getitem__') else loser[0]
+            lose_slug = loser['chapter_slug'] if hasattr(loser, '__getitem__') else loser[1]
+            lose_pages = loser['pages_count'] if hasattr(loser, '__getitem__') else loser[2]
+            conn.execute(
+                'UPDATE reading_history SET chapter_id = %s WHERE chapter_id = %s',
+                (win_id, lose_id)
+            )
+            conn.execute('DELETE FROM chapters WHERE chapter_id = %s', (lose_id,))
+            deleted += 1
+            logger.info(
+                f"🗑️ Дубль гл.{chapter_number}: удалён slug={lose_slug}(pages={lose_pages})"
+                f" → оставлен slug={win_slug}(pages={win_pages})"
+            )
+
+    return deleted
+
+
 def fill_missing_chapters():
     """
     Ротационно проходит по всем мангам и досасывает пропущенные главы из API.
@@ -2510,6 +2566,11 @@ def fill_missing_chapters():
                             f"🩹 fill_gaps [{manga_slug}]: вставлено {len(to_insert)} глав "
                             f"(API={len(api_chapters)}, в DB было={len(known_ids)})"
                         )
+
+                    # Дедупликация: удаляем дубли по номеру главы
+                    dup_deleted = _dedup_chapters_for_manga(conn2, manga_id)
+                    if dup_deleted:
+                        conn2.commit()
                 finally:
                     conn2.close()
 
