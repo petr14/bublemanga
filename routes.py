@@ -11,6 +11,7 @@ import hmac
 import hashlib
 import asyncio
 import math
+import time
 import urllib.parse
 import threading
 from datetime import datetime, timedelta, date as _date
@@ -18,7 +19,7 @@ from functools import wraps
 from flask import (
     Blueprint, render_template, render_template_string, request, session, jsonify,
     redirect, url_for, Response, make_response,
-    send_from_directory, send_file
+    send_from_directory, send_file, abort
 )
 from database import get_db, _USE_PG, _to_dt
 from config import (
@@ -26,11 +27,136 @@ from config import (
     TELEGRAM_BOT_TOKEN,
     YOOKASSA_SHOP_ID, YOOKASSA_SECRET,
     CRYPTOCLOUD_API_KEY, CRYPTOCLOUD_SECRET_KEY, CRYPTOCLOUD_SHOP_ID,
+    DONATEPAY_API_KEY, DONATEPAY_USERNAME,
 )
 import logging
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('main', __name__)
+
+# ── CSRF: разрешённые Origin для state-changing запросов ─────────────────────
+_CSRF_ALLOWED_ORIGINS = {
+    'https://bubblemanga.ru',
+    'https://www.bubblemanga.ru',
+}
+
+@bp.before_request
+def _csrf_check():
+    """CSRF защита для state-changing API запросов."""
+    if request.method not in ('POST', 'DELETE', 'PATCH', 'PUT'):
+        return
+    if not request.path.startswith('/api/') and not request.path.startswith('/webhook/'):
+        return
+    # Webhook-эндпоинты проверяются своими механизмами (IP/подпись)
+    if request.path.startswith('/webhook/'):
+        return
+
+    origin = request.headers.get('Origin', '')
+
+    # Telegram WebApp и прямые запросы (без Origin) — проверяем CSRF-токен
+    if not origin or origin in _CSRF_ALLOWED_ORIGINS or \
+       origin.startswith('https://telegram.org') or \
+       origin.startswith('https://web.telegram.org'):
+        # Для браузерных запросов с нашего домена — валидируем X-CSRF-Token
+        client_token = request.headers.get('X-CSRF-Token', '')
+        server_token = session.get('csrf_token', '')
+        if origin and origin in _CSRF_ALLOWED_ORIGINS and server_token:
+            if not client_token or not hmac.compare_digest(client_token, server_token):
+                logger.warning(f'CSRF token mismatch: path={request.path}')
+                return jsonify({'error': 'Forbidden'}), 403
+        return
+
+    # Чужой Origin — блокируем
+    logger.warning(f'CSRF blocked: Origin={origin} path={request.path}')
+    _send_admin_alert(f'CSRF-попытка заблокирована\nOrigin: <code>{origin}</code>\nPath: <code>{request.path}</code>')
+    return jsonify({'error': 'Forbidden'}), 403
+
+
+# ── Live readers: кто читает прямо сейчас (отключено) ────────────────────────
+# _LIVE_WINDOW = 1800  # 30 минут
+#
+# _live_redis = None
+# def _get_live_redis():
+#     global _live_redis
+#     if _live_redis is None:
+#         try:
+#             import redis as _rl
+#             from config import REDIS_URL as _RU
+#             _live_redis = _rl.from_url(_RU, socket_connect_timeout=1, decode_responses=True)
+#             _live_redis.ping()
+#         except Exception:
+#             _live_redis = False
+#     return _live_redis if _live_redis else None
+#
+# _live_readers: dict = {}
+# _live_readers_meta: dict = {}
+# _live_lock = threading.Lock()
+#
+#
+# def _track_live_read(user_id, manga_id, manga_title, manga_slug, cover_url):
+#     now = time.time()
+#     r = _get_live_redis()
+#     if r:
+#         try:
+#             pipe = r.pipeline()
+#             pipe.hset(f'live:r:{manga_id}', str(user_id), now)
+#             pipe.expire(f'live:r:{manga_id}', _LIVE_WINDOW)
+#             pipe.hset(f'live:m:{manga_id}', mapping={'title': manga_title, 'slug': manga_slug, 'cover': cover_url})
+#             pipe.expire(f'live:m:{manga_id}', _LIVE_WINDOW * 2)
+#             pipe.zadd('live:active', {manga_id: now})
+#             pipe.execute()
+#             return
+#         except Exception:
+#             pass
+#     with _live_lock:
+#         if manga_id not in _live_readers:
+#             _live_readers[manga_id] = {}
+#         _live_readers[manga_id][str(user_id)] = now
+#         _live_readers_meta[manga_id] = {'title': manga_title, 'slug': manga_slug, 'cover': cover_url}
+#
+#
+# def _get_live_top(n=5):
+#     now = time.time()
+#     cutoff = now - _LIVE_WINDOW
+#     r = _get_live_redis()
+#     if r:
+#         try:
+#             items = []
+#             active_ids = r.zrangebyscore('live:active', cutoff, '+inf')
+#             for manga_id in active_ids:
+#                 readers = r.hgetall(f'live:r:{manga_id}')
+#                 active = sum(1 for ts in readers.values() if float(ts) >= cutoff)
+#                 if active:
+#                     meta = r.hgetall(f'live:m:{manga_id}')
+#                     items.append({'manga_id': manga_id, 'title': meta.get('title', ''),
+#                                   'slug': meta.get('slug', ''), 'cover': meta.get('cover', ''), 'count': active})
+#             items.sort(key=lambda x: x['count'], reverse=True)
+#             return items[:n]
+#         except Exception:
+#             pass
+#     items = []
+#     with _live_lock:
+#         for manga_id, readers in _live_readers.items():
+#             active = sum(1 for ts in readers.values() if ts >= cutoff)
+#             if active:
+#                 meta = _live_readers_meta.get(manga_id, {})
+#                 items.append({'manga_id': manga_id, 'title': meta.get('title', ''),
+#                               'slug': meta.get('slug', ''), 'cover': meta.get('cover', ''), 'count': active})
+#     items.sort(key=lambda x: x['count'], reverse=True)
+#     return items[:n]
+
+
+_ADULT_TAGS = {'Эротика', 'Этти', 'Яой'}
+
+def _is_adult_manga(manga_data):
+    """True если манга содержит 18+ теги."""
+    try:
+        tags = manga_data.get('tags') or []
+        if isinstance(tags, str):
+            tags = json.loads(tags)
+        return bool(_ADULT_TAGS.intersection(set(tags)))
+    except Exception:
+        return False
 
 # These imports are safe: main.py does `from routes import bp` at the very bottom,
 # so all these names in main are already defined when Python evaluates this.
@@ -41,7 +167,7 @@ from main import (
     get_user_reading, get_user_subscriptions,
     award_xp, get_or_create_user_stats, get_level_from_xp, get_xp_for_level,
     is_subscribed, get_manga_chapters_api,
-    check_quests, create_site_notification,
+    check_quests, create_site_notification, send_tg_to_user, send_tg_to_admins, _tg_send_direct,
     increment_manga_views,
     _manga_loading, _manga_loading_lock,
     _stats_cache, _stats_cache_lock,
@@ -50,7 +176,7 @@ from main import (
     save_search_history,
     cache, socketio,
     # пользователи
-    get_or_create_user_by_telegram, get_user_by_token, get_user_full_profile,
+    get_or_create_user_by_telegram, get_user_by_token, update_user_token, get_user_full_profile,
     register_user_by_email, get_user_by_email, _hash_password, _verify_password,
     link_telegram_to_user,
     # геймификация / квесты / сезоны
@@ -61,8 +187,11 @@ from main import (
     search_manga_api, get_cached_spotlights,
     get_chapter_pages, get_recent_chapters_from_api,
     get_popular_manga_from_api, toggle_subscription,
+    api,
 )
+from shop_utils import _kv_get, _kv_set, _credit_coins, _grant_premium
 import bot as _bot_module
+from bot_bridge import submit_job as _submit_bot_job
 try:
     from remanga_api import RemangaAPI as _RemangaAPI
     _remanga_api = _RemangaAPI()
@@ -216,10 +345,13 @@ def serve_thumb():
     except ValueError:
         return '', 400
 
-    # Только файлы из uploads
+    # Только файлы из uploads — с нормализацией пути против path traversal
     if not src.startswith('/static/uploads/'):
         return '', 400
-    abs_path = os.path.join(os.path.dirname(__file__), src.lstrip('/'))
+    _uploads_root = os.path.realpath(os.path.join(os.path.dirname(__file__), 'static', 'uploads'))
+    abs_path = os.path.realpath(os.path.join(os.path.dirname(__file__), src.lstrip('/')))
+    if not abs_path.startswith(_uploads_root + os.sep):
+        return '', 400
     if not os.path.isfile(abs_path):
         return '', 404
 
@@ -270,7 +402,10 @@ def serve_thumb():
         return resp
     except Exception as e:
         logger.error(f'Thumb error {src}: {e}')
-        return send_file(abs_path)
+        # Отдаём оригинал только если он уже прошёл проверку границ выше
+        if os.path.realpath(abs_path).startswith(_uploads_root + os.sep) and os.path.isfile(abs_path):
+            return send_file(abs_path)
+        return '', 404
 
 
 @bp.route('/anim')
@@ -288,7 +423,10 @@ def serve_anim():
 
     if not src.startswith('/static/uploads/'):
         return '', 400
-    abs_path = os.path.join(os.path.dirname(__file__), src.lstrip('/'))
+    _uploads_root_a = os.path.realpath(os.path.join(os.path.dirname(__file__), 'static', 'uploads'))
+    abs_path = os.path.realpath(os.path.join(os.path.dirname(__file__), src.lstrip('/')))
+    if not abs_path.startswith(_uploads_root_a + os.sep):
+        return '', 400
     if not os.path.isfile(abs_path):
         return '', 404
 
@@ -347,10 +485,823 @@ def serve_anim():
             try: os.unlink(tmp_gif)
             except OSError: pass
 
-    return send_file(abs_path)
+    # Fallback: отдаём оригинал только если он внутри uploads
+    if os.path.isfile(abs_path):
+        return send_file(abs_path)
+    return '', 404
 
 
 # ==================== FLASK ROUTES ====================
+
+@bp.route('/health')
+def health():
+    try:
+        conn = get_db()
+        conn.execute('SELECT 1')
+        conn.close()
+        db_ok = True
+    except Exception:
+        db_ok = False
+    status = 200 if db_ok else 503
+    return jsonify({'ok': db_ok, 'db': db_ok}), status
+
+
+# @bp.route('/api/live/readers')
+# def api_live_readers():
+#     return jsonify({'readers': _get_live_top(5)})
+
+
+@bp.route('/api/user/me')
+def api_user_me():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({}), 401
+    conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT u.telegram_first_name, up.custom_name, up.avatar_url '
+            'FROM users u LEFT JOIN user_profile up ON u.id = up.user_id '
+            'WHERE u.id = ?', (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({}), 404
+    return jsonify({
+        'first_name':   row.get('telegram_first_name') or '',
+        'custom_name':  row.get('custom_name') or '',
+        'avatar_url':   row.get('avatar_url') or '',
+    })
+
+
+@bp.route('/api/sync/create', methods=['POST'])
+def api_sync_create():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    import main as _m, secrets as _sec
+    code = _sec.token_hex(3).upper()
+    _m._sync_save(code, {'readers': {}, 'created_at': time.time()})
+    return jsonify({'code': code})
+
+
+@bp.route('/api/sync/<code>')
+def api_sync_check(code):
+    import main as _m
+    code = code.upper().strip()
+    sess = _m._sync_get(code)
+    if not sess:
+        return jsonify({'exists': False}), 404
+    return jsonify({'exists': True, 'readers_count': len(sess.get('readers', {}))})
+
+
+# ── Reading Together (async co-reading) ──────────────────────────────────────
+
+_MILESTONES = [25, 50, 75, 100]
+_MILESTONE_LABELS = {25: '¼ пути', 50: 'Половина', 75: 'Почти конец', 100: 'Финал!'}
+_MILESTONE_EMOJIS = {25: '⭐', 50: '🌟', 75: '💫', 100: '🏆'}
+
+
+def _rt_get_session(conn, manga_slug, user_id):
+    """Return (session_row, partner_id) for user+manga, or (None, None)."""
+    row = conn.execute(
+        '''SELECT * FROM reading_together
+           WHERE manga_slug = %s AND (user1_id = %s OR user2_id = %s)''',
+        (manga_slug, user_id, user_id)
+    ).fetchone()
+    if not row:
+        return None, None
+    partner_id = row['user2_id'] if row['user1_id'] == user_id else row['user1_id']
+    return row, partner_id
+
+
+def _rt_chapter_index(conn, manga_slug, chapter_number):
+    """How many chapters in this manga have number <= chapter_number."""
+    try:
+        num = float(chapter_number)
+    except (TypeError, ValueError):
+        num = 0
+    row = conn.execute(
+        "SELECT COUNT(*) as c FROM chapters WHERE manga_id IN "
+        "(SELECT manga_id FROM manga WHERE manga_slug = %s) "
+        "AND CAST(NULLIF(chapter_number,'') AS FLOAT) <= %s",
+        (manga_slug, num)
+    ).fetchone()
+    return int(row['c']) if row else 0
+
+
+def _rt_total_chapters(conn, manga_slug):
+    row = conn.execute(
+        "SELECT COUNT(*) as c FROM chapters WHERE manga_id IN "
+        "(SELECT manga_id FROM manga WHERE manga_slug = %s)",
+        (manga_slug,)
+    ).fetchone()
+    return max(int(row['c']), 1) if row else 1
+
+
+def _rt_notify_partner(conn, session_id, partner_id, title, body, url):
+    conn.execute(
+        'INSERT INTO site_notifications (user_id, type, title, body, url) VALUES (%s,%s,%s,%s,%s)',
+        (partner_id, 'together', title, body, url)
+    )
+
+
+def _rt_check_achievements(user_id):
+    import main as _m
+    try:
+        return _m.check_achievements(user_id)
+    except Exception:
+        return []
+
+
+@bp.route('/api/together/create', methods=['POST'])
+def api_together_create():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    manga_slug = (request.json or {}).get('manga_slug', '').strip()
+    if not manga_slug:
+        return jsonify({'error': 'no_manga'}), 400
+    conn = get_db()
+    try:
+        # Only one session per manga per user
+        existing = conn.execute(
+            'SELECT id, code FROM reading_together WHERE manga_slug = %s AND (user1_id = %s OR user2_id = %s)',
+            (manga_slug, user_id, user_id)
+        ).fetchone()
+        if existing:
+            return jsonify({'code': existing['code'], 'session_id': existing['id'], 'existed': True})
+        import secrets as _sec
+        code = _sec.token_hex(3).upper()
+        cur = conn.execute(
+            'INSERT INTO reading_together (code, manga_slug, user1_id) VALUES (%s,%s,%s) RETURNING id',
+            (code, manga_slug, user_id)
+        )
+        session_id = cur.fetchone()[0]
+        conn.commit()
+        new_ach = _rt_check_achievements(user_id)
+        return jsonify({'code': code, 'session_id': session_id,
+                        'new_achievements': [a['name'] for a in new_ach]})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/join', methods=['POST'])
+def api_together_join():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    code = ((request.json or {}).get('code') or '').upper().strip()
+    if not code:
+        return jsonify({'error': 'no_code'}), 400
+    conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT * FROM reading_together WHERE code = %s', (code,)
+        ).fetchone()
+        if not row:
+            return jsonify({'error': 'not_found'}), 404
+        if row['user1_id'] == user_id or row['user2_id'] == user_id:
+            return jsonify({'code': code, 'session_id': row['id'], 'manga_slug': row['manga_slug'], 'already': True})
+        if row['user2_id'] is not None:
+            return jsonify({'error': 'full'}), 409
+        conn.execute(
+            'UPDATE reading_together SET user2_id = %s, last_active = NOW() WHERE id = %s',
+            (user_id, row['id'])
+        )
+        # Notify creator
+        partner_info = conn.execute(
+            'SELECT telegram_first_name, custom_name FROM users u '
+            'LEFT JOIN user_profile p ON p.user_id = u.id WHERE u.id = %s', (user_id,)
+        ).fetchone()
+        joiner_name = (partner_info and (partner_info.get('custom_name') or partner_info.get('telegram_first_name'))) or 'Друг'
+        _rt_notify_partner(conn, row['id'], row['user1_id'],
+            f'{joiner_name} присоединился к совместному чтению!',
+            f'Начинаете читать вместе 📚',
+            f'/manga/{row["manga_slug"]}')
+        conn.commit()
+        return jsonify({'code': code, 'session_id': row['id'], 'manga_slug': row['manga_slug']})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/<manga_slug>/status')
+def api_together_status(manga_slug):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'session': None})
+    conn = get_db()
+    try:
+        sess, partner_id = _rt_get_session(conn, manga_slug, user_id)
+        if not sess:
+            return jsonify({'session': None})
+        total = _rt_total_chapters(conn, manga_slug)
+
+        def get_progress(uid):
+            row = conn.execute(
+                'SELECT * FROM reading_together_progress WHERE session_id = %s AND user_id = %s',
+                (sess['id'], uid)
+            ).fetchone()
+            if not row:
+                return {'chapter_slug': '', 'chapter_number': 0, 'page_num': 1,
+                        'chapter_index': 0, 'total_chapters': total, 'pct': 0}
+            pct = round(row['chapter_index'] / max(row['total_chapters'], 1) * 100)
+            return {**dict(row), 'pct': pct}
+
+        def get_user_info(uid):
+            r = conn.execute(
+                'SELECT u.telegram_first_name, p.custom_name, p.avatar_url '
+                'FROM users u LEFT JOIN user_profile p ON p.user_id = u.id WHERE u.id = %s', (uid,)
+            ).fetchone()
+            if not r:
+                return {'name': 'Читатель', 'avatar': ''}
+            return {'name': r.get('custom_name') or r.get('telegram_first_name') or 'Читатель',
+                    'avatar': r.get('avatar_url') or ''}
+
+        my_milestones = [dict(r) for r in conn.execute(
+            'SELECT milestone_pct FROM reading_together_milestones WHERE session_id = %s AND user_id = %s',
+            (sess['id'], user_id)
+        ).fetchall()]
+
+        partner_milestones = []
+        if partner_id:
+            partner_milestones = [dict(r) for r in conn.execute(
+                'SELECT milestone_pct FROM reading_together_milestones WHERE session_id = %s AND user_id = %s',
+                (sess['id'], partner_id)
+            ).fetchall()]
+
+        return jsonify({
+            'session': {
+                'id': sess['id'],
+                'code': sess['code'],
+                'has_partner': partner_id is not None,
+            },
+            'me': {**get_user_info(user_id), **get_progress(user_id)},
+            'partner': ({**get_user_info(partner_id), **get_progress(partner_id)} if partner_id else None),
+            'my_milestones': [r['milestone_pct'] for r in my_milestones],
+            'partner_milestones': [r['milestone_pct'] for r in partner_milestones],
+            'total_chapters': total,
+        })
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/<manga_slug>/progress', methods=['POST'])
+def api_together_progress(manga_slug):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    data = request.json or {}
+    chapter_slug = data.get('chapter_slug', '')
+    chapter_number = data.get('chapter_number', 0)
+    page_num = int(data.get('page_num', 1))
+    conn = get_db()
+    try:
+        sess, partner_id = _rt_get_session(conn, manga_slug, user_id)
+        if not sess:
+            return jsonify({'error': 'no_session'}), 404
+        total = _rt_total_chapters(conn, manga_slug)
+        idx = _rt_chapter_index(conn, manga_slug, chapter_number)
+        pct = round(idx / total * 100)
+        conn.execute(
+            '''INSERT INTO reading_together_progress
+               (session_id, user_id, chapter_slug, chapter_number, page_num, chapter_index, total_chapters, updated_at)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())
+               ON CONFLICT (session_id, user_id) DO UPDATE
+               SET chapter_slug=%s, chapter_number=%s, page_num=%s,
+                   chapter_index=%s, total_chapters=%s, updated_at=NOW()''',
+            (sess['id'], user_id, chapter_slug, chapter_number, page_num, idx, total,
+             chapter_slug, chapter_number, page_num, idx, total)
+        )
+        conn.execute('UPDATE reading_together SET last_active=NOW() WHERE id=%s', (sess['id'],))
+        # Check manga status for 100% milestone guard
+        manga_row = conn.execute(
+            'SELECT manga_status FROM manga WHERE manga_slug=%s', (manga_slug,)
+        ).fetchone()
+        is_ongoing = manga_row and (manga_row.get('manga_status') or '').upper() == 'ONGOING'
+        # Check milestones — use ON CONFLICT DO NOTHING RETURNING id to avoid duplicates
+        new_milestones = []
+        me_info = None
+        for m in _MILESTONES:
+            if pct >= m:
+                if m == 100 and is_ongoing:
+                    continue  # Never send 100% milestone for ongoing manga
+                cur = conn.execute(
+                    'INSERT INTO reading_together_milestones (session_id, user_id, milestone_pct) '
+                    'VALUES (%s,%s,%s) ON CONFLICT (session_id, user_id, milestone_pct) DO NOTHING RETURNING id',
+                    (sess['id'], user_id, m)
+                )
+                if cur.fetchone():  # Row actually inserted — first time hitting this milestone
+                    new_milestones.append(m)
+                    if partner_id:
+                        if me_info is None:
+                            me_info = conn.execute(
+                                'SELECT u.telegram_first_name, p.custom_name FROM users u '
+                                'LEFT JOIN user_profile p ON p.user_id=u.id WHERE u.id=%s', (user_id,)
+                            ).fetchone()
+                        my_name = (me_info and (me_info.get('custom_name') or me_info.get('telegram_first_name'))) or 'Друг'
+                        _rt_notify_partner(conn, sess['id'], partner_id,
+                            f'{_MILESTONE_EMOJIS[m]} {my_name} достиг {m}% манги!',
+                            f'{_MILESTONE_LABELS[m]} — {m}% прочитано',
+                            f'/read/{manga_slug}/{chapter_slug}')
+        conn.commit()
+        return jsonify({'pct': pct, 'new_milestones': new_milestones})
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/<manga_slug>/<chapter_slug>/pins')
+def api_together_pins(manga_slug, chapter_slug):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'pins': []})
+    conn = get_db()
+    try:
+        sess, _ = _rt_get_session(conn, manga_slug, user_id)
+        if not sess:
+            return jsonify({'pins': []})
+        rows = conn.execute(
+            'SELECT p.*, (p.author_id = %s) as is_mine FROM reading_together_pins p '
+            'WHERE p.session_id = %s AND p.chapter_slug = %s ORDER BY p.created_at',
+            (user_id, sess['id'], chapter_slug)
+        ).fetchall()
+        return jsonify({'pins': [dict(r) for r in rows]})
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/<manga_slug>/<chapter_slug>/pin', methods=['POST'])
+def api_together_add_pin(manga_slug, chapter_slug):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    data = request.json or {}
+    pin_type = data.get('pin_type', 'note')
+    content = (data.get('content') or '').strip()
+    if not content:
+        return jsonify({'error': 'empty'}), 400
+    try:
+        x_pct = float(data.get('x_pct', 50))
+        y_pct = float(data.get('y_pct', 50))
+        page_num = int(data.get('page_num', 1))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'bad_position'}), 400
+    conn = get_db()
+    try:
+        sess, partner_id = _rt_get_session(conn, manga_slug, user_id)
+        if not sess:
+            return jsonify({'error': 'no_session'}), 404
+        cur = conn.execute(
+            'INSERT INTO reading_together_pins '
+            '(session_id, author_id, chapter_slug, page_num, x_pct, y_pct, pin_type, content) '
+            'VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id',
+            (sess['id'], user_id, chapter_slug, page_num, x_pct, y_pct, pin_type, content)
+        )
+        pin_id = cur.fetchone()[0]
+        if partner_id:
+            icon = '📝' if pin_type == 'note' else '💬'
+            me = conn.execute(
+                'SELECT u.telegram_first_name, p.custom_name FROM users u '
+                'LEFT JOIN user_profile p ON p.user_id=u.id WHERE u.id=%s', (user_id,)
+            ).fetchone()
+            my_name = (me and (me.get('custom_name') or me.get('telegram_first_name'))) or 'Друг'
+            _rt_notify_partner(conn, sess['id'], partner_id,
+                f'{icon} {my_name} оставил{"" if pin_type == "note" else "а"} заметку',
+                content[:80],
+                f'/read/{manga_slug}/{chapter_slug}')
+        conn.commit()
+        new_ach = _rt_check_achievements(user_id)
+        return jsonify({'id': pin_id, 'new_achievements': [a['name'] for a in new_ach]})
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/pin/<int:pin_id>', methods=['DELETE'])
+def api_together_delete_pin(pin_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    try:
+        r = conn.execute(
+            'DELETE FROM reading_together_pins WHERE id = %s AND author_id = %s RETURNING id',
+            (pin_id, user_id)
+        ).fetchone()
+        conn.commit()
+        return jsonify({'ok': bool(r)})
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/<manga_slug>/leave', methods=['POST'])
+def api_together_leave(manga_slug):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT id, user1_id, user2_id FROM reading_together '
+            'WHERE manga_slug=%s AND (user1_id=%s OR user2_id=%s)',
+            (manga_slug, user_id, user_id)
+        ).fetchone()
+        if not row:
+            return jsonify({'ok': False})
+        sess_id = row['id']
+        if row['user1_id'] == user_id:
+            # Creator leaves: promote user2 to user1, or delete session
+            if row['user2_id']:
+                conn.execute(
+                    'UPDATE reading_together SET user1_id=user2_id, user2_id=NULL WHERE id=%s', (sess_id,))
+            else:
+                conn.execute('DELETE FROM reading_together WHERE id=%s', (sess_id,))
+        else:
+            conn.execute('UPDATE reading_together SET user2_id=NULL WHERE id=%s', (sess_id,))
+        conn.commit()
+        return jsonify({'ok': True})
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/search-users')
+def api_together_search_users():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'users': []})
+    q = (request.args.get('q') or '').strip()
+    if len(q) < 2:
+        return jsonify({'users': []})
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            '''SELECT u.id, u.telegram_username, u.telegram_first_name,
+                      p.custom_name, p.avatar_url
+               FROM users u LEFT JOIN user_profile p ON p.user_id = u.id
+               WHERE u.id != %s
+                 AND (LOWER(COALESCE(u.telegram_username,'')) LIKE LOWER(%s)
+                   OR LOWER(COALESCE(u.telegram_first_name,'')) LIKE LOWER(%s)
+                   OR LOWER(COALESCE(p.custom_name,'')) LIKE LOWER(%s))
+               LIMIT 8''',
+            (user_id, f'%{q}%', f'%{q}%', f'%{q}%')
+        ).fetchall()
+        result = []
+        for r in rows:
+            result.append({
+                'id': r['id'],
+                'name': r.get('custom_name') or r.get('telegram_first_name') or 'Читатель',
+                'username': r.get('telegram_username') or '',
+                'avatar': r.get('avatar_url') or '',
+            })
+        return jsonify({'users': result})
+    finally:
+        conn.close()
+
+
+@bp.route('/api/together/invite', methods=['POST'])
+def api_together_invite():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    data = request.json or {}
+    target_id = data.get('target_user_id')
+    manga_slug = (data.get('manga_slug') or '').strip()
+    code = (data.get('code') or '').strip().upper()
+    if not target_id or not manga_slug or not code:
+        return jsonify({'error': 'missing_fields'}), 400
+    conn = get_db()
+    try:
+        me = conn.execute(
+            'SELECT u.telegram_first_name, p.custom_name FROM users u '
+            'LEFT JOIN user_profile p ON p.user_id=u.id WHERE u.id=%s', (user_id,)
+        ).fetchone()
+        my_name = (me and (me.get('custom_name') or me.get('telegram_first_name'))) or 'Читатель'
+        manga = conn.execute('SELECT manga_title FROM manga WHERE manga_slug=%s', (manga_slug,)).fetchone()
+        manga_title = manga['manga_title'] if manga else manga_slug
+        conn.execute(
+            'INSERT INTO site_notifications (user_id, type, title, body, url) VALUES (%s,%s,%s,%s,%s)',
+            (target_id, 'together_invite',
+             f'📚 {my_name} зовёт читать вместе',
+             f'«{manga_title}» — код {code}',
+             f'/manga/{manga_slug}')
+        )
+        conn.commit()
+        return jsonify({'ok': True})
+    finally:
+        conn.close()
+
+
+# ── Mood-based recommendations ───────────────────────────────────────────────
+
+_MOOD_CONFIG = {
+    'cry': {
+        'tags': ['Драма', 'Трагедия'],
+        'exclude': [],
+        'result_phrases': [
+            'Вот пять манг, после которых ты точно порыдаешь. Я предупредила.',
+            'Приготовь салфетки. Это будет больно — в хорошем смысле.',
+            'Есть моменты, когда поплакать — это терапия. Вот твоя доза.',
+            'Читай на свой страх и риск. Я сама тут всё перечитала уже раз пять.',
+            'Душа просит драмы — я слышу. Держи, и не говори потом, что не предупреждала.',
+        ],
+    },
+    'cozy': {
+        'tags': ['Повседневность', 'Иясикэй'],
+        'exclude': [],
+        'result_phrases': [
+            'Уютно, тепло, никаких нервов. Именно то, что нужно вечером.',
+            'Кружка чая, плед и эти манги — идеальное комбо.',
+            'Тихие истории о простых радостях. Иногда это лучше любого экшена.',
+            'Без сражений, без напряжения. Просто хорошо и спокойно.',
+            'Вот подборка, которую можно листать бесконечно без стресса.',
+        ],
+    },
+    'action': {
+        'tags': ['Экшен', 'Боевые искусства'],
+        'exclude': [],
+        'result_phrases': [
+            'Держись крепче — сейчас будет громко и красиво!',
+            'Экшен без тормозов. Листаешь и не можешь остановиться.',
+            'Адреналин гарантирован. Я проверила лично.',
+            'Кулаки, магия, эпичные битвы. Погнали!',
+            'Предупреждаю: после этого руки сами сжимаются в кулаки.',
+        ],
+    },
+    'romance': {
+        'tags': ['Романтика'],
+        'exclude': ['Этти', 'Эротика', 'Женский гарем', 'Мужской гарем', 'Харем'],
+        'result_phrases': [
+            'Романтика без лишнего — чистая, тёплая, настоящая.',
+            'Эти манги заставят сердечко биться чуть быстрее. Обещаю.',
+            'Флафф и немного кринжа в хорошем смысле. Готова?',
+            'Милые истории о любви, от которых просто теплеет на душе.',
+            'Без гарема, без кринжа — только хорошая история про чувства.',
+        ],
+    },
+    'mind': {
+        'tags': ['Психологическое', 'Триллер', 'Детектив'],
+        'exclude': [],
+        'result_phrases': [
+            'Предупреждаю: после этого будешь смотреть на мир иначе.',
+            'Твой мозг скажет «стоп», но ты не остановишься. Проверено.',
+            'Для тех, кто любит думать и страдать одновременно.',
+            'Минус несколько нейронов, плюс несколько часов без сна. Удачи!',
+            'Это не просто манга — это опыт. Готовься.',
+        ],
+    },
+    'tea': {
+        'tags': ['Иясикэй', 'Гурман', 'Повседневность'],
+        'exclude': [],
+        'result_phrases': [
+            'Тихие манги под чай. Можно читать бесконечно.',
+            'Никакого стресса — только уют, вкусная еда и простые радости.',
+            'Идеально для ленивых вечеров. Завари чай и открывай.',
+            'Как тёплый плед, только в формате манги. Мику одобряет ☕',
+            'Поставь чайник, пока читаешь это — успеет завариться.',
+        ],
+    },
+}
+
+import random as _random
+
+
+@bp.route('/api/mood/<mood_id>')
+def api_mood(mood_id):
+    cfg = _MOOD_CONFIG.get(mood_id)
+    if not cfg:
+        return jsonify({'error': 'unknown mood'}), 404
+
+    sub_tag = request.args.get('sub', '').strip()[:60]
+
+    conn = get_db()
+    try:
+        c = conn.cursor()
+
+        def _fetch(extra_tag=None):
+            wp = ['1=1', 'tags NOT LIKE \'%"Яой"%\'']
+            ps = []
+            for tag in cfg['tags']:
+                s = tag.replace('"', '').replace('%', '').replace('_', '\\_')
+                wp.append('tags LIKE ?')
+                ps.append(f'%"{s}"%')
+            for tag in cfg['exclude']:
+                s = tag.replace('"', '').replace('%', '').replace('_', '\\_')
+                wp.append('tags NOT LIKE ?')
+                ps.append(f'%"{s}"%')
+            if extra_tag:
+                s = extra_tag.replace('"', '').replace('%', '').replace('_', '\\_')
+                wp.append('tags LIKE ?')
+                ps.append(f'%"{s}"%')
+            c.execute(
+                'SELECT manga_title, manga_slug, cover_url FROM manga WHERE '
+                + ' AND '.join(wp)
+                + ' ORDER BY COALESCE(score, 0) DESC LIMIT 30',
+                ps,
+            )
+            return c.fetchall()
+
+        rows = _fetch(sub_tag) if sub_tag else []
+        if len(rows) < 3:
+            rows = _fetch()
+    finally:
+        conn.close()
+
+    sample = _random.sample(list(rows), min(5, len(rows)))
+    manga = [{'title': r['manga_title'], 'slug': r['manga_slug'], 'cover': r['cover_url']}
+             for r in sample]
+    phrase = _random.choice(cfg['result_phrases'])
+    return jsonify({'manga': manga, 'phrase': phrase})
+
+
+# ── Weekly Wrapped ────────────────────────────────────────────────────────────
+
+_WRAPPED_GENRE_MAP = {
+    'romance':       ['Романтика', 'Харем', 'Гарем', 'Сёдзё'],
+    'action':        ['Экшен', 'Боевик', 'Боевые искусства', 'Сёнэн'],
+    'fantasy':       ['Фэнтези', 'Исекай', 'Магия', 'Приключения'],
+    'drama':         ['Драма', 'Трагедия'],
+    'psychological': ['Психология', 'Триллер', 'Детектив', 'Мистика', 'Ужасы'],
+    'comedy':        ['Комедия', 'Пародия'],
+    'slice':         ['Повседневность', 'Школа', 'Спорт'],
+}
+
+_VIBE_MAP = {
+    ('romance', True):       ('«Ночной романтик»',     '#ec4899', '#8b5cf6', '💜'),
+    ('romance', False):      ('«Весенний романтик»',   '#f472b6', '#a855f7', '🌸'),
+    ('action', True):        ('«Ночной берсерк»',      '#ef4444', '#f97316', '🔥'),
+    ('action', False):       ('«Боевой маньяк»',       '#f97316', '#eab308', '💥'),
+    ('fantasy', True):       ('«Ночной странник»',     '#3b82f6', '#8b5cf6', '🌙'),
+    ('fantasy', False):      ('«Искатель миров»',      '#6366f1', '#06b6d4', '✨'),
+    ('drama', True):         ('«Ночной плакальщик»',   '#6366f1', '#3b82f6', '😭'),
+    ('drama', False):        ('«Знаток драмы»',        '#7c3aed', '#4f46e5', '🎭'),
+    ('psychological', True): ('«Ночной детектив»',     '#7c3aed', '#1d4ed8', '🔍'),
+    ('psychological', False):('«Знаток психологии»',   '#4f46e5', '#7c3aed', '🧠'),
+    ('comedy', True):        ('«Ночной шутник»',       '#f59e0b', '#f97316', '😂'),
+    ('comedy', False):       ('«Мастер комедии»',      '#fbbf24', '#f59e0b', '😄'),
+    ('slice', True):         ('«Ночной мечтатель»',    '#10b981', '#3b82f6', '🌙'),
+    ('slice', False):        ('«Ценитель жизни»',      '#10b981', '#059669', '🌿'),
+    (None, True):            ('«Ночная сова»',         '#4f46e5', '#7c3aed', '🦉'),
+    (None, False):           ('«Всеядный»',            '#e09535', '#c07828', '📚'),
+}
+
+
+def _get_weekly_wrapped(user_id):
+    conn = get_db()
+    try:
+        c = conn.cursor()
+        c.execute('''
+            SELECT cr.manga_id, cr.read_at,
+                   m.tags, m.manga_title, m.manga_slug, m.cover_url,
+                   COALESCE(ch.pages_count, 20) AS pages_count
+            FROM chapters_read cr
+            JOIN manga m ON cr.manga_id = m.manga_id
+            LEFT JOIN chapters ch ON cr.chapter_id = ch.chapter_id
+            WHERE cr.user_id = ?
+              AND cr.read_at >= NOW() - INTERVAL '7 days'
+            ORDER BY cr.read_at
+        ''', (user_id,))
+        rows = c.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return None
+
+    total_chapters = len(rows)
+    total_pages = sum(r['pages_count'] for r in rows)
+
+    genre_counts = {g: 0 for g in _WRAPPED_GENRE_MAP}
+    manga_reads: dict = {}
+    night_reads = 0
+
+    for row in rows:
+        try:
+            tags = json.loads(row['tags'] or '[]')
+        except Exception:
+            tags = []
+
+        for tag in tags:
+            for genre, keywords in _WRAPPED_GENRE_MAP.items():
+                if tag in keywords:
+                    genre_counts[genre] += 1
+
+        mid = row['manga_id']
+        if mid not in manga_reads:
+            manga_reads[mid] = {'title': row['manga_title'],
+                                'slug':  row['manga_slug'],
+                                'cover': row['cover_url'], 'count': 0}
+        manga_reads[mid]['count'] += 1
+
+        ra = _to_dt(row['read_at'])
+        if ra and (ra.hour >= 22 or ra.hour < 4):
+            night_reads += 1
+
+    dominant = max(genre_counts, key=genre_counts.get) if any(genre_counts.values()) else None
+    if dominant and genre_counts[dominant] == 0:
+        dominant = None
+
+    is_night = (night_reads / total_chapters) > 0.4
+
+    vibe_label, color1, color2, vibe_emoji = _VIBE_MAP.get(
+        (dominant, is_night), _VIBE_MAP[(None, False)]
+    )
+
+    sad_ch     = genre_counts.get('drama', 0)
+    action_ch  = genre_counts.get('action', 0)
+    sad_scenes      = max(0, round(sad_ch * 0.6 + (1 if sad_ch else 0)))
+    action_moments  = max(0, round(action_ch * 1.5 + (2 if action_ch else 0)))
+
+    top_manga      = sorted(manga_reads.values(), key=lambda x: x['count'], reverse=True)[:5]
+    unique_manga   = len(manga_reads)
+    reading_hours  = round(total_pages * 20 / 3600, 1)
+    night_pct      = round(night_reads / total_chapters * 100) if total_chapters else 0
+    avg_per_day    = round(total_chapters / 7, 1)
+
+    _GENRE_RU = {
+        'romance': 'Романтика', 'action': 'Экшен', 'fantasy': 'Фэнтези',
+        'drama': 'Драма', 'psychological': 'Психология',
+        'comedy': 'Комедия', 'slice': 'Повседневность',
+    }
+    top_genres = [
+        {'label': _GENRE_RU.get(g, g), 'count': c}
+        for g, c in sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)
+        if c > 0
+    ][:4]
+
+    # Текст для шаринга
+    share_lines = ['Моя неделя в Манговой\n']
+    share_lines.append(f'{total_chapters} глав прочитано ({unique_manga} тайтлов)')
+    share_lines.append(f'~{reading_hours} ч. чтения')
+    if sad_scenes:
+        share_lines.append(f'{sad_scenes} грустных сцен пережито')
+    if action_moments:
+        share_lines.append(f'{action_moments} экшен-моментов поймано')
+    share_lines.append(f'Вайб: {vibe_label}')
+    share_lines.append('bubblemanga.ru')
+    share_text = '\n'.join(share_lines)
+
+    return {
+        'total_chapters':  total_chapters,
+        'total_pages':     total_pages,
+        'unique_manga':    unique_manga,
+        'reading_hours':   reading_hours,
+        'avg_per_day':     avg_per_day,
+        'night_pct':       night_pct,
+        'sad_scenes':      sad_scenes,
+        'action_moments':  action_moments,
+        'top_genres':      top_genres,
+        'vibe_label':      vibe_label,
+        'vibe_emoji':      vibe_emoji,
+        'color1':          color1,
+        'color2':          color2,
+        'top_manga':       top_manga,
+        'is_night':        is_night,
+        'dominant_genre':  dominant,
+        'share_text':      share_text,
+    }
+
+
+@bp.route('/wrapped')
+def wrapped_page():
+    user_id = session.get('user_id')
+    if not user_id:
+        return redirect(url_for('main.index'))
+
+    wrapped = _get_weekly_wrapped(user_id)
+
+    conn = get_db()
+    try:
+        ur = conn.execute(
+            'SELECT u.telegram_first_name, up.custom_name, up.avatar_url '
+            'FROM users u LEFT JOIN user_profile up ON u.id = up.user_id '
+            'WHERE u.id = ?', (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    display_name = (ur and (ur.get('custom_name') or ur.get('telegram_first_name'))) or 'Читатель'
+    avatar_url   = (ur and ur.get('avatar_url')) or ''
+
+    return render_template('wrapped.html',
+                           wrapped=wrapped,
+                           display_name=display_name,
+                           avatar_url=avatar_url)
+
+
+@bp.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
+@bp.route('/tos')
+def tos():
+    return render_template('tos.html')
+
 
 @bp.route('/')
 def index():
@@ -535,6 +1486,8 @@ def login_token(token):
     session['user_id'] = user['id']
     session['username'] = user['telegram_username'] or user['telegram_first_name'] or f"User_{user['id']}"
     session.permanent = True
+    # Ротируем токен после входа — URL в истории Telegram становится недействительным
+    update_user_token(user['id'])
     # Не делаем redirect сразу — страница остаётся на /login/<token>.
     # Это позволяет пользователю нажать «Открыть в браузере» в Telegram
     # и попасть в Safari уже с токеном → залогиниться там тоже.
@@ -594,6 +1547,7 @@ def login_page():
 
 
 @bp.route('/api/auth/register', methods=['POST'])
+@rate_limit(3, 600)
 def api_auth_register():
     data = request.get_json(silent=True) or {}
     email = (data.get('email') or '').strip().lower()
@@ -616,6 +1570,7 @@ def api_auth_register():
 
 
 @bp.route('/api/auth/login/email', methods=['POST'])
+@rate_limit(5, 300)
 def api_auth_login_email():
     data = request.get_json(silent=True) or {}
     email = (data.get('email') or '').strip().lower()
@@ -736,7 +1691,8 @@ def search():
     c    = conn.cursor()
 
     c.execute('''SELECT COUNT(*) FROM manga
-                 WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
+                 WHERE (manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?)
+                   AND tags NOT LIKE \'%"Яой"%\'''',
               (like, like, like))
     total = c.fetchone()[0]
 
@@ -751,7 +1707,8 @@ def search():
                      ELSE 1
                    END AS _rel
             FROM manga
-            WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+            WHERE (manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?)
+              AND tags NOT LIKE \'%"Яой"%\'
             ORDER BY _rel DESC, COALESCE(score, 0) DESC
             LIMIT ?
         ''', (query, starts, like, like, like, _PER))
@@ -808,7 +1765,8 @@ def api_search():
             tsq = query  # plainto_tsquery сам нормализует
             try:
                 c.execute('''SELECT COUNT(*) FROM manga
-                             WHERE search_vector @@ plainto_tsquery('simple', %s)''', (tsq,))
+                             WHERE search_vector @@ plainto_tsquery('simple', %s)
+                               AND tags NOT LIKE \'%%"Яой"%%\'''', (tsq,))
                 total = c.fetchone()[0]
                 if total > 0:
                     c.execute('''
@@ -816,6 +1774,7 @@ def api_search():
                                cover_url, rating, score, views, chapters_count, last_updated
                         FROM manga
                         WHERE search_vector @@ plainto_tsquery('simple', %s)
+                          AND tags NOT LIKE \'%%"Яой"%%\'
                         ORDER BY ts_rank(search_vector, plainto_tsquery('simple', %s)) DESC
                         LIMIT %s OFFSET %s
                     ''', (tsq, tsq, limit, offset))
@@ -855,7 +1814,8 @@ def api_search():
     if rows is None:
         # LIKE fallback (also used for non-relevance sort)
         c.execute('''SELECT COUNT(*) FROM manga
-                     WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?''',
+                     WHERE (manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?)
+                       AND tags NOT LIKE \'%"Яой"%\'''',
                   (like, like, like))
         total = c.fetchone()[0]
 
@@ -873,7 +1833,8 @@ def api_search():
                          ELSE 1
                        END AS _rel
                 FROM manga
-                WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+                WHERE (manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?)
+                  AND tags NOT LIKE \'%"Яой"%\'
                 ORDER BY _rel DESC, COALESCE(score, 0) DESC
                 LIMIT ? OFFSET ?
             ''', (query, starts, like, like, like, limit, offset))
@@ -883,7 +1844,8 @@ def api_search():
                 SELECT manga_id, manga_slug, manga_title, manga_type, manga_status,
                        cover_url, rating, score, views, chapters_count, last_updated
                 FROM manga
-                WHERE manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?
+                WHERE (manga_title LIKE ? OR original_name LIKE ? OR manga_slug LIKE ?)
+                  AND tags NOT LIKE \'%"Яой"%\'
                 ORDER BY {order_sql}
                 LIMIT ? OFFSET ?
             ''', (like, like, like, limit, offset))
@@ -913,7 +1875,8 @@ def search_suggestions():
     conn = get_db()
     c    = conn.cursor()
     c.execute('''SELECT manga_title FROM manga
-                 WHERE manga_title LIKE ? OR original_name LIKE ?
+                 WHERE (manga_title LIKE ? OR original_name LIKE ?)
+                   AND tags NOT LIKE \'%"Яой"%\'
                  ORDER BY COALESCE(score, 0) DESC
                  LIMIT 8''', (f'{query}%', f'{query}%'))
     from_catalog = [row[0] for row in c.fetchall()]
@@ -921,9 +1884,10 @@ def search_suggestions():
     # Добавляем из истории поиска (только если мало результатов)
     from_history = []
     if len(from_catalog) < 5:
-        c.execute('''SELECT DISTINCT query FROM search_history
+        c.execute('''SELECT query FROM search_history
                      WHERE query LIKE ?
-                     ORDER BY created_at DESC
+                     GROUP BY query
+                     ORDER BY MAX(created_at) DESC
                      LIMIT ?''', (f'{query}%', 8 - len(from_catalog)))
         from_history = [row[0] for row in c.fetchall()]
     conn.close()
@@ -951,7 +1915,7 @@ _GENRE_GROUPS = {
     ],
     'Демография': [
         'Сёнен', 'Сёдзе', 'Сэйнэн', 'Дзёсей',
-        'Яой', 'Юри', 'Сёнен-ай', 'Сёдзе-ай', 'Этти', 'Эротика',
+        'Юри', 'Сёнен-ай', 'Сёдзе-ай', 'Этти', 'Эротика',
     ],
     'Сеттинг': [
         'Школа', 'Исекай', 'Средневековье', 'Школьная жизнь',
@@ -1060,7 +2024,7 @@ def api_catalog():
 
     selected_genres = [g.strip() for g in genres_raw.split(',') if g.strip()] if genres_raw else []
 
-    where = ['1=1']
+    where = ['1=1', 'tags NOT LIKE \'%"Яой"%\'']
     params = []
 
     if manga_type and manga_type in ('MANGA', 'MANHWA', 'MANHUA', 'OEL', 'NOVEL', 'ONE_SHOT', 'DOUJINSHI', 'COMICS'):
@@ -1124,7 +2088,7 @@ def read_chapter(manga_slug, chapter_slug):
     conn = get_db()
     c = conn.cursor()
     try:
-        c.execute('''SELECT c.*, m.manga_title, m.manga_id, m.manga_slug
+        c.execute('''SELECT c.*, m.manga_title, m.manga_id, m.manga_slug, m.tags
                      FROM chapters c
                      JOIN manga m ON c.manga_id = m.manga_id
                      WHERE c.chapter_slug = ?''', (chapter_slug,))
@@ -1136,11 +2100,14 @@ def read_chapter(manga_slug, chapter_slug):
             if not pages:
                 return "Глава не найдена", 404
 
-            c.execute('SELECT manga_id, manga_title, manga_slug FROM manga WHERE manga_slug = ?', (manga_slug,))
+            c.execute('SELECT manga_id, manga_title, manga_slug, tags FROM manga WHERE manga_slug = ?', (manga_slug,))
             manga_result = c.fetchone()
 
             if not manga_result:
                 return "Манга не найдена", 404
+
+            if _is_adult_manga(dict(manga_result)) and not session.get('user_id'):
+                return redirect(f'/manga/{manga_slug}')
 
             manga_id = manga_result['manga_id']
             manga_title = manga_result['manga_title']
@@ -1176,6 +2143,9 @@ def read_chapter(manga_slug, chapter_slug):
                                   next_chapter=None)
 
         chapter_dict = dict(chapter)
+
+        if _is_adult_manga(chapter_dict) and not session.get('user_id'):
+            return redirect(f'/manga/{manga_slug}')
 
         if 'manga_slug' not in chapter_dict:
             chapter_dict['manga_slug'] = manga_slug
@@ -1224,15 +2194,22 @@ def read_chapter(manga_slug, chapter_slug):
 
         user_id = session.get('user_id')
         if user_id:
-            c.execute('''INSERT OR REPLACE INTO reading_history
-                         (user_id, manga_id, chapter_id, last_read)
-                         VALUES (?, ?, ?, ?)''',
-                      (user_id, chapter_dict['manga_id'],
-                       chapter_dict['chapter_id'], datetime.now()))
-            c.execute('''INSERT OR IGNORE INTO chapters_read
-                         (user_id, chapter_id, manga_id)
-                         VALUES (?, ?, ?)''',
-                      (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
+            # При смене главы — сбрасываем page_number (иначе "Продолжить" откроет
+            # новую главу с номером страницы от предыдущей).
+            c.execute(
+                '''INSERT INTO reading_history (user_id, manga_id, chapter_id, last_read, page_number)
+                   VALUES (%s, %s, %s, %s, NULL)
+                   ON CONFLICT (user_id, manga_id) DO UPDATE SET
+                       chapter_id  = EXCLUDED.chapter_id,
+                       last_read   = EXCLUDED.last_read,
+                       page_number = CASE
+                           WHEN reading_history.chapter_id = EXCLUDED.chapter_id
+                           THEN reading_history.page_number
+                           ELSE NULL
+                       END''',
+                (user_id, chapter_dict['manga_id'],
+                 chapter_dict['chapter_id'], datetime.now())
+            )
             conn.commit()
             # XP / счётчики / стрик — только при реальном прочтении (80%+),
             # обрабатываются в POST /api/chapter/<slug>/complete
@@ -1327,16 +2304,25 @@ def chapter_json(manga_slug, chapter_slug):
     # Запись прочтения
     user_id = session.get('user_id')
     if user_id:
-        c.execute('''INSERT OR REPLACE INTO reading_history (user_id, manga_id, chapter_id, last_read)
-                     VALUES (?,?,?,?)''',
-                  (user_id, chapter_dict['manga_id'], chapter_dict['chapter_id'], datetime.now()))
-        c.execute('INSERT OR IGNORE INTO chapters_read (user_id, chapter_id, manga_id) VALUES (?,?,?)',
-                  (user_id, chapter_dict['chapter_id'], chapter_dict['manga_id']))
+        c.execute(
+            '''INSERT INTO reading_history (user_id, manga_id, chapter_id, last_read, page_number)
+               VALUES (%s, %s, %s, %s, NULL)
+               ON CONFLICT (user_id, manga_id) DO UPDATE SET
+                   chapter_id  = EXCLUDED.chapter_id,
+                   last_read   = EXCLUDED.last_read,
+                   page_number = CASE
+                       WHEN reading_history.chapter_id = EXCLUDED.chapter_id
+                       THEN reading_history.page_number
+                       ELSE NULL
+                   END''',
+            (user_id, chapter_dict['manga_id'], chapter_dict['chapter_id'], datetime.now())
+        )
         conn.commit()
 
     conn.close()
     return jsonify({
         'chapter_slug': chapter_slug,
+        'chapter_id': chapter_dict.get('chapter_id'),
         'chapter_number': chapter_dict.get('chapter_number'),
         'chapter_name': chapter_dict.get('chapter_name'),
         'chapter_volume': chapter_dict.get('chapter_volume'),
@@ -1546,19 +2532,19 @@ def api_read_chapters(manga_slug):
 def _calc_chapter_reward(pages_count: int) -> tuple[int, int]:
     """Вернуть (xp, coins) за прочитанную главу в зависимости от длины.
 
-    Целевая экономика: ~200 глав = ~300 монет → можно купить 1 предмет из магазина.
-    Типичная глава манги: 20-40 стр. → 1-2 монеты.
+    Целевая экономика: 500 монет = 100 рублей. Монеты за чтение снижены в 3x
+    чтобы поддержать баланс между фармом и покупкой.
     """
     if pages_count <= 5:
-        return 5, 0
+        return 2, 0
     elif pages_count <= 15:
-        return 15, 1
+        return 5, 0
     elif pages_count <= 30:
-        return 25, 2
+        return 8, 1
     elif pages_count <= 50:
-        return 40, 2
+        return 13, 1
     else:
-        return 60, 3
+        return 20, 1
 
 
 @bp.route('/api/reading/progress', methods=['POST'])
@@ -1648,6 +2634,14 @@ def api_chapter_complete(chapter_slug):
     if not user_id:
         return jsonify({'ok': False, 'error': 'not_auth'}), 401
 
+    # Rate limit: не более 15 глав в минуту и 400 в час на пользователя
+    # (реальный читатель: ~2-4 мин/глава → макс ~30/час; лимиты с 10x запасом против скриптов)
+    if not _rate_limit_check(f'chapter_complete_burst:{user_id}', 15, 60):
+        return jsonify({'ok': False, 'error': 'rate_limited'}), 429
+    if not _rate_limit_check(f'chapter_complete_hour:{user_id}', 400, 3600):
+        logger.warning(f'Chapter complete hourly limit hit: user_id={user_id}')
+        return jsonify({'ok': False, 'error': 'rate_limited'}), 429
+
     pages_count = request.json.get('pages_count', 0) if request.is_json else 0
     pages_count = max(0, int(pages_count))
 
@@ -1667,14 +2661,43 @@ def api_chapter_complete(chapter_slug):
         if not reward_row:
             return jsonify({'ok': False, 'error': 'already_rewarded'}), 200
 
-        # Первое реальное прочтение — отмечаем уведомление в Telegram как "✅ Прочитано"
+        # Отмечаем главу как прочитанную
         try:
-            _bot_loop_ref = _bot_module._bot_loop
-            if _bot_loop_ref and _bot_loop_ref.is_running():
-                asyncio.run_coroutine_threadsafe(
-                    _bot_module.mark_chapter_notification_read(user_id, chapter_slug),
-                    _bot_loop_ref
+            ch_meta = conn.execute(
+                'SELECT c.chapter_id, c.manga_id, m.manga_title, m.manga_slug, m.cover_url, m.manga_status '
+                'FROM chapters c JOIN manga m ON c.manga_id = m.manga_id '
+                'WHERE c.chapter_slug = ?', (chapter_slug,)
+            ).fetchone()
+            if ch_meta:
+                conn.execute(
+                    'INSERT OR IGNORE INTO chapters_read (user_id, chapter_id, manga_id) VALUES (?,?,?)',
+                    (user_id, ch_meta['chapter_id'], ch_meta['manga_id'])
                 )
+                conn.commit()
+                # Auto-set "completed" if manga is finished and user read all chapters
+                if (ch_meta['manga_status'] or '').upper() == 'FINISHED':
+                    total_ch = conn.execute(
+                        'SELECT COUNT(*) FROM chapters WHERE manga_id=?', (ch_meta['manga_id'],)
+                    ).fetchone()[0]
+                    read_ch = conn.execute(
+                        'SELECT COUNT(*) FROM chapters_read WHERE user_id=? AND manga_id=?',
+                        (user_id, ch_meta['manga_id'])
+                    ).fetchone()[0]
+                    if total_ch > 0 and read_ch >= total_ch:
+                        conn.execute(
+                            'INSERT INTO user_manga_status (user_id, manga_id, status) VALUES (?,?,?) '
+                            'ON CONFLICT(user_id, manga_id) DO UPDATE SET status=\'completed\', updated_at=CURRENT_TIMESTAMP',
+                            (user_id, ch_meta['manga_id'], 'completed')
+                        )
+                        conn.commit()
+        except Exception:
+            pass
+
+        # Первое реальное прочтение — отмечаем уведомление в Telegram как "✅ Прочитано"
+        # (бот живёт в отдельном процессе bubblemanga-worker.service, поэтому
+        # напрямую run_coroutine_threadsafe отсюда недоступен — идём через Redis-мост)
+        try:
+            _submit_bot_job('mark_chapter_read', {'user_id': user_id, 'chapter_slug': chapter_slug})
         except Exception as e_notif:
             logger.warning(f"⚠️ mark_chapter_notification_read dispatch: {e_notif}")
 
@@ -1757,7 +2780,8 @@ def api_manga_similar(manga_slug):
             return jsonify({'results': []})
 
         rows = conn.execute(
-            'SELECT manga_id, manga_title, manga_slug, cover_url, tags FROM manga WHERE manga_id != ?',
+            'SELECT manga_id, manga_title, manga_slug, cover_url, tags FROM manga'
+            ' WHERE manga_id != ? AND tags NOT LIKE \'%"Яой"%\'',
             (src['manga_id'],)
         ).fetchall()
 
@@ -1862,22 +2886,34 @@ def manga_detail(manga_slug):
         manga_data = manga_details
     else:
         manga_data = dict(manga_db)
-        # Фоновое обновление: если описание пустое или данные старше 1 дня
-        needs_refresh = not (manga_db['description'] or '').strip()
-        if not needs_refresh:
-            last_updated = manga_db['last_updated']
-            if last_updated:
-                try:
-                    needs_refresh = datetime.now() - datetime.fromisoformat(last_updated) > timedelta(days=1)
-                except Exception:
-                    pass
-            else:
-                needs_refresh = True
-        if needs_refresh:
-            logger.info(f"🔄 Фоновое обновление {manga_slug}")
-            threading.Thread(
-                target=get_manga_details_api, args=(manga_slug,), daemon=True
-            ).start()
+        desc_empty = not (manga_db['description'] or '').strip()
+        no_branch  = not manga_db.get('branch_id')
+
+        if desc_empty and no_branch:
+            # Описание пустое и детали никогда не загружались — синхронный запрос,
+            # чтобы пользователь сразу видел описание, теги и оценку
+            logger.info(f"🔄 Синхронная загрузка деталей {manga_slug}")
+            fresh = get_manga_details_api(manga_slug)
+            if fresh:
+                manga_data = fresh
+        else:
+            # Данные есть, но устарели или описание пустое (возможно, API его не вернул) —
+            # обновляем в фоне, не задерживая рендер
+            needs_refresh = desc_empty
+            if not needs_refresh:
+                last_updated = manga_db['last_updated']
+                if last_updated:
+                    try:
+                        needs_refresh = datetime.now() - datetime.fromisoformat(last_updated) > timedelta(days=1)
+                    except Exception:
+                        pass
+                else:
+                    needs_refresh = True
+            if needs_refresh:
+                logger.info(f"🔄 Фоновое обновление {manga_slug}")
+                threading.Thread(
+                    target=get_manga_details_api, args=(manga_slug,), daemon=True
+                ).start()
 
     # Десериализуем JSON-поля если они пришли из БД (строки)
     import json as _json
@@ -2013,6 +3049,13 @@ def manga_detail(manga_slug):
         f"{total_in_db} в БД, {expected_chapters} ожидается"
     )
 
+    user_is_premium = False
+    if user_id:
+        _pu = get_db()
+        _pr = _pu.execute('SELECT is_premium FROM users WHERE id=?', (user_id,)).fetchone()
+        _pu.close()
+        user_is_premium = bool(_pr and _pr['is_premium'])
+
     return render_template('manga_detail.html',
                            manga=manga_data,
                            chapters=chapters,
@@ -2027,7 +3070,8 @@ def manga_detail(manga_slug):
                            user_manga_rating=user_manga_rating,
                            manga_rating_avg=manga_rating_avg,
                            manga_rating_count=manga_rating_count,
-                           user_id=user_id)
+                           user_id=user_id,
+                           user_is_premium=user_is_premium)
 
 # ==================== ПРОФИЛИ / ТОП / МАГАЗИН ====================
 
@@ -2081,7 +3125,8 @@ _TOP_ROW_SQL = '''SELECT u.id, u.telegram_first_name, u.telegram_username,
                    WHERE user_id = u.id) as manga_count
            FROM users u
            JOIN user_stats s ON u.id = s.user_id
-           LEFT JOIN user_profile p ON u.id = p.user_id'''
+           LEFT JOIN user_profile p ON u.id = p.user_id
+           WHERE u.telegram_username != 'bubblemanga_mascot' OR u.telegram_username IS NULL'''
 
 
 def _top_make_display(r):
@@ -2091,12 +3136,27 @@ def _top_make_display(r):
            f"#{r['id']}"
 
 
+def _get_mascot_data(c):
+    """Получить данные маскота для отдельного блока в топе."""
+    c.execute('''SELECT u.id, u.telegram_first_name,
+                  s.xp, s.level, s.total_chapters_read,
+                  p.avatar_url, p.custom_name, p.bio,
+                  (SELECT COUNT(*) FROM subscriptions WHERE user_id = u.id) as subs_count,
+                  (SELECT COUNT(*) FROM comments WHERE user_id = u.id) as comments_count
+              FROM users u
+              JOIN user_stats s ON u.id = s.user_id
+              LEFT JOIN user_profile p ON u.id = p.user_id
+              WHERE u.telegram_username = %s''', ('bubblemanga_mascot',))
+    row = c.fetchone()
+    return dict(row) if row else None
+
+
 @cache.cached(timeout=120, key_prefix='top_leaders')
 def _get_top_leaders():
     """Кешированный запрос топ-50 и числа пользователей (TTL 2 мин)."""
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT COUNT(*) as cnt FROM user_stats')
+    c.execute("SELECT COUNT(*) as cnt FROM user_stats s JOIN users u ON u.id = s.user_id WHERE u.telegram_username != 'bubblemanga_mascot' OR u.telegram_username IS NULL")
     _cnt_row = c.fetchone()
     total_users = (_cnt_row['cnt'] if _cnt_row else 1) or 1
     c.execute(_TOP_ROW_SQL + ' ORDER BY s.xp DESC LIMIT 50')
@@ -2118,25 +3178,31 @@ def top_page():
 
     user_id = session.get('user_id')
     my_rank_data = None
+    conn = get_db()
+    c = conn.cursor()
+
     if user_id and user_id not in top_ids:
-        conn = get_db()
-        c = conn.cursor()
-        c.execute('''SELECT COUNT(*) + 1 AS rank FROM user_stats
-                     WHERE xp > (SELECT xp FROM user_stats WHERE user_id = ?)''',
+        c.execute("""SELECT COUNT(*) + 1 AS rank FROM user_stats s
+                     JOIN users u ON u.id = s.user_id
+                     WHERE (u.telegram_username != 'bubblemanga_mascot' OR u.telegram_username IS NULL)
+                     AND s.xp > (SELECT xp FROM user_stats WHERE user_id = %s)""",
                   (user_id,))
         rank_row = c.fetchone()
         if rank_row:
-            c.execute(_TOP_ROW_SQL + ' WHERE u.id = ?', (user_id,))
+            c.execute(_TOP_ROW_SQL + ' AND u.id = %s', (user_id,))
             ur = c.fetchone()
             if ur:
                 my_data = dict(ur)
                 my_data['display_name'] = _top_make_display(my_data)
                 my_data['rank'] = rank_row['rank']
                 my_rank_data = my_data
-        conn.close()
+
+    mascot = _get_mascot_data(c)
+    conn.close()
 
     return render_template('top.html', leaders=leaders, user_id=user_id,
-                           my_rank_data=my_rank_data, total_users=total_users)
+                           my_rank_data=my_rank_data, total_users=total_users,
+                           mascot=mascot)
 
 
 @bp.route('/shop')
@@ -2181,6 +3247,8 @@ def shop_page():
 
     conn.close()
 
+    dp_enabled = bool(DONATEPAY_API_KEY and DONATEPAY_USERNAME)
+
     return render_template('shop.html',
                            items=items,
                            owned_ids=list(owned_ids),
@@ -2190,7 +3258,8 @@ def shop_page():
                            user_id=user_id,
                            is_premium=is_premium,
                            premium_expires_at=premium_expires_at,
-                           temp_expires=temp_expires)
+                           temp_expires=temp_expires,
+                           dp_enabled=dp_enabled)
 
 
 @bp.route('/api/shop/buy/<int:item_id>', methods=['POST'])
@@ -2315,28 +3384,23 @@ def shop_create_invoice():
     if not pkg:
         return jsonify({'error': 'Пакет не найден'}), 404
 
-    if not _bot_loop or not _bot_loop.is_running() or not telegram_app:
-        return jsonify({'error': 'Бот недоступен'}), 503
-
     payload = f"{pkg['id']}:{user_id}"
 
-    async def _create_link():
-        return await telegram_app.bot.create_invoice_link(
-            title=pkg['label'],
-            description=f"{pkg['coins']} монет для Манговая",
-            payload=payload,
-            currency="XTR",
-            provider_token="",
-            prices=[LabeledPrice(label=pkg['label'], amount=pkg['stars'])],
-        )
+    # Бот (telegram_app) живёт в процессе bubblemanga-worker.service — инвойс
+    # создаём там через Redis-мост и ждём ответ (RPC поверх Redis-списков).
+    result = _submit_bot_job('create_stars_invoice', {
+        'title': pkg['label'],
+        'description': f"{pkg['coins']} монет для Манговая",
+        'payload': payload,
+        'price_label': pkg['label'],
+        'amount': pkg['stars'],
+    }, wait=True, timeout=10)
 
-    future = asyncio.run_coroutine_threadsafe(_create_link(), _bot_loop)
-    try:
-        url = future.result(timeout=10)
-    except Exception as e:
-        return jsonify({'error': f'Ошибка создания счёта: {e}'}), 500
+    if not result or not result.get('ok'):
+        err = (result or {}).get('error', 'бот недоступен')
+        return jsonify({'error': f'Ошибка создания счёта: {err}'}), 503
 
-    return jsonify({'url': url})
+    return jsonify({'url': result['url']})
 
 
 @bp.route('/api/user/balance')
@@ -2354,68 +3418,6 @@ def user_balance():
     return jsonify({'coins': coins})
 
 
-def _credit_coins(user_id, package_id, payment_id, payment_method='stars'):
-    """Общая функция начисления монет после любой оплаты."""
-    pkg = next((p for p in COIN_PACKAGES if p['id'] == package_id), None)
-    if not pkg:
-        return False
-    conn = get_db()
-    c = conn.cursor()
-    try:
-        c.execute(
-            '''INSERT OR IGNORE INTO coin_purchases
-               (user_id, package_id, stars_paid, coins_received, payment_id, payment_method)
-               VALUES (?, ?, 0, ?, ?, ?)''',
-            (user_id, package_id, pkg['coins'], payment_id, payment_method)
-        )
-        credited = c.rowcount > 0
-        if credited:
-            c.execute('UPDATE user_stats SET coins = coins + ? WHERE user_id = ?',
-                      (pkg['coins'], user_id))
-        conn.commit()
-        return credited
-    finally:
-        conn.close()
-
-
-def _grant_premium(user_id, package_id, payment_id, payment_method='yookassa'):
-    """Активирует/продлевает Premium после успешной оплаты."""
-    pkg = next((p for p in PREMIUM_PACKAGES if p['id'] == package_id), None)
-    if not pkg:
-        return False
-    conn = get_db()
-    c = conn.cursor()
-    try:
-        c.execute('SELECT id FROM premium_purchases WHERE payment_id = ?', (payment_id,))
-        if c.fetchone():
-            return False  # уже обработано
-        now = datetime.utcnow()
-        c.execute('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', (user_id,))
-        row = c.fetchone()
-        # Продлить если подписка ещё активна, иначе начать с сейчас
-        if row and row['is_premium'] and row['premium_expires_at']:
-            try:
-                current_exp = _to_dt(row['premium_expires_at'])
-                base = current_exp if current_exp > now else now
-            except Exception:
-                base = now
-        else:
-            base = now
-        new_exp = base + timedelta(days=pkg['days'])
-        c.execute(
-            'UPDATE users SET is_premium=1, premium_expires_at=? WHERE id=?',
-            (new_exp.isoformat(), user_id)
-        )
-        c.execute(
-            'INSERT OR IGNORE INTO premium_purchases (user_id, package_id, payment_id, payment_method, expires_at) VALUES (?, ?, ?, ?, ?)',
-            (user_id, package_id, payment_id, payment_method, new_exp.isoformat())
-        )
-        conn.commit()
-        return True
-    finally:
-        conn.close()
-
-
 @bp.route('/api/shop/create-payment', methods=['POST'])
 def shop_create_payment():
     """Создаёт платёж через ЮКасса или CryptoBot."""
@@ -2431,35 +3433,13 @@ def shop_create_payment():
     if not pkg:
         return jsonify({'error': 'Пакет не найден'}), 404
 
-    if method == 'yookassa':
-        if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
-            return jsonify({'error': 'ЮКасса не настроена на сервере'}), 503
-        try:
-            from yookassa import Configuration, Payment as YKPayment
-            import uuid as _uuid
-            Configuration.account_id = YOOKASSA_SHOP_ID
-            Configuration.secret_key = YOOKASSA_SECRET
-            payment = YKPayment.create({
-                'amount': {'value': str(pkg['rub']) + '.00', 'currency': 'RUB'},
-                'confirmation': {'type': 'redirect',
-                                 'return_url': f'{SITE_URL}/shop?tab=buy&paid=1'},
-                'capture': True,
-                'description': f"{pkg['label']} — Манговая",
-                'metadata': {'package_id': pkg['id'], 'user_id': str(user_id)},
-            }, str(_uuid.uuid4()))
-            return jsonify({'url': payment.confirmation.confirmation_url})
-        except ImportError:
-            return jsonify({'error': 'Библиотека yookassa не установлена'}), 503
-        except Exception as e:
-            return jsonify({'error': f'Ошибка ЮКасса: {e}'}), 500
-
-    elif method == 'crypto':
+    if method == 'crypto':
         if not CRYPTOCLOUD_API_KEY or not CRYPTOCLOUD_SHOP_ID:
-            return jsonify({'error': 'Crypto Cloud не настроен на сервере'}), 503
+            return jsonify({'error': 'Trybit не настроен на сервере'}), 503
         try:
             import requests as _req
             resp = _req.post(
-                'https://api.cryptocloud.plus/v2/invoice/create',
+                'https://api.trybit.com/v2/invoice/create',
                 headers={
                     'Authorization': f'Token {CRYPTOCLOUD_API_KEY}',
                     'Content-Type': 'application/json',
@@ -2474,19 +3454,17 @@ def shop_create_payment():
             )
             result = resp.json()
             if resp.status_code != 200 or result.get('status') == 'error':
-                return jsonify({'error': 'Ошибка Crypto Cloud: ' + str(result)}), 500
+                return jsonify({'error': 'Ошибка Trybit: ' + str(result)}), 500
             return jsonify({'url': result['result']['link']})
-        except ImportError:
-            return jsonify({'error': 'Библиотека requests не установлена'}), 503
         except Exception as e:
-            return jsonify({'error': f'Ошибка Crypto Cloud: {e}'}), 500
+            return jsonify({'error': f'Ошибка Trybit: {e}'}), 500
 
     return jsonify({'error': 'Неизвестный способ оплаты'}), 400
 
 
 @bp.route('/api/shop/create-premium-payment', methods=['POST'])
 def shop_create_premium_payment():
-    """Создаёт платёж за Premium подписку через ЮКасса или Crypto Cloud."""
+    """Создаёт платёж за Premium подписку через Trybit."""
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Не авторизован'}), 401
@@ -2499,35 +3477,13 @@ def shop_create_premium_payment():
     if not pkg:
         return jsonify({'error': 'Пакет не найден'}), 404
 
-    if method == 'yookassa':
-        if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
-            return jsonify({'error': 'ЮКасса не настроена на сервере'}), 503
-        try:
-            from yookassa import Configuration, Payment as YKPayment
-            import uuid as _uuid
-            Configuration.account_id = YOOKASSA_SHOP_ID
-            Configuration.secret_key = YOOKASSA_SECRET
-            payment = YKPayment.create({
-                'amount': {'value': str(pkg['rub']) + '.00', 'currency': 'RUB'},
-                'confirmation': {'type': 'redirect',
-                                 'return_url': f'{SITE_URL}/shop?tab=premium&paid=1'},
-                'capture': True,
-                'description': f"{pkg['label']} — Манговая",
-                'metadata': {'premium_package_id': pkg['id'], 'user_id': str(user_id)},
-            }, str(_uuid.uuid4()))
-            return jsonify({'url': payment.confirmation.confirmation_url})
-        except ImportError:
-            return jsonify({'error': 'Библиотека yookassa не установлена'}), 503
-        except Exception as e:
-            return jsonify({'error': f'Ошибка ЮКасса: {e}'}), 500
-
-    elif method == 'crypto':
+    if method == 'crypto':
         if not CRYPTOCLOUD_API_KEY or not CRYPTOCLOUD_SHOP_ID:
-            return jsonify({'error': 'Crypto Cloud не настроен на сервере'}), 503
+            return jsonify({'error': 'Trybit не настроен на сервере'}), 503
         try:
             import requests as _req
             resp = _req.post(
-                'https://api.cryptocloud.plus/v2/invoice/create',
+                'https://api.trybit.com/v2/invoice/create',
                 headers={
                     'Authorization': f'Token {CRYPTOCLOUD_API_KEY}',
                     'Content-Type': 'application/json',
@@ -2542,12 +3498,10 @@ def shop_create_premium_payment():
             )
             result = resp.json()
             if resp.status_code != 200 or result.get('status') == 'error':
-                return jsonify({'error': 'Ошибка Crypto Cloud: ' + str(result)}), 500
+                return jsonify({'error': 'Ошибка Trybit: ' + str(result)}), 500
             return jsonify({'url': result['result']['link']})
-        except ImportError:
-            return jsonify({'error': 'Библиотека requests не установлена'}), 503
         except Exception as e:
-            return jsonify({'error': f'Ошибка Crypto Cloud: {e}'}), 500
+            return jsonify({'error': f'Ошибка Trybit: {e}'}), 500
 
     return jsonify({'error': 'Неизвестный способ оплаты'}), 400
 
@@ -2590,53 +3544,127 @@ def shop_gift_premium():
     recipient_name = rec['telegram_first_name'] or rec['telegram_username'] or f'ID {recipient_id}'
     payload = f'gift_premium:{recipient_id}:{days}:{user_id}'
 
+    result = _submit_bot_job('create_stars_invoice', {
+        'title': f'Premium на {label} для {recipient_name}',
+        'description': f'Подарок Premium Манговая на {label}',
+        'payload': payload,
+        'price_label': f'Premium {label}',
+        'amount': stars,
+    }, wait=True, timeout=10)
+
+    if not result or not result.get('ok'):
+        err = (result or {}).get('error', 'бот недоступен')
+        return jsonify({'error': f'Ошибка создания инвойса: {err}'}), 503
+
+    return jsonify({'url': result['url']})
+
+
+def _send_admin_alert(text: str):
+    """Отправляет сообщение всем админам через Telegram-бота (через Redis-мост —
+    бот живёт в процессе bubblemanga-worker.service, не в этом)."""
     try:
-        bot = telegram_app.bot if telegram_app else None
-        if not bot:
-            return jsonify({'error': 'Бот недоступен'}), 503
-        if _bot_loop and _bot_loop.is_running():
-            future = asyncio.run_coroutine_threadsafe(
-                bot.create_invoice_link(
-                    title=f'Premium на {label} для {recipient_name}',
-                    description=f'Подарок Premium Манговая на {label}',
-                    payload=payload,
-                    currency='XTR',
-                    provider_token='',
-                    prices=[LabeledPrice(label=f'Premium {label}', amount=stars)],
-                ),
-                _bot_loop
-            )
-            url = future.result(timeout=10)
-            return jsonify({'url': url})
-        else:
-            return jsonify({'error': 'Бот не запущен'}), 503
+        _submit_bot_job('admin_alert', {'text': text})
     except Exception as e:
-        return jsonify({'error': f'Ошибка создания инвойса: {e}'}), 500
+        logger.error(f'_send_admin_alert error: {e}')
 
 
-@bp.route('/webhook/yookassa', methods=['POST'])
-def webhook_yookassa():
-    """Вебхук от ЮКасса — зачисляет монеты или активирует Premium после успешной оплаты."""
+# ═══════════════════════════════════════════════════════════════════════════════
+#  DonatePay integration
+# ═══════════════════════════════════════════════════════════════════════════════
+import re as _re
+import secrets as _secrets
+
+_DP_API_BASE = 'https://donatepay.ru/api/v1'
+
+# ── Admin helpers ──────────────────────────────────────────────────────────────
+
+def _is_admin() -> bool:
+    uid = session.get('user_id')
+    if not uid:
+        return False
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT telegram_id FROM users WHERE id=%s', (uid,)).fetchone()
+        return row and int(row['telegram_id'] or 0) in ADMIN_TELEGRAM_IDS
+    finally:
+        conn.close()
+
+# ── Payment creation ───────────────────────────────────────────────────────────
+
+@bp.route('/api/shop/create-dp-payment', methods=['POST'])
+def shop_create_dp_payment():
+    """Создаёт ордер и возвращает ссылку на страницу DonatePay."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Не авторизован'}), 401
+
+    if not DONATEPAY_API_KEY or not DONATEPAY_USERNAME:
+        return jsonify({'error': 'DonatePay не настроен на сервере'}), 503
+
     data = request.get_json(silent=True) or {}
-    if data.get('event') != 'payment.succeeded':
-        return '', 200
-    obj = data.get('object', {})
-    meta = obj.get('metadata', {})
-    package_id = meta.get('package_id')
-    premium_package_id = meta.get('premium_package_id')
-    user_id_str = meta.get('user_id')
-    payment_id = obj.get('id')
-    if user_id_str and payment_id:
-        if premium_package_id:
-            _grant_premium(int(user_id_str), premium_package_id, f'yk_{payment_id}', 'yookassa')
-        elif package_id:
-            _credit_coins(int(user_id_str), package_id, f'yk_{payment_id}', 'yookassa')
-    return '', 200
+    package_id = data.get('package_id')
+    order_type = data.get('type', 'coins')
+
+    if order_type == 'premium':
+        pkg = next((p for p in PREMIUM_PACKAGES if p['id'] == package_id), None)
+    else:
+        pkg = next((p for p in COIN_PACKAGES if p['id'] == package_id), None)
+
+    if not pkg:
+        return jsonify({'error': 'Пакет не найден'}), 404
+
+    rub = pkg['rub']
+    order_code = 'mmm-' + _secrets.token_hex(4).upper()
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT u.telegram_first_name, p.custom_name FROM users u '
+            'LEFT JOIN user_profile p ON p.user_id = u.id WHERE u.id = %s',
+            (user_id,)
+        ).fetchone()
+        display_name = (row and (row['custom_name'] or row['telegram_first_name'])) or 'Аноним'
+
+        conn.execute(
+            'INSERT INTO donatepay_orders (order_code, user_id, package_id, order_type, rub_amount) '
+            'VALUES (%s,%s,%s,%s,%s)',
+            (order_code, user_id, package_id, order_type, rub)
+        )
+        conn.commit()
+    except Exception as e:
+        return jsonify({'error': f'Ошибка создания ордера: {e}'}), 500
+    finally:
+        conn.close()
+
+    params = urllib.parse.urlencode({'amount': rub, 'message': order_code, 'name': display_name})
+    url = f'https://new.donatepay.ru/@{DONATEPAY_USERNAME}?{params}'
+    return jsonify({'url': url, 'order_code': order_code})
+
+@bp.route('/api/shop/dp-payment-status')
+def dp_payment_status():
+    """Проверяет статус ордера DonatePay."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    code = request.args.get('code', '').strip()
+    if not code:
+        return jsonify({'error': 'no_code'}), 400
+    conn = get_db()
+    try:
+        order = conn.execute(
+            'SELECT status FROM donatepay_orders WHERE order_code=%s AND user_id=%s',
+            (code, user_id)
+        ).fetchone()
+        if not order:
+            return jsonify({'status': 'not_found'})
+        return jsonify({'status': order['status']})
+    finally:
+        conn.close()
 
 
-@bp.route('/webhook/cryptocloud', methods=['POST'])
-def webhook_cryptocloud():
-    """Вебхук от Crypto Cloud — зачисляет монеты после оплаты."""
+@bp.route('/webhook/trybit', methods=['POST'])
+def webhook_trybit():
+    """Вебхук от Trybit — зачисляет монеты или Premium после оплаты."""
     data = request.form.to_dict() if request.content_type and 'form' in request.content_type \
         else (request.get_json(silent=True) or {})
 
@@ -2645,12 +3673,20 @@ def webhook_cryptocloud():
 
     # Верификация JWT-токена (HS256, подписан SECRET KEY проекта)
     token = data.get('token', '')
-    if CRYPTOCLOUD_SECRET_KEY and token:
+    if CRYPTOCLOUD_SECRET_KEY:
+        if not token:
+            logger.warning('Trybit webhook: ключ настроен, но токен отсутствует — отклонено')
+            return '', 403
         try:
             import jwt as _jwt
             _jwt.decode(token, CRYPTOCLOUD_SECRET_KEY, algorithms=['HS256'])
         except Exception:
+            logger.warning('Trybit webhook: невалидный JWT-токен')
             return '', 403
+    else:
+        cc_ip = request.headers.get('X-Real-IP') or request.remote_addr or ''
+        if not _rate_limit_check(f'webhook_tb:{cc_ip}', 10, 60):
+            _send_admin_alert(f'Флуд вебхуков Trybit с IP <code>{cc_ip}</code> (ключ не настроен!)')
 
     order_id = data.get('order_id', '')
     invoice_id = str(data.get('invoice_id', ''))
@@ -2658,10 +3694,10 @@ def webhook_cryptocloud():
     try:
         if order_id.startswith('premium:'):
             _, package_id, user_id_str = order_id.split(':', 2)
-            _grant_premium(int(user_id_str), package_id, f'cc_{invoice_id}', 'crypto')
+            _grant_premium(int(user_id_str), package_id, f'tb_{invoice_id}', 'trybit')
         else:
             package_id, user_id_str = order_id.rsplit(':', 1)
-            _credit_coins(int(user_id_str), package_id, f'cc_{invoice_id}', 'crypto')
+            _credit_coins(int(user_id_str), package_id, f'tb_{invoice_id}', 'trybit')
     except (ValueError, AttributeError):
         pass
 
@@ -2713,6 +3749,11 @@ def set_manga_status(manga_id):
             'ON CONFLICT(user_id, manga_id) DO UPDATE SET status=excluded.status, updated_at=CURRENT_TIMESTAMP',
             (user_id, manga_id, status)
         )
+        if status == 'reading':
+            conn.execute(
+                'INSERT INTO subscriptions (user_id, manga_id) VALUES (?,?) ON CONFLICT DO NOTHING',
+                (user_id, manga_id)
+            )
     else:
         conn.execute('DELETE FROM user_manga_status WHERE user_id=? AND manga_id=?', (user_id, manga_id))
     conn.commit()
@@ -2746,11 +3787,14 @@ def api_user_reading_list():
     uid = request.args.get('uid', type=int)
     target_id = uid if uid else session.get('user_id')
     if not target_id:
-        return jsonify([])
+        return jsonify({'error': 'not_auth'}), 401
     status = request.args.get('status')
     conn = get_db()
     q = '''SELECT m.manga_id, m.manga_slug, m.manga_title, m.cover_url, m.manga_type,
-                  ums.status, ums.updated_at
+                  m.chapters_count,
+                  ums.status, ums.updated_at,
+                  (SELECT COUNT(*) FROM chapters_read cr
+                   WHERE cr.user_id=ums.user_id AND cr.manga_id=m.manga_id) AS chapters_read_count
            FROM user_manga_status ums
            JOIN manga m ON ums.manga_id = m.manga_id
            WHERE ums.user_id=?'''
@@ -2758,7 +3802,7 @@ def api_user_reading_list():
     if status:
         q += ' AND ums.status=?'
         params.append(status)
-    q += ' ORDER BY ums.updated_at DESC'
+    q += ' ORDER BY ums.id DESC'
     rows = conn.execute(q, params).fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])
@@ -3231,9 +4275,9 @@ def delete_comment(comment_id):
     if not row:
         conn.close()
         return jsonify({'error': 'Не найдено'}), 404
-    c.execute('SELECT telegram_id FROM users WHERE id = ?', (user_id,))
+    c.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,))
     u = c.fetchone()
-    is_admin = u and u['telegram_id'] in ADMIN_TELEGRAM_IDS
+    is_admin = u and u['is_admin']
     if row['user_id'] != user_id and not is_admin:
         conn.close()
         return jsonify({'error': 'Нет доступа'}), 403
@@ -3534,7 +4578,7 @@ def api_user_history():
     """История чтения пользователя"""
     user_id = session.get('user_id')
     if not user_id:
-        return jsonify([])
+        return jsonify({'error': 'not_auth'}), 401
     limit = min(int(request.args.get('limit', 50)), 200)
     offset = int(request.args.get('offset', 0))
     conn = get_db()
@@ -3561,7 +4605,7 @@ def api_user_subscriptions():
     uid = request.args.get('uid', type=int)
     target_id = uid if uid else session.get('user_id')
     if not target_id:
-        return jsonify([])
+        return jsonify({'error': 'not_auth'}), 401
     conn = get_db()
     c = conn.cursor()
     c.execute(
@@ -3769,6 +4813,11 @@ def api_delete_collection(coll_id):
         return jsonify({'error': 'Не авторизован'}), 401
     conn = get_db()
     c = conn.cursor()
+    # Сначала проверяем владение — только потом удаляем items
+    c.execute('SELECT id FROM collections WHERE id = ? AND user_id = ?', (coll_id, user_id))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'error': 'Не найдено'}), 404
     c.execute('DELETE FROM collection_items WHERE collection_id = ?', (coll_id,))
     c.execute('DELETE FROM collections WHERE id = ? AND user_id = ?', (coll_id, user_id))
     conn.commit()
@@ -4005,18 +5054,18 @@ def collections_top_page():
 # ==================== АДМИНКА ====================
 
 def admin_required(f):
-    """Декоратор: проверяем, что текущий пользователь — администратор"""
+    """Декоратор: проверяем, что текущий пользователь — администратор (через is_admin в БД)"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = session.get('user_id')
         if not user_id:
-            return redirect(url_for('main.index'))
+            return redirect(url_for('main.login_page'))
         conn = get_db()
         c = conn.cursor()
-        c.execute('SELECT telegram_id FROM users WHERE id = ?', (user_id,))
+        c.execute('SELECT is_admin FROM users WHERE id = ?', (user_id,))
         row = c.fetchone()
         conn.close()
-        if not row or row['telegram_id'] not in ADMIN_TELEGRAM_IDS:
+        if not row or not row['is_admin']:
             return "403 Forbidden", 403
         return f(*args, **kwargs)
     return decorated
@@ -5098,28 +6147,18 @@ def api_admin_notify_send():
         return jsonify({'error': str(e)}), 500
     conn.close()
 
-    # Telegram-рассылка (асинхронно, не блокирует ответ)
-    if send_tg and _bot_loop and _bot_loop.is_running() and telegram_app:
-        tg_targets = [u for u in users if u.get('telegram_id')]
+    # Telegram-рассылка (через Redis-мост — бот в отдельном процессе;
+    # fire-and-forget, не блокирует ответ)
+    if send_tg:
+        tg_targets = [u['telegram_id'] for u in users if u.get('telegram_id')]
         if tg_targets:
-            tg_title = title
-            tg_body  = body
-            tg_url   = url
-            async def _bulk_tg():
-                msg = f"📢 <b>{tg_title}</b>"
-                if tg_body:
-                    msg += f"\n\n{tg_body}"
-                if tg_url:
-                    full = tg_url if tg_url.startswith('http') else f"{SITE_URL}{tg_url}"
-                    msg += f"\n\n🔗 <a href='{full}'>Подробнее</a>"
-                for u in tg_targets:
-                    try:
-                        await telegram_app.bot.send_message(
-                            chat_id=u['telegram_id'], text=msg, parse_mode='HTML'
-                        )
-                    except Exception:
-                        pass
-            asyncio.run_coroutine_threadsafe(_bulk_tg(), _bot_loop)
+            msg = f"📢 <b>{title}</b>"
+            if body:
+                msg += f"\n\n{body}"
+            if url:
+                full = url if url.startswith('http') else f"{SITE_URL}{url}"
+                msg += f"\n\n🔗 <a href='{full}'>Подробнее</a>"
+            _submit_bot_job('admin_broadcast', {'chat_ids': tg_targets, 'message': msg})
 
     return jsonify({'ok': True, 'sent': len(users)})
 
@@ -5152,3 +6191,365 @@ def api_admin_notify_manga_search():
     conn.close()
     return jsonify([dict(r) for r in rows])
 
+
+@bp.route('/api/admin/payments')
+@admin_required
+def api_admin_payments():
+    """Список платежей DonatePay."""
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT dp.id, dp.order_code, dp.package_id, dp.order_type,
+                  dp.rub_amount, dp.status, dp.tx_id,
+                  dp.created_at, dp.paid_at,
+                  COALESCE(u.telegram_first_name, u.telegram_username, u.telegram_id::text) AS display_name,
+                  u.telegram_id
+           FROM donatepay_orders dp
+           JOIN users u ON u.id = dp.user_id
+           ORDER BY dp.created_at DESC
+           LIMIT 100'''
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+# ==================== ПОДДЕРЖКА ====================
+
+def _notify_admins_support(ticket_id, user_db_id, username, first_name, subject, text):
+    """Уведомить adminов о новом тикете / ответе — прямой HTTP к Telegram API."""
+    import json as _json
+    kbd = _json.dumps({'inline_keyboard': [[{
+        'text': '🔍 Открыть панель',
+        'url': f'{SITE_URL}/admin?section=support&ticket={ticket_id}'
+    }]]})
+    # Формируем подпись: имя + @username + #id
+    who = first_name or ''
+    if username:
+        who += f' (@{username})' if who else f'@{username}'
+    who += f' · <code>#{user_db_id}</code>'
+    msg = (
+        f'🎫 <b>Заявка #{ticket_id}</b>\n'
+        f'👤 <b>От:</b> {who}\n'
+        f'📋 <b>Тема:</b> {subject}\n\n'
+        f'{text[:500]}'
+    )
+    send_tg_to_admins(msg, reply_markup=kbd)
+
+
+@bp.route('/support')
+def support_page():
+    user_id = session.get('user_id')
+    return render_template('support.html', user_id=user_id)
+
+
+@bp.route('/api/support/create', methods=['POST'])
+def api_support_create():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    data = request.get_json(silent=True) or {}
+    subject = (data.get('subject') or '').strip()[:200]
+    text = (data.get('text') or '').strip()[:3000]
+    if not subject or not text:
+        return jsonify({'error': 'Заполните тему и текст'}), 400
+
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            '''SELECT id FROM support_tickets
+               WHERE user_id=? AND LOWER(subject)=LOWER(?) AND status='open'
+               ORDER BY created_at DESC LIMIT 1''',
+            (user_id, subject)
+        ).fetchone()
+        if existing:
+            ticket_id = existing['id']
+            conn.execute(
+                'INSERT INTO support_messages (ticket_id, sender_id, is_admin, text) VALUES (?,?,?,?)',
+                (ticket_id, user_id, False, text)
+            )
+            conn.execute(
+                'UPDATE support_tickets SET updated_at=CURRENT_TIMESTAMP WHERE id=?',
+                (ticket_id,)
+            )
+            conn.commit()
+            u = conn.execute(
+                '''SELECT u.telegram_first_name, u.telegram_username, p.custom_name
+                   FROM users u LEFT JOIN user_profile p ON p.user_id = u.id
+                   WHERE u.id=?''',
+                (user_id,)
+            ).fetchone()
+            first_name = (u['custom_name'] or u['telegram_first_name']) if u else None
+            username = u['telegram_username'] if u else None
+            _notify_admins_support(ticket_id, user_id, username, first_name, f'[Продолжение] {subject}', text)
+            return jsonify({'ticket_id': ticket_id, 'merged': True})
+
+        cur = conn.execute(
+            'INSERT INTO support_tickets (user_id, subject) VALUES (?,?) RETURNING id',
+            (user_id, subject)
+        )
+        ticket_id = cur.fetchone()[0]
+        conn.execute(
+            'INSERT INTO support_messages (ticket_id, sender_id, is_admin, text) VALUES (?,?,?,?)',
+            (ticket_id, user_id, False, text)
+        )
+        conn.commit()
+        u = conn.execute(
+            '''SELECT u.telegram_first_name, u.telegram_username,
+                      p.custom_name
+               FROM users u LEFT JOIN user_profile p ON p.user_id = u.id
+               WHERE u.id=?''',
+            (user_id,)
+        ).fetchone()
+        first_name = (u['custom_name'] or u['telegram_first_name']) if u else None
+        username = u['telegram_username'] if u else None
+    finally:
+        conn.close()
+
+    _notify_admins_support(ticket_id, user_id, username, first_name, subject, text)
+    return jsonify({'ticket_id': ticket_id})
+
+
+@bp.route('/api/support/my')
+def api_support_my():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            '''SELECT t.id, t.subject, t.status, t.created_at, t.updated_at,
+                      (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id = t.id) AS msg_count,
+                      (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id = t.id AND m.is_admin = TRUE) AS admin_replies
+               FROM support_tickets t
+               WHERE t.user_id = ?
+               ORDER BY t.updated_at DESC''',
+            (user_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@bp.route('/api/support/ticket/<int:ticket_id>')
+def api_support_ticket(ticket_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    try:
+        ticket = conn.execute(
+            '''SELECT t.*,
+                      COALESCE(u.telegram_first_name, u.telegram_username, u.id::text) AS user_display
+               FROM support_tickets t JOIN users u ON u.id = t.user_id
+               WHERE t.id=? AND t.user_id=?''',
+            (ticket_id, user_id)
+        ).fetchone()
+        if not ticket:
+            return jsonify({'error': 'not_found'}), 404
+        me = conn.execute(
+            '''SELECT COALESCE(p.custom_name, u.telegram_first_name, u.telegram_username, u.id::text) AS display_name,
+                      p.avatar_url AS avatar_url
+               FROM users u LEFT JOIN user_profile p ON p.user_id = u.id
+               WHERE u.id=?''',
+            (user_id,)
+        ).fetchone()
+        msgs = conn.execute(
+            'SELECT id, is_admin, text, created_at FROM support_messages WHERE ticket_id=? ORDER BY created_at',
+            (ticket_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return jsonify({
+        'ticket': dict(ticket),
+        'messages': [dict(m) for m in msgs],
+        'user_display': me['display_name'] if me else 'Вы',
+        'user_avatar_url': me['avatar_url'] if me else None,
+    })
+
+
+@bp.route('/api/support/ticket/<int:ticket_id>/reply', methods=['POST'])
+def api_support_reply(ticket_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()[:3000]
+    if not text:
+        return jsonify({'error': 'Пустой текст'}), 400
+    conn = get_db()
+    try:
+        ticket = conn.execute(
+            'SELECT id, subject, status FROM support_tickets WHERE id=? AND user_id=?',
+            (ticket_id, user_id)
+        ).fetchone()
+        if not ticket:
+            return jsonify({'error': 'not_found'}), 404
+        if ticket['status'] == 'closed':
+            return jsonify({'error': 'Заявка закрыта'}), 400
+        conn.execute(
+            'INSERT INTO support_messages (ticket_id, sender_id, is_admin, text) VALUES (?,?,?,?)',
+            (ticket_id, user_id, False, text)
+        )
+        conn.execute('UPDATE support_tickets SET updated_at=NOW() WHERE id=?', (ticket_id,))
+        conn.commit()
+        u = conn.execute(
+            '''SELECT u.telegram_first_name, u.telegram_username,
+                      p.custom_name
+               FROM users u LEFT JOIN user_profile p ON p.user_id = u.id
+               WHERE u.id=?''',
+            (user_id,)
+        ).fetchone()
+        first_name = (u['custom_name'] or u['telegram_first_name']) if u else None
+        username = u['telegram_username'] if u else None
+        subject = ticket['subject']
+    finally:
+        conn.close()
+
+    _notify_admins_support(ticket_id, user_id, username, first_name, f'[Ответ] {subject}', text)
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/support/ticket/<int:ticket_id>', methods=['DELETE'])
+def api_support_delete_ticket(ticket_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'not_auth'}), 401
+    conn = get_db()
+    try:
+        row = conn.execute(
+            'SELECT id FROM support_tickets WHERE id=? AND user_id=?',
+            (ticket_id, user_id)
+        ).fetchone()
+        if not row:
+            return jsonify({'error': 'not_found'}), 404
+        conn.execute('DELETE FROM support_messages WHERE ticket_id=?', (ticket_id,))
+        conn.execute('DELETE FROM support_tickets WHERE id=?', (ticket_id,))
+        conn.commit()
+        return jsonify({'ok': True})
+    finally:
+        conn.close()
+
+
+# ── Admin support ──────────────────────────────────────────────────────────────
+
+@bp.route('/api/admin/support/tickets')
+@admin_required
+def api_admin_support_tickets():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            '''SELECT t.id, t.subject, t.status, t.created_at, t.updated_at,
+                      COALESCE(u.telegram_first_name, u.telegram_username, u.telegram_id::text) AS display_name,
+                      u.id AS user_db_id,
+                      (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id = t.id) AS msg_count
+               FROM support_tickets t
+               JOIN users u ON u.id = t.user_id
+               ORDER BY t.updated_at DESC
+               LIMIT 200'''
+        ).fetchall()
+    finally:
+        conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@bp.route('/api/admin/support/ticket/<int:ticket_id>')
+@admin_required
+def api_admin_support_ticket(ticket_id):
+    conn = get_db()
+    try:
+        ticket = conn.execute(
+            '''SELECT t.*,
+                      COALESCE(p.custom_name, u.telegram_first_name, u.telegram_username, u.telegram_id::text) AS display_name,
+                      u.telegram_username,
+                      u.id AS user_db_id,
+                      p.avatar_url AS user_avatar_url
+               FROM support_tickets t
+               JOIN users u ON u.id = t.user_id
+               LEFT JOIN user_profile p ON p.user_id = u.id
+               WHERE t.id=?''',
+            (ticket_id,)
+        ).fetchone()
+        if not ticket:
+            return jsonify({'error': 'not_found'}), 404
+        msgs = conn.execute(
+            '''SELECT m.id, m.is_admin, m.text, m.created_at,
+                      COALESCE(u.telegram_first_name, u.telegram_username) AS sender_name
+               FROM support_messages m
+               LEFT JOIN users u ON u.id = m.sender_id
+               WHERE m.ticket_id=? ORDER BY m.created_at''',
+            (ticket_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    t = dict(ticket)
+    return jsonify({
+        'ticket': t,
+        'messages': [dict(m) for m in msgs],
+        'user_avatar_url': t.pop('user_avatar_url', None),
+    })
+
+
+@bp.route('/api/admin/support/ticket/<int:ticket_id>/reply', methods=['POST'])
+@admin_required
+def api_admin_support_reply(ticket_id):
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()[:3000]
+    if not text:
+        return jsonify({'error': 'Пустой текст'}), 400
+    admin_user_id = session.get('user_id')
+    conn = get_db()
+    try:
+        ticket = conn.execute(
+            'SELECT id, subject, user_id, status FROM support_tickets WHERE id=?', (ticket_id,)
+        ).fetchone()
+        if not ticket:
+            return jsonify({'error': 'not_found'}), 404
+        conn.execute(
+            'INSERT INTO support_messages (ticket_id, sender_id, is_admin, text) VALUES (?,?,?,?)',
+            (ticket_id, admin_user_id, True, text)
+        )
+        conn.execute('UPDATE support_tickets SET updated_at=NOW() WHERE id=?', (ticket_id,))
+        conn.commit()
+        user_id = ticket['user_id']
+        subject = ticket['subject']
+    finally:
+        conn.close()
+
+    create_site_notification(
+        user_id, 'support',
+        f'Манговая · Ответ по заявке #{ticket_id}',
+        body=text[:300],
+        url=f'/support?ticket={ticket_id}',
+        ref_id=f'support_{ticket_id}',
+    )
+    send_tg_to_user(
+        user_id,
+        f'💬 <b>Манговая</b> · ответ по заявке #{ticket_id}\n'
+        f'<b>Тема:</b> {subject}\n\n'
+        f'{text}\n\n'
+        f'<a href="{SITE_URL}/support?ticket={ticket_id}">Открыть заявку на сайте</a>'
+    )
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/admin/support/ticket/<int:ticket_id>/close', methods=['POST'])
+@admin_required
+def api_admin_support_close(ticket_id):
+    conn = get_db()
+    try:
+        conn.execute('UPDATE support_tickets SET status=? WHERE id=?', ('closed', ticket_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'ok': True})
+
+
+@bp.route('/api/admin/support/ticket/<int:ticket_id>/open', methods=['POST'])
+@admin_required
+def api_admin_support_open(ticket_id):
+    conn = get_db()
+    try:
+        conn.execute('UPDATE support_tickets SET status=? WHERE id=?', ('open', ticket_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({'ok': True})

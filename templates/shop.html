@@ -37,6 +37,7 @@
     .shop-hero p { color:var(--text-2); font-size:.88rem; }
     .hero-badges { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:.5rem; margin-top:.75rem; }
     .balance-chip { display:inline-flex; align-items:center; gap:.4rem; background:rgba(224,149,53,.12); border:1px solid rgba(224,149,53,.3); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.9rem; color:#e8b04a; }
+    .mango-icon { height:1.15em; width:auto; vertical-align:middle; display:inline-block; }
     .premium-banner { display:inline-flex; align-items:center; gap:.5rem; background:linear-gradient(135deg,rgba(224,149,53,.15),rgba(217,119,6,.1)); border:1px solid rgba(224,149,53,.4); border-radius:20px; padding:.33rem .95rem; font-weight:700; font-size:.82rem; color:#fcd34d; }
 
     /* ── Вкладки ── */
@@ -144,7 +145,7 @@
     .login-notice { text-align:center; padding:3rem 1rem; color:var(--text-3); }
     .login-notice a { color:var(--accent); text-decoration:none; }
 
-    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(60px); background:#1c160f; border:1px solid rgba(237,200,140,.08); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .3s; z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; max-width:calc(100vw - 32px); white-space:normal; text-align:center; box-sizing:border-box; }
+    .toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(calc(100% + 2rem)); background:#1c160f; border:1px solid rgba(237,200,140,.08); border-radius:12px; padding:.65rem 1.3rem; font-size:.83rem; font-weight:600; color:#f4f4f5; transition:transform .35s cubic-bezier(.4,0,.2,1); z-index:9999; pointer-events:none; font-family:'Poppins',sans-serif; max-width:calc(100vw - 32px); white-space:normal; text-align:center; box-sizing:border-box; }
     .toast.show { transform:translateX(-50%) translateY(0); }
     .toast.ok  { border-color:rgba(224,149,53,.4); color:#e8b04a; }
     .toast.err { border-color:rgba(239,68,68,.4); color:#fca5a5; }
@@ -227,6 +228,27 @@
     .pay-btn-arrow { color:var(--text-3); font-size:.95rem; flex-shrink:0; transition:transform .15s; }
     .pay-btn:hover:not(:disabled) .pay-btn-arrow { transform:translateX(3px); color:#e8b04a; }
     .pay-note { font-size:.72rem; color:var(--text-3); text-align:center; margin-top:.85rem; line-height:1.5; }
+    .pay-support-link { display:block; text-align:center; margin-top:.6rem; font-size:.72rem; color:rgba(168,85,247,.7); text-decoration:none; transition:color .15s; }
+    .pay-support-link:hover { color:rgba(168,85,247,1); }
+    .pay-btn-da { border-color:rgba(168,85,247,.3); background:rgba(168,85,247,.07); }
+    .pay-btn-da:hover:not(:disabled) { border-color:rgba(168,85,247,.6); background:rgba(168,85,247,.14); }
+    .da-status { display:flex; flex-direction:column; align-items:center; gap:.8rem; padding:1.2rem .5rem; text-align:center; color:var(--text-3); font-size:.83rem; line-height:1.5; }
+    .da-status-icon { font-size:2.2rem; }
+    .da-status-code { font-size:.72rem; color:var(--text-3); margin-top:.3rem; }
+    .da-status-code b { color:#a855f7; letter-spacing:.08em; }
+    .da-failed { color:rgba(255,255,255,.45); }
+    .da-spinner { width:32px; height:32px; border:3px solid rgba(168,85,247,.2); border-top-color:#a855f7; border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .dp-info { display:flex; flex-direction:column; gap:.7rem; padding:.2rem 0; }
+    .dp-info-title { font-size:.9rem; font-weight:700; color:#f4f4f5; margin-bottom:.1rem; }
+    .dp-info-row { display:flex; gap:.75rem; align-items:flex-start; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:12px; padding:.75rem .9rem; }
+    .dp-info-row.dp-warn { border-color:rgba(239,68,68,.25); background:rgba(239,68,68,.06); }
+    .dp-info-label { font-size:.75rem; font-weight:700; color:#a855f7; min-width:30px; text-align:center; flex-shrink:0; margin-top:1px; }
+    .dp-info-text { font-size:.8rem; color:var(--text-2); line-height:1.5; }
+    .dp-info-text b { color:#f4f4f5; font-weight:600; }
+    .dp-go-btn { margin-top:.4rem; background:#a855f7; border:none; color:#fff; font-size:.9rem; font-weight:700; border-radius:13px; padding:.85rem; width:100%; cursor:pointer; font-family:inherit; transition:background .15s; }
+    .dp-go-btn:hover { background:#9333ea; }
+    .dp-go-btn:disabled { opacity:.5; cursor:wait; }
 
     @media(max-width:600px){
       .shop-tabs { flex-wrap:wrap; overflow-x:visible; padding:8px 10px; gap:5px; justify-content:flex-start; }
@@ -279,6 +301,7 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 const {createElement:h,Fragment,useState,useCallback,useMemo,useEffect} = React;
+const MangoIcon = () => h('img',{src:'/static/mango.webp',className:'mango-icon',alt:''});
 
 const ALL_ITEMS       = {{ items | tojson }};
 const OWNED_IDS       = new Set({{ owned_ids | tojson }});
@@ -289,6 +312,7 @@ const IS_PREMIUM      = {{ is_premium | tojson }};
 const PREMIUM_EXPIRES = {{ premium_expires_at | tojson }};
 const LOANED_IDS      = new Set({{ loaned_ids | tojson }});
 const TEMP_EXPIRES    = {{ temp_expires | tojson }};
+const DP_ENABLED      = {{ dp_enabled | tojson }};
 
 const TABS = [
   {id:'all',        label:' Все'},
@@ -312,11 +336,13 @@ const GROUP_LABELS = {
   bg_slot:    'Загрузка фона',
 };
 
+let _toastTid=null;
 function toast(msg,type='ok'){
   const el=document.querySelector('.toast');
   if(!el)return;
+  if(_toastTid){clearTimeout(_toastTid);_toastTid=null;}
   el.textContent=msg; el.className=`toast ${type} show`;
-  setTimeout(()=>{el.className=`toast ${type}`;},2500);
+  _toastTid=setTimeout(()=>{el.className=`toast ${type}`;_toastTid=null;},2800);
 }
 
 // ── Превью ────────────────────────────────────────────────────────────────────
@@ -548,7 +574,8 @@ function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate,
         item.price===0
           ? 'Бесплатно'
           : h(Fragment,null,
-              '🥭 ',
+              h(MangoIcon),
+              ' ',
               item.price.toLocaleString()
             )
       ),
@@ -558,14 +585,7 @@ function ItemCard({item,coins,eqMap,ownedSet,loanedSet,onBuy,onEquip,onActivate,
 }
 
 // ── Покупка монет/Premium ──────────────────────────────────────────────────────
-const BOT_BUY_URL = 'https://t.me/hookah_p_bot?start=buy';
-
-const COIN_PACKAGES_STATIC = [
-  {id:'coins_100',  coins:100,  stars:15,  rub:129,   usd:'1.49'},
-  {id:'coins_300',  coins:300,  stars:40,  rub:329,   usd:'3.99'},
-  {id:'coins_700',  coins:700,  stars:85,  rub:699,   usd:'7.99'},
-  {id:'coins_1500', coins:1500, stars:175, rub:1399,  usd:'15.99'},
-];
+const BOT_BUY_URL = 'https://t.me/mangovaya_bot?start=buy';
 
 const PREMIUM_PACKAGES_STATIC = [
   {id:'premium_1m',  days:30,  name:'1 месяц',  rub:199,  usd:'2.49'},
@@ -575,23 +595,87 @@ const PREMIUM_PACKAGES_STATIC = [
 
 const PREMIUM_MAIN_FEATURE = 'Новые главы в Telegram — сразу при выходе';
 const PREMIUM_FEATURES = [
+  'Читать вместе с другом в реальном времени',
   'Активация предметов магазина бесплатно',
   'Доступ к эксклюзивным предметам',
   'Значок Premium на профиле',
   'Приоритет в поддержке',
 ];
 
+// ── DonatePay — статус-поллер ─────────────────────────────────────────────────
+function DPStatusPoller({orderCode, pkgLabel, onDone}){
+  const [dots, setDots] = useState('');
+  const [failed, setFailed] = useState(false);
+  useEffect(()=>{
+    let tries = 0; const MAX = 40; // 40 × 7.5s = 5 мин
+    const interval = setInterval(async ()=>{
+      try {
+        const r = await fetch('/api/shop/dp-payment-status?code='+orderCode);
+        const j = await r.json();
+        if(j.status === 'paid'){
+          clearInterval(interval);
+          onDone();
+          toast('✅ Оплата подтверждена! '+pkgLabel+' зачислено');
+          return;
+        }
+        tries++;
+        if(tries >= MAX){ clearInterval(interval); setFailed(true); }
+      } catch(e){ tries++; }
+    }, 7500);
+    const dots_int = setInterval(()=> setDots(d=> d.length < 3 ? d+'.' : ''), 600);
+    return ()=>{ clearInterval(interval); clearInterval(dots_int); };
+  },[orderCode]);
+
+  if(failed) return h('div',{className:'da-status da-failed'},
+    h('div',{className:'da-status-icon'},'⏳'),
+    h('div',null,'Ожидание истекло. Оплата зачислится автоматически при ближайшей проверке.'),
+    h('div',{className:'da-status-code'},'Код: ',h('b',null,orderCode))
+  );
+
+  return h('div',{className:'da-status'},
+    h('div',{className:'da-spinner'}),
+    h('div',null,'Ожидаем подтверждение оплаты'+dots),
+    h('div',{className:'da-status-code'},
+      'Если страница не открылась, укажи в донате код: ',h('b',null,orderCode)
+    )
+  );
+}
+
+
 // ── Универсальное модальное окно оплаты ───────────────────────────────────────
 // apiEndpoint: '/api/shop/create-payment' | '/api/shop/create-premium-payment'
-// title/sub: заголовок и подзаголовок
+// orderType: 'coins' | 'premium' (для DonationAlerts)
 // showStars: показывать ли Telegram Stars
-function PayModal({pkg, onClose, apiEndpoint, title, sub, note, showStars}){
+function PayModal({pkg, onClose, apiEndpoint, orderType, title, sub, note, showStars}){
   const [busy, setBusy] = useState(null);
+  const [dpOrder, setDpOrder] = useState(null);
+  const [showDpInfo, setShowDpInfo] = useState(false);
+
+  const payDP = useCallback(async ()=>{
+    setBusy('donatepay');
+    try {
+      const r = await fetch('/api/shop/create-dp-payment',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({package_id: pkg.id, type: orderType||'coins'})
+      });
+      const j = await r.json();
+      if(!r.ok){ toast(j.error||'Ошибка','err'); return; }
+      window.open(j.url,'_blank');
+      setDpOrder({code: j.order_code, label: pkg.coins ? pkg.coins+' манго' : pkg.label||'Premium'});
+      setShowDpInfo(false);
+    } catch(e){ toast('Ошибка сети','err'); }
+    finally { setBusy(null); }
+  },[pkg, orderType]);
 
   const pay = useCallback(async (method)=>{
     if(method === 'stars'){
       window.open(BOT_BUY_URL, '_blank');
       onClose();
+      return;
+    }
+    if(method === 'donatepay'){
+      setShowDpInfo(true);
       return;
     }
     setBusy(method);
@@ -611,13 +695,43 @@ function PayModal({pkg, onClose, apiEndpoint, title, sub, note, showStars}){
     } finally {
       setBusy(null);
     }
-  },[pkg, onClose, apiEndpoint, note]);
+  },[pkg, onClose, apiEndpoint, orderType, note]);
 
   const METHODS = [
-    ...(showStars ? [{key:'stars', icon:'⭐', name:'Telegram Stars', price: (pkg.stars||'?')+' Stars'}] : []),
-    {key:'yookassa', icon:'💳', name:'Банковская карта', price: pkg.rub.toLocaleString('ru-RU')+' ₽'},
-    {key:'crypto',   icon:'☁️', name:'Crypto Cloud (USDT)', price: pkg.usd+' USDT'},
+    ...(DP_ENABLED ? [{key:'donatepay', icon:'DP', name:'DonatePay', price: pkg.rub.toLocaleString('ru-RU')+' ₽', hint:'СБП, карта и др.'}] : []),
+    {key:'crypto', icon:'TB', name:'Trybit (USDT)', price: pkg.usd+' USDT'},
   ];
+
+  const dpInfoContent = h('div',{className:'dp-info'},
+    h('div',{className:'dp-info-title'},'Как оплатить через DonatePay'),
+    h('div',{className:'dp-info-row dp-warn'},
+      h('span',{className:'dp-info-label'},'1'),
+      h('div',{className:'dp-info-text'},
+        'Откроется страница DonatePay. ',
+        h('b',null,'Не меняйте сумму'),
+        ' — она должна совпадать с выбранным пакетом.'
+      )
+    ),
+    h('div',{className:'dp-info-row dp-warn'},
+      h('span',{className:'dp-info-label'},'2'),
+      h('div',{className:'dp-info-text'},
+        'В поле ',h('b',null,'"Комментарий"'),' будет код вида ',
+        h('b',null,'mmm-XXXXXXXX'),
+        '. Не удаляйте и не изменяйте его — по этому коду система зачисляет покупку.'
+      )
+    ),
+    h('div',{className:'dp-info-row'},
+      h('span',{className:'dp-info-label'},'3'),
+      h('div',{className:'dp-info-text'},
+        'Выберите удобный способ оплаты и оплатите. Монеты зачислятся автоматически в течение ',
+        h('b',null,'~30 секунд'),
+        '.'
+      )
+    ),
+    h('button',{className:'dp-go-btn', disabled:busy==='donatepay', onClick:payDP},
+      busy==='donatepay' ? 'Создаём заказ…' : 'Перейти к оплате'
+    )
+  );
 
   return h('div',{className:'pay-overlay', onClick:e=>{ if(e.target===e.currentTarget) onClose(); }},
     h('div',{className:'pay-modal'},
@@ -626,27 +740,39 @@ function PayModal({pkg, onClose, apiEndpoint, title, sub, note, showStars}){
           h('span',{className:'pay-pkg-coins'},title),
           sub && h('span',{className:'pay-pkg-sub'},sub)
         ),
-        h('button',{className:'pay-close',onClick:onClose},'✕')
+        h('button',{className:'pay-close',onClick: showDpInfo && !dpOrder ? ()=>setShowDpInfo(false) : onClose},
+          showDpInfo && !dpOrder ? '←' : '✕')
       ),
-      h('div',{className:'pay-subtitle'},'Выберите способ оплаты'),
-      h('div',{className:'pay-methods'},
-        METHODS.map(m=>
-          h('button',{
-            key:m.key,
-            className:'pay-btn',
-            disabled:busy===m.key,
-            onClick:()=>pay(m.key)
-          },
-            h('span',{className:'pay-btn-icon'},m.icon),
-            h('div',{className:'pay-btn-info'},
-              h('div',{className:'pay-btn-name'},m.name),
-              h('div',{className:'pay-btn-price'},m.price)
-            ),
-            h('span',{className:'pay-btn-arrow'},busy===m.key?'…':'›')
-          )
-        )
-      ),
-      h('p',{className:'pay-note'},'Безопасная оплата · Зачисляется автоматически')
+      dpOrder
+        ? h(DPStatusPoller,{orderCode:dpOrder.code, pkgLabel:dpOrder.label, onDone:onClose})
+        : showDpInfo
+          ? dpInfoContent
+          : h(Fragment,null,
+              h('div',{className:'pay-subtitle'},'Выберите способ оплаты'),
+              h('div',{className:'pay-methods'},
+                METHODS.map(m=>
+                  h('button',{
+                    key:m.key,
+                    className:'pay-btn'+(m.key==='donatepay'?' pay-btn-da':''),
+                    disabled:busy===m.key,
+                    onClick:()=>pay(m.key)
+                  },
+                    h('span',{className:'pay-btn-icon'},m.icon),
+                    h('div',{className:'pay-btn-info'},
+                      h('div',{className:'pay-btn-name'},m.name),
+                      h('div',{className:'pay-btn-price'},m.price),
+                      m.hint && h('div',{style:{fontSize:'.68rem',color:'rgba(168,85,247,.8)',marginTop:'.1rem'}},m.hint)
+                    ),
+                    h('span',{className:'pay-btn-arrow'},busy===m.key?'…':'›')
+                  )
+                )
+              ),
+              h('p',{className:'pay-note'},'Безопасная оплата · Зачисляется автоматически'),
+              h('a',{
+                href:'/support',
+                className:'pay-support-link',
+              },'💬 Проблемы с оплатой? Написать в поддержку')
+            )
     )
   );
 }
@@ -654,6 +780,14 @@ function PayModal({pkg, onClose, apiEndpoint, title, sub, note, showStars}){
 // ── Список пакетов шариков ────────────────────────────────────────────────────
 function BuyCoins(){
   const [modal, setModal] = useState(null);
+  // Пакеты грузим с бэкенда, а не хардкодим — цены/id меняются в config.py,
+  // и захардкоженная копия здесь однажды разошлась с сервером (id пакетов
+  // не совпали, и покупка с сайта стала падать 404 "Пакет не найден").
+  const [packages, setPackages] = useState([]);
+
+  useEffect(()=>{
+    fetch('/api/shop/packages').then(r=>r.json()).then(setPackages).catch(()=>{});
+  },[]);
 
   const open = useCallback(pkg=>{
     if(!USER_ID){ toast('Войдите через Telegram','err'); return; }
@@ -665,7 +799,8 @@ function BuyCoins(){
       pkg:modal,
       onClose:()=>setModal(null),
       apiEndpoint:'/api/shop/create-payment',
-      title: h(Fragment,null, '🥭 ', modal.coins.toLocaleString()),
+      orderType:'coins',
+      title: h(Fragment,null, h(MangoIcon), ' ', modal.coins.toLocaleString()),
       sub: ' манго',
       showStars: true,
     }),
@@ -674,10 +809,11 @@ function BuyCoins(){
       'Манго тратится в магазине на аватары, рамки, фоны и другие украшения профиля.'
     ),
     h('div',{className:'coins-grid'},
-      COIN_PACKAGES_STATIC.map(pkg=>
+      packages.map(pkg=>
         h('div',{key:pkg.id,className:'coin-pkg-card'},
           h('div',{className:'coin-pkg-amount'},
-            '🥭 ',
+            h(MangoIcon),
+            ' ',
             pkg.coins.toLocaleString()
           ),
           h('div',{className:'coin-pkg-label'},'манго'),
@@ -762,6 +898,7 @@ function BuyPremium(){
       pkg: modal,
       onClose: ()=>setModal(null),
       apiEndpoint: '/api/shop/create-premium-payment',
+      orderType: 'premium',
       title: 'Premium '+modal.name,
       sub: null,
       showStars: false,
@@ -797,17 +934,28 @@ function BuyPremium(){
 
 // ── Страница ─────────────────────────────────────────────────────────────────
 function updateHeaderAvatar(url){
-  // Обновляем аватарку в хедере без перезагрузки страницы
-  const ava = document.querySelector('.g-ava');
-  if(!ava) return;
+  // Обновляем аватарку в хедере без перезагрузки страницы.
+  // Работаем только с .g-ava-inner — не трогаем .g-ava-frame (рамка).
+  const inner = document.querySelector('.g-ava-inner');
+  if(!inner) return;
   if(url){
-    let img = ava.querySelector('img');
-    if(!img){ img = document.createElement('img'); img.alt=''; ava.innerHTML=''; ava.appendChild(img); }
+    let img = inner.querySelector('img');
+    if(!img){
+      // Прячем буквенный плейсхолдер, добавляем img внутрь inner
+      inner.dataset.letter = inner.textContent.trim();
+      inner.textContent = '';
+      img = document.createElement('img');
+      img.alt = '';
+      inner.appendChild(img);
+    }
     img.src = url;
   } else {
-    // Сброс аватара — показываем первую букву имени
-    const img = ava.querySelector('img');
-    if(img) img.remove();
+    // Сброс: убираем img, восстанавливаем букву
+    const img = inner.querySelector('img');
+    if(img){
+      img.remove();
+      if(inner.dataset.letter) inner.textContent = inner.dataset.letter;
+    }
   }
 }
 
@@ -898,8 +1046,8 @@ function ShopPage(){
       h('p',null,'Украшай профиль — покупай за манго, заработанные чтением'),
       (USER_ID || (!!IS_PREMIUM&&premiumExpStr)) && h('div',{className:'hero-badges'},
         USER_ID && h('div',{className:'balance-chip'},
-          '🥭 ',
-          h('span',null,coins.toLocaleString(),' манго')
+          h(MangoIcon),
+          h('span',null,' ',coins.toLocaleString(),' манго')
         ),
         !!IS_PREMIUM&&premiumExpStr && h('div',{className:'premium-banner'},'⭐ Premium активен до ',premiumExpStr)
       )

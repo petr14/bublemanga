@@ -1343,6 +1343,99 @@ async def link_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ==================== ПОДДЕРЖКА ====================
+
+async def notify_admins_new_ticket(ticket_id, user_display, subject, text):
+    """Уведомить всех adminов о новом тикете поддержки."""
+    global telegram_app
+    if not telegram_app:
+        return
+    msg = (
+        f"🎫 <b>Новая заявка #{ticket_id}</b>\n"
+        f"👤 <b>От:</b> {user_display}\n"
+        f"📋 <b>Тема:</b> {subject}\n\n"
+        f"{text[:500]}"
+    )
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔍 Открыть панель", url=f"{SITE_URL}/admin?section=support&ticket={ticket_id}")
+    ]])
+    for tg_id in ADMIN_TELEGRAM_IDS:
+        try:
+            await telegram_app.bot.send_message(
+                chat_id=tg_id, text=msg, parse_mode='HTML', reply_markup=keyboard
+            )
+        except Exception as e:
+            logger.warning(f"notify_admins_new_ticket: cannot send to {tg_id}: {e}")
+
+
+async def support_reply_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/reply <ticket_id> <текст> — ответ на тикет от имени поддержки (только admin)."""
+    if update.effective_user.id not in ADMIN_TELEGRAM_IDS:
+        await update.message.reply_text("❌ Нет доступа")
+        return
+    args = context.args
+    if not args or len(args) < 2:
+        await update.message.reply_text("Использование: /reply <id_заявки> <текст ответа>")
+        return
+    try:
+        ticket_id = int(args[0])
+    except ValueError:
+        await update.message.reply_text("❌ ID заявки должен быть числом")
+        return
+    reply_text = ' '.join(args[1:])
+
+    from main import create_site_notification, send_tg_to_user
+    conn = get_db()
+    try:
+        ticket = conn.execute(
+            'SELECT t.id, t.subject, t.user_id, t.status, '
+            'COALESCE(u.telegram_first_name, u.telegram_username, u.id::text) AS display_name '
+            'FROM support_tickets t JOIN users u ON u.id = t.user_id WHERE t.id = ?',
+            (ticket_id,)
+        ).fetchone()
+        if not ticket:
+            await update.message.reply_text(f"❌ Заявка #{ticket_id} не найдена")
+            return
+        if ticket['status'] == 'closed':
+            await update.message.reply_text(f"⚠️ Заявка #{ticket_id} уже закрыта")
+            return
+
+        # Находим admin user_id по telegram_id
+        admin_row = conn.execute(
+            'SELECT id FROM users WHERE telegram_id = ?', (update.effective_user.id,)
+        ).fetchone()
+        admin_db_id = admin_row['id'] if admin_row else None
+
+        conn.execute(
+            'INSERT INTO support_messages (ticket_id, sender_id, is_admin, text) VALUES (?,?,?,?)',
+            (ticket_id, admin_db_id, True, reply_text)
+        )
+        conn.execute(
+            'UPDATE support_tickets SET updated_at = NOW() WHERE id = ?', (ticket_id,)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Уведомление на сайте
+    create_site_notification(
+        ticket['user_id'], 'support',
+        f'Манговая · Ответ по заявке #{ticket_id}',
+        body=reply_text[:300],
+        url=f'/support?ticket={ticket_id}',
+        ref_id=f'support_{ticket_id}',
+    )
+    # TG юзеру
+    send_tg_to_user(
+        ticket['user_id'],
+        f'💬 <b>Манговая</b> · ответ по заявке #{ticket_id}\n'
+        f'<b>Тема:</b> {ticket["subject"]}\n\n'
+        f'{reply_text}\n\n'
+        f'<a href="{SITE_URL}/support?ticket={ticket_id}">Открыть заявку на сайте</a>'
+    )
+    await update.message.reply_text(f"✅ Ответ на заявку #{ticket_id} отправлен пользователю {ticket['display_name']}")
+
+
 # ==================== ЗАПУСК БОТА ====================
 
 def run_telegram_bot():
@@ -1364,6 +1457,7 @@ def run_telegram_bot():
             telegram_app.add_handler(CommandHandler("buy",     buy_command))
             telegram_app.add_handler(CommandHandler("gift",    gift_command))
             telegram_app.add_handler(CommandHandler("link",    link_command))
+            telegram_app.add_handler(CommandHandler("reply",   support_reply_command))
 
             telegram_app.add_handler(CallbackQueryHandler(handle_callback))
             telegram_app.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
@@ -1384,3 +1478,78 @@ def run_telegram_bot():
     t = threading.Thread(target=_start, daemon=True, name="TelegramBot")
     t.start()
     return t
+
+
+# ==================== REDIS-МОСТ (вызовы из Flask-процесса) ====================
+# Flask (bubblemanga.service) и бот (bubblemanga-worker.service) — теперь
+# разные ОС-процессы, поэтому telegram_app/_bot_loop этого модуля недоступны
+# из Flask напрямую. routes.py/main.py кладут задание в Redis через
+# bot_bridge.submit_job(), а обработчики ниже выполняют его здесь, в
+# процессе, где бот реально живёт. Регистрируются в BOT_BRIDGE_HANDLERS и
+# разбираются циклом bot_bridge.run_listener(), запущенным из worker.py.
+
+async def _job_mark_chapter_read(payload):
+    await mark_chapter_notification_read(payload['user_id'], payload['chapter_slug'])
+    return {'ok': True}
+
+
+async def _job_create_stars_invoice(payload):
+    url = await telegram_app.bot.create_invoice_link(
+        title=payload['title'],
+        description=payload['description'],
+        payload=payload['payload'],
+        currency='XTR',
+        provider_token='',
+        prices=[LabeledPrice(label=payload['price_label'], amount=payload['amount'])],
+    )
+    return {'ok': True, 'url': url}
+
+
+async def _job_suggest_similar_manga(payload):
+    try:
+        await telegram_app.bot.send_message(
+            chat_id=payload['chat_id'], text=payload['message'],
+            parse_mode='HTML', disable_web_page_preview=True,
+        )
+    except Exception as e:
+        logger.warning(f"_job_suggest_similar_manga: {e}")
+    return {'ok': True}
+
+
+async def _job_admin_broadcast(payload):
+    msg = payload['message']
+    sent = 0
+    for chat_id in payload['chat_ids']:
+        try:
+            await telegram_app.bot.send_message(chat_id=chat_id, text=msg, parse_mode='HTML')
+            sent += 1
+        except Exception:
+            pass
+    return {'ok': True, 'sent': sent}
+
+
+async def _job_admin_alert(payload):
+    text = payload['text']
+    for admin_id in ADMIN_TELEGRAM_IDS:
+        try:
+            await telegram_app.bot.send_message(
+                chat_id=admin_id, text=f'⚠️ <b>Security Alert</b>\n{text}', parse_mode='HTML',
+            )
+        except Exception:
+            pass
+    return {'ok': True}
+
+
+BOT_BRIDGE_HANDLERS = {
+    'mark_chapter_read':     _job_mark_chapter_read,
+    'create_stars_invoice':  _job_create_stars_invoice,
+    'suggest_similar_manga': _job_suggest_similar_manga,
+    'admin_broadcast':       _job_admin_broadcast,
+    'admin_alert':           _job_admin_alert,
+}
+
+
+def get_bot_loop():
+    """Геттер, а не значение: _bot_loop создаётся в потоке бота уже ПОСЛЕ
+    старта слушателя моста, значение на момент импорта было бы None навсегда."""
+    return _bot_loop

@@ -485,6 +485,7 @@ def init_db():
         "ALTER TABLE achievements ADD COLUMN IF NOT EXISTS icon_url TEXT",
         "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS name_change_count INTEGER DEFAULT 0",
         "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS name_change_month TEXT DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
     ]
     for sql in _migrations:
         try:
@@ -492,6 +493,19 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+
+    # Bootstrap: выставляем is_admin=true для пользователей из захардкоженного списка
+    try:
+        from config import ADMIN_TELEGRAM_IDS as _admin_ids
+        if _admin_ids:
+            _placeholders = ','.join(['%s'] * len(_admin_ids))
+            c.execute(
+                f'UPDATE users SET is_admin = TRUE WHERE telegram_id IN ({_placeholders})',
+                _admin_ids
+            )
+            conn.commit()
+    except Exception:
+        pass
 
     c.execute('''CREATE TABLE IF NOT EXISTS coin_purchases (
         id SERIAL PRIMARY KEY,
@@ -733,6 +747,15 @@ def init_db():
         FOREIGN KEY (comment_id) REFERENCES comments(id)
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS comment_reactions (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        comment_id BIGINT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+        reaction VARCHAR(32) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, comment_id, reaction)
+    )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS reading_wishlist (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
@@ -912,6 +935,86 @@ def init_db():
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_remanga_chapters_slug_num ON remanga_chapters(manga_slug, chapter_number)')
 
+    # ── Миграция: поля уведомлений о скором истечении Premium ─────────────
+    for _sql in [
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_notif_3d TIMESTAMP DEFAULT NULL',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_notif_1d TIMESTAMP DEFAULT NULL',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_trial_used INTEGER DEFAULT 0',
+    ]:
+        try:
+            c.execute(_sql)
+            conn.commit()
+        except Exception:
+            pass
+
+    # ── Совместное чтение (Reading Together) ──────────────────────────────────
+    c.execute('''CREATE TABLE IF NOT EXISTS reading_together (
+        id SERIAL PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        manga_slug TEXT NOT NULL,
+        user1_id INTEGER REFERENCES users(id),
+        user2_id INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_active TIMESTAMP DEFAULT NOW()
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS reading_together_progress (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES reading_together(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        chapter_slug TEXT NOT NULL DEFAULT '',
+        chapter_number REAL NOT NULL DEFAULT 0,
+        page_num INTEGER NOT NULL DEFAULT 1,
+        chapter_index INTEGER NOT NULL DEFAULT 0,
+        total_chapters INTEGER NOT NULL DEFAULT 1,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(session_id, user_id)
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS reading_together_pins (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES reading_together(id),
+        author_id INTEGER NOT NULL REFERENCES users(id),
+        chapter_slug TEXT NOT NULL,
+        page_num INTEGER NOT NULL,
+        x_pct REAL NOT NULL,
+        y_pct REAL NOT NULL,
+        pin_type TEXT NOT NULL DEFAULT 'note',
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS reading_together_milestones (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER NOT NULL REFERENCES reading_together(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        milestone_pct INTEGER NOT NULL,
+        reached_at TIMESTAMP DEFAULT NOW(),
+        notified INTEGER DEFAULT 0,
+        UNIQUE(session_id, user_id, milestone_pct)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rt_manga ON reading_together(manga_slug)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rt_pins ON reading_together_pins(session_id, chapter_slug)')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS support_tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        status TEXT DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets(user_id)')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS support_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ticket_id INTEGER NOT NULL,
+        sender_id INTEGER,
+        is_admin INTEGER DEFAULT 0,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (ticket_id) REFERENCES support_tickets(id)
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_support_messages_ticket ON support_messages(ticket_id)')
+
     conn.commit()
     conn.close()
     print("✅ База данных инициализирована")
@@ -945,6 +1048,15 @@ def init_pg_schema():
         print("✅ PostgreSQL: триггер search_vector установлен")
     except Exception as e:
         logger.warning(f"init_pg_schema: {e}")
+
+    for _sql in [
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_trial_used INTEGER DEFAULT 0',
+    ]:
+        try:
+            conn.execute(_sql)
+            conn.commit()
+        except Exception:
+            pass
 
     try:
         conn.execute('''CREATE TABLE IF NOT EXISTS manga_user_ratings (
@@ -1000,6 +1112,79 @@ def init_pg_schema():
         logger.warning(f"init_pg_schema chapter_rewards: {e}")
 
     try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS kv_store (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT NOW()
+        )''')
+        conn.commit()
+        print("✅ PostgreSQL: таблица kv_store готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema kv_store: {e}")
+
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS donationalerts_orders (
+            id SERIAL PRIMARY KEY,
+            order_code TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            package_id TEXT NOT NULL,
+            order_type TEXT NOT NULL DEFAULT 'coins',
+            rub_amount INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            donation_id TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            paid_at TIMESTAMP
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_da_orders_code ON donationalerts_orders(order_code, status)')
+        conn.commit()
+        print("✅ PostgreSQL: таблица donationalerts_orders готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema donationalerts_orders: {e}")
+
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS donatepay_orders (
+            id SERIAL PRIMARY KEY,
+            order_code TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            package_id TEXT NOT NULL,
+            order_type TEXT NOT NULL DEFAULT 'coins',
+            rub_amount INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            tx_id TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            paid_at TIMESTAMP
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_dp_orders_code ON donatepay_orders(order_code, status)')
+        conn.commit()
+        print("✅ PostgreSQL: таблица donatepay_orders готова")
+    except Exception as e:
+        logger.warning(f"init_pg_schema donatepay_orders: {e}")
+
+    try:
+        conn.execute('''CREATE TABLE IF NOT EXISTS support_tickets (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            subject TEXT NOT NULL,
+            status TEXT DEFAULT 'open',
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets(user_id)')
+        conn.execute('''CREATE TABLE IF NOT EXISTS support_messages (
+            id SERIAL PRIMARY KEY,
+            ticket_id INTEGER NOT NULL REFERENCES support_tickets(id),
+            sender_id INTEGER REFERENCES users(id),
+            is_admin BOOLEAN DEFAULT FALSE,
+            text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )''')
+        conn.execute('CREATE INDEX IF NOT EXISTS idx_support_messages_ticket ON support_messages(ticket_id)')
+        conn.commit()
+        print("✅ PostgreSQL: таблицы support_tickets/support_messages готовы")
+    except Exception as e:
+        logger.warning(f"init_pg_schema support: {e}")
+
+    try:
         # Уведомления о новых главах в Telegram: храним message_id, чтобы
         # бот мог отредактировать сообщение и проставить "✅ Прочитано"
         # когда пользователь реально дочитает главу на сайте.
@@ -1020,5 +1205,15 @@ def init_pg_schema():
         print("✅ PostgreSQL: таблица chapter_notifications готова")
     except Exception as e:
         logger.warning(f"init_pg_schema chapter_notifications: {e}")
-    finally:
-        conn.close()
+
+    for _sql in [
+        'ALTER TABLE user_manga_status ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_revoke_at TIMESTAMP DEFAULT NULL',
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_notif_5d TIMESTAMP DEFAULT NULL',
+    ]:
+        try:
+            conn.execute(_sql)
+            conn.commit()
+        except Exception:
+            pass
+    conn.close()

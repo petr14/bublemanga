@@ -31,7 +31,7 @@ from telegram.ext import (
 from functools import wraps
 import logging
 from flask_compress import Compress
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, emit as sio_emit
 from flask_caching import Cache
 from senkuro_api import SenkuroAPI
 
@@ -47,15 +47,19 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Постоянный secret_key — читаем из файла, чтобы сессии не сбрасывались при рестарте
-_SECRET_KEY_FILE = os.path.join(os.path.dirname(__file__), '.secret_key')
-if os.path.exists(_SECRET_KEY_FILE):
-    with open(_SECRET_KEY_FILE, 'r') as _f:
-        app.secret_key = _f.read().strip()
+# Постоянный secret_key — читаем из env (приоритет) или fallback из файла
+_secret_key_env = os.environ.get('SECRET_KEY', '')
+if _secret_key_env:
+    app.secret_key = _secret_key_env
 else:
-    app.secret_key = secrets.token_hex(32)
-    with open(_SECRET_KEY_FILE, 'w') as _f:
-        _f.write(app.secret_key)
+    _SECRET_KEY_FILE = os.path.join(os.path.dirname(__file__), '.secret_key')
+    if os.path.exists(_SECRET_KEY_FILE):
+        with open(_SECRET_KEY_FILE, 'r') as _f:
+            app.secret_key = _f.read().strip()
+    else:
+        app.secret_key = secrets.token_hex(32)
+        with open(_SECRET_KEY_FILE, 'w') as _f:
+            _f.write(app.secret_key)
 
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -88,10 +92,12 @@ Compress(app)
 
 # Flask-Caching: Redis если доступен, иначе SimpleCache (в памяти)
 # _REDIS_URL импортирован из config.py как _REDIS_URL
+_redis_client = None
 try:
     import redis as _redis_lib
     _r = _redis_lib.from_url(_REDIS_URL, socket_connect_timeout=1)
     _r.ping()
+    _redis_client = _redis_lib.from_url(_REDIS_URL, decode_responses=True)
     _CACHE_TYPE = 'RedisCache'
     _CACHE_OPTS = {'CACHE_REDIS_URL': _REDIS_URL}
     print('✅ Flask-Cache: Redis backend')
@@ -108,10 +114,206 @@ cache = Cache(app)
 socketio = SocketIO(
     app,
     async_mode='threading',
+    message_queue=_REDIS_URL if _CACHE_TYPE == 'RedisCache' else None,
     cors_allowed_origins='*',
     logger=False,
     engineio_logger=False,
 )
+
+# ── Sync reading: совместное чтение ──────────────────────────────────────────
+# Сессии хранятся в Redis (shared state между workers).
+# Fallback — in-memory dict если Redis недоступен.
+_sync_sessions: dict = {}   # fallback
+_sync_lock = threading.Lock()
+_SYNC_TTL = 14400  # 4 часа
+
+
+def _sync_get(code: str):
+    if _redis_client:
+        try:
+            data = _redis_client.get(f'sync:{code}')
+            return json.loads(data) if data else None
+        except Exception:
+            pass
+    with _sync_lock:
+        return _sync_sessions.get(code)
+
+
+def _sync_save(code: str, sess: dict):
+    if _redis_client:
+        try:
+            _redis_client.setex(f'sync:{code}', _SYNC_TTL, json.dumps(sess))
+            return
+        except Exception:
+            pass
+    with _sync_lock:
+        _sync_sessions[code] = sess
+
+
+def _sync_delete(code: str):
+    if _redis_client:
+        try:
+            _redis_client.delete(f'sync:{code}')
+        except Exception:
+            pass
+    with _sync_lock:
+        _sync_sessions.pop(code, None)
+
+
+def _sync_sid_set(sid: str, code: str):
+    if _redis_client:
+        try:
+            _redis_client.setex(f'sync_sid:{sid}', _SYNC_TTL, code)
+            return
+        except Exception:
+            pass
+
+
+def _sync_sid_get(sid: str):
+    if _redis_client:
+        try:
+            return _redis_client.get(f'sync_sid:{sid}')
+        except Exception:
+            pass
+    return None
+
+
+def _sync_sid_del(sid: str):
+    if _redis_client:
+        try:
+            _redis_client.delete(f'sync_sid:{sid}')
+        except Exception:
+            pass
+
+
+def _sync_readers_public(code: str) -> list:
+    sess = _sync_get(code) or {}
+    return [
+        {'sid': sid, 'name': r['name'], 'avatar': r['avatar'],
+         'page': r['page'], 'chapter_slug': r['chapter_slug'], 'waiting': r['waiting']}
+        for sid, r in sess.get('readers', {}).items()
+    ]
+
+
+def _sync_on_disconnect(sid: str):
+    code = _sync_sid_get(sid)
+    if not code:
+        # fallback: scan in-memory
+        with _sync_lock:
+            for c, sess in list(_sync_sessions.items()):
+                if sid in sess.get('readers', {}):
+                    code = c
+                    break
+    if not code:
+        return
+    sess = _sync_get(code)
+    if sess and sid in sess.get('readers', {}):
+        reader = sess['readers'].pop(sid)
+        _sync_save(code, sess)
+        _sync_sid_del(sid)
+        socketio.emit('partner_left',
+                      {'name': reader.get('name', 'Читатель')},
+                      room=code, namespace='/sync')
+
+
+@socketio.on('connect', namespace='/sync')
+def _sync_connect():
+    pass
+
+
+@socketio.on('disconnect', namespace='/sync')
+def _sync_disconnect():
+    from flask import request as _req
+    _sync_on_disconnect(_req.sid)
+
+
+@socketio.on('join', namespace='/sync')
+def _sync_join(data):
+    from flask import request as _req
+    code = (data.get('code') or '').upper().strip()
+    if not code:
+        sio_emit('error', {'msg': 'Код не указан'})
+        return
+    sid = _req.sid
+    logger.info('sync join: code=%r', code)
+    sess = _sync_get(code)
+    if sess is None:
+        sio_emit('error', {'msg': 'Сессия не найдена'})
+        return
+    if len(sess.get('readers', {})) >= 2 and sid not in sess['readers']:
+        sio_emit('error', {'msg': 'Сессия заполнена'})
+        return
+    if 'readers' not in sess:
+        sess['readers'] = {}
+    sess['readers'][sid] = {
+        'user_id':     data.get('user_id'),
+        'name':        data.get('name', 'Читатель'),
+        'avatar':      data.get('avatar', ''),
+        'chapter_slug': data.get('chapter_slug', ''),
+        'page':        int(data.get('page', 1)),
+        'waiting':     False,
+    }
+    _sync_save(code, sess)
+    _sync_sid_set(sid, code)
+    readers = _sync_readers_public(code)
+    join_room(code, namespace='/sync')
+    socketio.emit('joined', {'code': code, 'readers': readers},
+                  room=code, namespace='/sync')
+
+
+@socketio.on('page_update', namespace='/sync')
+def _sync_page_update(data):
+    from flask import request as _req
+    code = (data.get('code') or '').upper().strip()
+    sid = _req.sid
+    sess = _sync_get(code)
+    if sess and sid in sess.get('readers', {}):
+        sess['readers'][sid]['page'] = int(data.get('page', 1))
+        sess['readers'][sid]['chapter_slug'] = data.get('chapter_slug', '')
+        _sync_save(code, sess)
+    socketio.emit('partner_update',
+                  {'sid': sid, 'page': data.get('page', 1),
+                   'chapter_slug': data.get('chapter_slug', '')},
+                  room=code, namespace='/sync', skip_sid=sid)
+
+
+@socketio.on('reaction', namespace='/sync')
+def _sync_reaction(data):
+    from flask import request as _req
+    code = (data.get('code') or '').upper().strip()
+    ALLOWED = {'😍', '😭', '😂', '💥', '🤔', '❤️'}
+    emoji = data.get('emoji', '❤️')
+    if emoji not in ALLOWED:
+        return
+    socketio.emit('partner_reaction', {'emoji': emoji, 'sid': _req.sid},
+                  room=code, namespace='/sync', skip_sid=_req.sid)
+
+
+@socketio.on('wait', namespace='/sync')
+def _sync_wait(data):
+    from flask import request as _req
+    code = (data.get('code') or '').upper().strip()
+    sid = _req.sid
+    sess = _sync_get(code)
+    if sess and sid in sess.get('readers', {}):
+        sess['readers'][sid]['waiting'] = True
+        _sync_save(code, sess)
+    socketio.emit('partner_wait', {'sid': sid},
+                  room=code, namespace='/sync', skip_sid=sid)
+
+
+@socketio.on('resume', namespace='/sync')
+def _sync_resume(data):
+    from flask import request as _req
+    code = (data.get('code') or '').upper().strip()
+    sid = _req.sid
+    sess = _sync_get(code)
+    if sess and sid in sess.get('readers', {}):
+        sess['readers'][sid]['waiting'] = False
+        _sync_save(code, sess)
+    socketio.emit('partner_resume', {'sid': sid},
+                  room=code, namespace='/sync', skip_sid=sid)
+
 
 _TYPE_RU = {
     'MANGA': 'Манга', 'MANHWA': 'Манхва', 'MANHUA': 'Маньхуа',
@@ -228,18 +430,103 @@ def create_site_notification(user_id, notif_type, title, body=None, url=None, re
         if _close:
             conn.close()
 
+
+def fetch_and_cache_tg_avatar(telegram_id):
+    """Скачивает аватарку пользователя из TG и кэширует в static/cache/avatars/.
+    Возвращает URL /static/cache/avatars/{telegram_id}.jpg или None."""
+    import urllib.request as _ur, json as _json, os as _os
+    cache_dir = _os.path.join(_os.path.dirname(__file__), 'static', 'cache', 'avatars')
+    _os.makedirs(cache_dir, exist_ok=True)
+    dest = _os.path.join(cache_dir, f'{telegram_id}.jpg')
+    if _os.path.exists(dest):
+        return f'/static/cache/avatars/{telegram_id}.jpg'
+    try:
+        r = _ur.urlopen(
+            f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUserProfilePhotos?user_id={telegram_id}&limit=1',
+            timeout=5
+        )
+        d = _json.loads(r.read())
+        photos = d.get('result', {}).get('photos', [])
+        if not photos:
+            return None
+        # берём второй по размеру (320×320) или последний доступный
+        sizes = photos[0]
+        file_id = (sizes[1] if len(sizes) > 1 else sizes[-1])['file_id']
+        r2 = _ur.urlopen(
+            f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile?file_id={file_id}',
+            timeout=5
+        )
+        file_path = _json.loads(r2.read())['result']['file_path']
+        _ur.urlretrieve(
+            f'https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}', dest
+        )
+        return f'/static/cache/avatars/{telegram_id}.jpg'
+    except Exception as _e:
+        logger.debug(f'fetch_and_cache_tg_avatar {telegram_id}: {_e}')
+        return None
+
+
+def _tg_send_direct(chat_id, text, parse_mode='HTML', reply_markup=None):
+    """Синхронная отправка TG-сообщения напрямую через HTTP API — не нужен event loop бота.
+    reply_markup — dict или JSON-строка."""
+    import urllib.request, json as _json
+    payload = {'chat_id': chat_id, 'text': text, 'parse_mode': parse_mode,
+               'disable_web_page_preview': True}
+    if reply_markup:
+        # принимаем и dict, и уже сериализованную строку
+        if isinstance(reply_markup, str):
+            payload['reply_markup'] = _json.loads(reply_markup)
+        else:
+            payload['reply_markup'] = reply_markup
+    data = _json.dumps(payload).encode()
+    url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+    try:
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=8)
+    except Exception as _e:
+        logger.warning(f'_tg_send_direct chat_id={chat_id}: {_e}')
+
+
+def send_tg_to_user(user_id, text, parse_mode='HTML', reply_markup=None):
+    """Отправить TG-сообщение пользователю по его DB id (если есть telegram_id)."""
+    try:
+        conn = get_db()
+        row = conn.execute('SELECT telegram_id FROM users WHERE id=?', (user_id,)).fetchone()
+        conn.close()
+    except Exception:
+        return
+    if not row or not row['telegram_id']:
+        return
+    _tg_send_direct(row['telegram_id'], text, parse_mode=parse_mode, reply_markup=reply_markup)
+
+
+def send_tg_to_admins(text, parse_mode='HTML', reply_markup=None):
+    """Отправить TG-сообщение всем adminам напрямую."""
+    for tg_id in ADMIN_TELEGRAM_IDS:
+        _tg_send_direct(tg_id, text, parse_mode=parse_mode, reply_markup=reply_markup)
+
+
 # ── Контекст-процессор: данные пользователя для хедера ──────────────────────
+@app.before_request
+def _ensure_csrf_token():
+    """Генерируем CSRF-токен при первом запросе сессии."""
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+
+
 @app.context_processor
 def inject_g_user():
     user_id = session.get('user_id')
+    _csrf = session.get('csrf_token', '')
     if not user_id:
-        return {'g_user': None}
+        return {'g_user': None, 'csrf_token': _csrf}
     conn = None
     try:
         conn = get_db()
         c = conn.cursor()
         c.execute('''
             SELECT u.id, u.telegram_username, u.telegram_first_name,
+                   u.is_premium, u.premium_expires_at, u.premium_trial_used,
                    up.custom_name, up.avatar_url, up.custom_avatar_url,
                    (SELECT si.preview_url FROM shop_items si
                     JOIN user_items ui ON si.id = ui.item_id
@@ -251,7 +538,7 @@ def inject_g_user():
         ''', (user_id,))
         row = c.fetchone()
         if not row:
-            return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None, 'frame_preview_url': None}}
+            return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None, 'frame_preview_url': None}, 'csrf_token': _csrf}
         display_name = (
             (row['custom_name'] or '').strip() or
             (row['telegram_first_name'] or '').strip() or
@@ -260,10 +547,18 @@ def inject_g_user():
         )
         avatar = row['avatar_url'] or None
         frame = row['frame_preview_url'] or None
-        return {'g_user': {'id': row['id'], 'display_name': display_name, 'avatar_url': avatar, 'frame_preview_url': frame}}
+        return {'g_user': {
+            'id': row['id'],
+            'display_name': display_name,
+            'avatar_url': avatar,
+            'frame_preview_url': frame,
+            'is_premium': bool(row['is_premium']),
+            'premium_expires_at': str(row['premium_expires_at']) if row['premium_expires_at'] else None,
+            'premium_trial_used': bool(row['premium_trial_used']),
+        }, 'csrf_token': session.get('csrf_token', '')}
     except Exception as e:
         logger.warning(f'inject_g_user error: {e}')
-        return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None}}
+        return {'g_user': {'id': user_id, 'display_name': session.get('username', f'#{user_id}'), 'avatar_url': None}, 'csrf_token': _csrf}
     finally:
         if conn:
             conn.close()
@@ -465,10 +760,33 @@ def check_achievements(user_id, conn=None):
     c.execute('SELECT COUNT(*) as cnt FROM subscriptions WHERE user_id = ?', (user_id,))
     sub_count = c.fetchone()['cnt']
 
+    # Совместное чтение
+    c.execute('SELECT COUNT(*) as cnt FROM reading_together WHERE user1_id = ? OR user2_id = ?', (user_id, user_id))
+    together_sessions = c.fetchone()['cnt']
+
+    c.execute('SELECT COUNT(*) as cnt FROM reading_together_pins WHERE author_id = ?', (user_id,))
+    together_pins = c.fetchone()['cnt']
+
+    c.execute("SELECT COUNT(*) as cnt FROM reading_together_pins WHERE author_id = ? AND pin_type = 'reaction'", (user_id,))
+    together_reactions = c.fetchone()['cnt']
+
+    c.execute(
+        '''SELECT COUNT(*) as cnt FROM reading_together_milestones m
+           JOIN reading_together s ON s.id = m.session_id
+           WHERE m.user_id = ? AND m.milestone_pct = 100
+             AND s.user1_id IS NOT NULL AND s.user2_id IS NOT NULL''',
+        (user_id,)
+    )
+    together_mangas_100 = c.fetchone()['cnt']
+
     stat_values = {
-        'chapters_read': stats['total_chapters_read'],
-        'subscriptions': sub_count,
-        'level': stats['level'],
+        'chapters_read':      stats['total_chapters_read'],
+        'subscriptions':      sub_count,
+        'level':              stats['level'],
+        'together_sessions':  together_sessions,
+        'together_pins':      together_pins,
+        'together_reactions': together_reactions,
+        'together_mangas_100': together_mangas_100,
     }
 
     # Все ачивки которых у пользователя ещё нет
@@ -874,7 +1192,7 @@ def award_weekly_collection_trophy():
             '''SELECT cl.collection_id, COUNT(*) as cnt, c.user_id
                FROM collection_likes cl
                JOIN collections c ON cl.collection_id = c.id
-               GROUP BY cl.collection_id
+               GROUP BY cl.collection_id, c.user_id
                ORDER BY cnt DESC LIMIT 1'''
         ).fetchone()
         if not row:
@@ -990,20 +1308,13 @@ def _suggest_similar_manga(user_id, manga_id, manga_title):
         lines.append(f"• <a href='{url}'>{s['title']}</a>")
     message = '\n'.join(lines)
 
-    async def _send():
-        global telegram_app
-        if telegram_app:
-            try:
-                await telegram_app.bot.send_message(
-                    chat_id=row['telegram_id'], text=message,
-                    parse_mode='HTML', disable_web_page_preview=True
-                )
-            except Exception as e:
-                logger.warning(f"_suggest_similar_manga tg error: {e}")
-
-    _loop = _get_bot_loop()
-    if _loop and _loop.is_running():
-        asyncio.run_coroutine_threadsafe(_send(), _loop)
+    # Бот живёт в отдельном процессе (bubblemanga-worker.service) — отправку
+    # ставим в очередь через bot_bridge, а не зовём asyncio напрямую.
+    from bot_bridge import submit_job
+    submit_job('suggest_similar_manga', {
+        'chat_id': row['telegram_id'],
+        'message': message,
+    })
 
 
 # ==================== ФУНКЦИИ ДЛЯ ПОЛУЧЕНИЯ СПОТЛАЙТОВ ====================
@@ -1213,8 +1524,11 @@ def get_cached_spotlights(ttl_seconds=3600):
                 return cache_data
         
         # Кеш устарел или отсутствует, загружаем свежие данные
-        logger.info("📄 Загружаем свежие спотлайты...")
-        all_spotlights = get_all_experimental_spotlights()
+        # experimentalSpotlights отключён: Senkuro убрали эту фичу у себя
+        # (тип SpotlightWebsiteMode вырезан из их схемы, запрос гарантированно
+        # падает) — раньше это впустую дёргало их API каждые 30 мин и спамило
+        # логи. most_read ниже собирается отдельным путём.
+        all_spotlights = []
         
         # Группируем спотлайты по типам
         spotlights_by_type = {
@@ -1440,10 +1754,12 @@ def get_or_create_user_by_telegram(telegram_id, username=None, first_name=None, 
     conn.commit()
     
     user_id = c.lastrowid
+    if not is_bot:
+        _grant_trial_premium(user_id, conn)
     c.execute('SELECT * FROM users WHERE id = ?', (user_id,))
     user = c.fetchone()
     conn.close()
-    
+
     return dict(user) if user else None
 
 def get_user_by_token(token):
@@ -1492,6 +1808,21 @@ def _verify_password(password: str, stored: str) -> bool:
     except Exception:
         return False
 
+_TRIAL_DAYS = 21
+
+def _grant_trial_premium(user_id: int, conn):
+    """Выдаёт пробный Premium на _TRIAL_DAYS дней новому пользователю."""
+    expires = datetime.now() + timedelta(days=_TRIAL_DAYS)
+    conn.execute(
+        '''UPDATE users SET is_premium = 1,
+               premium_granted_at = ?,
+               premium_expires_at = ?,
+               premium_trial_used = 1
+           WHERE id = ? AND (premium_trial_used IS NULL OR premium_trial_used = 0)''',
+        (datetime.now(), expires, user_id)
+    )
+    conn.commit()
+
 def register_user_by_email(email: str, password: str):
     """Зарегистрировать нового пользователя по email+пароль. None если email занят."""
     conn = get_db()
@@ -1509,6 +1840,7 @@ def register_user_by_email(email: str, password: str):
     )
     conn.commit()
     uid = c.lastrowid
+    _grant_trial_premium(uid, conn)
     user = c.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
     conn.close()
     return dict(user) if user else None
@@ -1579,11 +1911,11 @@ def save_manga_details_to_db(manga_data):
                     description, tags, formats, is_licensed, translation_status,
                     last_updated)
                VALUES
-                   (:manga_id, :manga_slug, :manga_title, :original_name,
-                    :manga_type, :manga_status, :rating, :views, :score,
-                    :cover_url, :branch_id, :chapters_count,
-                    :description, :tags, :formats, :is_licensed, :translation_status,
-                    :now)
+                   (?, ?, ?, ?,
+                    ?, ?, ?, ?, ?,
+                    ?, ?, ?,
+                    ?, ?, ?, ?, ?,
+                    ?)
                ON CONFLICT(manga_id) DO UPDATE SET
                    manga_slug         = excluded.manga_slug,
                    manga_title        = excluded.manga_title,
@@ -1602,26 +1934,26 @@ def save_manga_details_to_db(manga_data):
                    is_licensed        = excluded.is_licensed,
                    translation_status = excluded.translation_status,
                    last_updated       = excluded.last_updated''',
-            {
-                'manga_id':          manga_data['manga_id'],
-                'manga_slug':        manga_data['manga_slug'],
-                'manga_title':       manga_data['manga_title'],
-                'original_name':     manga_data.get('original_name', ''),
-                'manga_type':        manga_data.get('manga_type'),
-                'manga_status':      manga_data.get('manga_status'),
-                'rating':            manga_data.get('rating'),
-                'views':             manga_data.get('views', 0),
-                'score':             manga_data.get('score', 0),
-                'cover_url':         manga_data.get('cover_url', ''),
-                'branch_id':         manga_data.get('branch_id'),
-                'chapters_count':    manga_data.get('chapters_count', 0),
-                'description':       manga_data.get('description', ''),
-                'tags':              tags_json,
-                'formats':           formats_json,
-                'is_licensed':       1 if manga_data.get('is_licensed') else 0,
-                'translation_status': manga_data.get('translation_status', ''),
-                'now':               datetime.now().isoformat(),
-            }
+            (
+                manga_data['manga_id'],
+                manga_data['manga_slug'],
+                manga_data['manga_title'],
+                manga_data.get('original_name', ''),
+                manga_data.get('manga_type'),
+                manga_data.get('manga_status'),
+                manga_data.get('rating'),
+                manga_data.get('views', 0),
+                manga_data.get('score', 0),
+                manga_data.get('cover_url', ''),
+                manga_data.get('branch_id'),
+                manga_data.get('chapters_count', 0),
+                manga_data.get('description', ''),
+                tags_json,
+                formats_json,
+                1 if manga_data.get('is_licensed') else 0,
+                manga_data.get('translation_status', ''),
+                datetime.now().isoformat(),
+            )
         )
         conn.commit()
         logger.info(f"✅ Сохранена манга в БД: {manga_data['manga_title']}")
@@ -1951,7 +2283,9 @@ def save_manga_and_chapter_to_db(manga_id, manga_slug, manga_title, cover_url, c
                       (manga_id, chapter_info.get('id'), chapter_info.get('slug'),
                        chapter_info.get('number'), chapter_info.get('volume'),
                        chapter_info.get('name'), chapter_url, chapter_info.get('createdAt') or datetime.now()))
-        
+            # Дедупликация: если уже есть глава с таким же номером — оставляем лучшую
+            _dedup_chapters_for_manga(conn, manga_id)
+
         conn.commit()
     except Exception as e:
         logger.error(f"❌ Ошибка сохранения манги/главы в БД: {e}")
@@ -2124,10 +2458,12 @@ def notify_subscribers(manga_id, manga_title, manga_slug, chapter_info, cover_ur
             '''SELECT s.user_id, u.is_premium, u.telegram_id
                FROM subscriptions s
                JOIN users u ON s.user_id = u.id
+               LEFT JOIN user_manga_status ums ON ums.user_id = s.user_id AND ums.manga_id = s.manga_id
                WHERE s.manga_id = ?
                  AND u.is_active IS NOT FALSE
                  AND u.notifications_enabled IS NOT FALSE
-                 AND u.is_bot IS NOT TRUE''',
+                 AND u.is_bot IS NOT TRUE
+                 AND (ums.status IS NULL OR ums.status NOT IN ('paused', 'dropped'))''',
             (manga_id,)
         )
         subscribers = c.fetchall()
@@ -2216,6 +2552,21 @@ def _process_chapter_if_new(manga_id, manga_title, manga_slug, cover_url, chapte
             f"(другая ветка перевода?)"
         )
         # Не обновляем трекер — он остаётся на более новой главе
+        return False
+
+    # Защита от аномальных скачков номера главы (битые данные источника —
+    # например разовый выброс вроде "1647" вместо "165"). Без этой проверки
+    # такой скачок навсегда поднимает потолок трекера и блокирует уведомления
+    # обо всех последующих реальных главах (new_chapter_num <= потолка).
+    if (last_known_num is not None and last_known_num >= 3
+            and new_chapter_num > last_known_num * 5
+            and new_chapter_num - last_known_num > 20):
+        logger.warning(
+            f"⚠️ Подозрительный скачок номера главы: {manga_title} "
+            f"гл.{last_known_num} → гл.{new_chapter_num} (>5x и >20). "
+            f"Похоже на битые данные источника — глава сохранена в БД, "
+            f"но трекер и уведомления пропущены до следующей нормальной главы."
+        )
         return False
 
     logger.info(f"🆕 Новая глава: {manga_title} — гл. {chapter_info.get('number', '?')}")
@@ -2397,6 +2748,60 @@ def _paginate_all_chapters(branch_id, manga_slug, delay=2.0):
     return chapters
 
 
+def _dedup_chapters_for_manga(conn, manga_id):
+    """
+    Удаляет дублирующиеся главы (одинаковый manga_id + chapter_number, разные chapter_id).
+    Оставляет главу с наибольшим pages_count; при равенстве — более позднюю (created_at DESC).
+    Переносит reading_history на winner перед удалением.
+    Возвращает количество удалённых записей.
+    """
+    dupes_by_num = conn.execute(
+        '''SELECT chapter_number
+           FROM chapters
+           WHERE manga_id = %s
+           GROUP BY chapter_number
+           HAVING COUNT(*) > 1''',
+        (manga_id,)
+    ).fetchall()
+
+    deleted = 0
+    for row in dupes_by_num:
+        chapter_number = row['chapter_number'] if hasattr(row, '__getitem__') else row[0]
+        candidates = conn.execute(
+            '''SELECT chapter_id, chapter_slug, COALESCE(pages_count, 0) as pages_count, created_at
+               FROM chapters
+               WHERE manga_id = %s AND chapter_number = %s
+               ORDER BY COALESCE(pages_count, 0) DESC, created_at DESC NULLS LAST''',
+            (manga_id, chapter_number)
+        ).fetchall()
+
+        if not candidates or len(candidates) < 2:
+            continue
+
+        winner   = candidates[0]
+        losers   = candidates[1:]
+        win_id   = winner['chapter_id'] if hasattr(winner, '__getitem__') else winner[0]
+        win_slug = winner['chapter_slug'] if hasattr(winner, '__getitem__') else winner[1]
+        win_pages = winner['pages_count'] if hasattr(winner, '__getitem__') else winner[2]
+
+        for loser in losers:
+            lose_id   = loser['chapter_id'] if hasattr(loser, '__getitem__') else loser[0]
+            lose_slug = loser['chapter_slug'] if hasattr(loser, '__getitem__') else loser[1]
+            lose_pages = loser['pages_count'] if hasattr(loser, '__getitem__') else loser[2]
+            conn.execute(
+                'UPDATE reading_history SET chapter_id = %s WHERE chapter_id = %s',
+                (win_id, lose_id)
+            )
+            conn.execute('DELETE FROM chapters WHERE chapter_id = %s', (lose_id,))
+            deleted += 1
+            logger.info(
+                f"🗑️ Дубль гл.{chapter_number}: удалён slug={lose_slug}(pages={lose_pages})"
+                f" → оставлен slug={win_slug}(pages={win_pages})"
+            )
+
+    return deleted
+
+
 def fill_missing_chapters():
     """
     Ротационно проходит по всем мангам и досасывает пропущенные главы из API.
@@ -2495,6 +2900,11 @@ def fill_missing_chapters():
                             f"🩹 fill_gaps [{manga_slug}]: вставлено {len(to_insert)} глав "
                             f"(API={len(api_chapters)}, в DB было={len(known_ids)})"
                         )
+
+                    # Дедупликация: удаляем дубли по номеру главы
+                    dup_deleted = _dedup_chapters_for_manga(conn2, manga_id)
+                    if dup_deleted:
+                        conn2.commit()
                 finally:
                     conn2.close()
 
@@ -2535,6 +2945,190 @@ def save_chapter_to_db(chapter_data):
     finally:
         conn.close()
 
+_fill_details_offset   = 0
+_fill_details_last_run = 0.0
+_fill_details_interval = 120.0   # пересчитывается при старте цикла
+_FILL_DETAILS_BATCH    = 3        # манг за один тик (не давить на API)
+_FILL_DETAILS_CYCLE_H  = 72      # полный проход за 3 суток
+
+
+def fill_missing_details():
+    """
+    Пакетно заполняет описание/теги/оценку/branch_id для манг,
+    которые попали в БД только через фид (без полного API-запроса).
+    Запускается каждые ~2 минуты, обрабатывает по 3 манги за тик.
+    """
+    global _fill_details_offset, _fill_details_last_run, _fill_details_interval
+
+    now = time.time()
+    if now - _fill_details_last_run < _fill_details_interval:
+        return
+    _fill_details_last_run = now
+
+    try:
+        conn = get_db()
+
+        if _fill_details_offset == 0:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM manga WHERE branch_id IS NULL OR (description IS NULL OR TRIM(description) = '')"
+            ).fetchone()[0]
+            if total == 0:
+                conn.close()
+                return
+            batches = max(1, total // _FILL_DETAILS_BATCH)
+            _fill_details_interval = max(60.0, (_FILL_DETAILS_CYCLE_H * 3600) / batches)
+            logger.info(
+                f"📋 fill_missing_details: новый цикл, без деталей={total}, "
+                f"интервал={_fill_details_interval/60:.1f} мин"
+            )
+
+        rows = conn.execute(
+            '''SELECT manga_slug FROM manga
+               WHERE branch_id IS NULL OR (description IS NULL OR TRIM(description) = '')
+               ORDER BY manga_id
+               LIMIT %s OFFSET %s''',
+            (_FILL_DETAILS_BATCH, _fill_details_offset)
+        ).fetchall()
+        conn.close()
+
+        if not rows:
+            logger.info("✅ fill_missing_details: цикл завершён")
+            _fill_details_offset = 0
+            return
+
+        for row in rows:
+            try:
+                get_manga_details_api(row['manga_slug'])
+                time.sleep(1.5)
+            except Exception as e:
+                logger.debug(f"⚠️ fill_missing_details {row['manga_slug']}: {e}")
+
+        _fill_details_offset += _FILL_DETAILS_BATCH
+
+    except Exception as e:
+        logger.error(f"❌ fill_missing_details: {e}")
+
+
+def check_premium_expiry_notifications():
+    """
+    Отправляет Telegram + site уведомление за 5 дней и за 1 день до истечения Premium.
+    Поле premium_notif_5d / premium_notif_1d хранит premium_expires_at в момент отправки,
+    чтобы при продлении уведомления сбросились и отправились снова для нового срока.
+    """
+    from config import SITE_URL
+    try:
+        conn = get_db()
+        now = datetime.utcnow()
+
+        # Окна: [4.5d, 5.5d] и [0.5d, 1.5d]
+        windows = [
+            (
+                '5d',
+                now + timedelta(hours=108), now + timedelta(hours=132),
+                'premium_notif_5d',
+                lambda d: (
+                    f"💎 <b>Ваш Premium заканчивается через 5 дней</b>\n\n"
+                    f"📅 Дата окончания: <b>{d} МСК</b>\n\n"
+                    "Успейте продлить, чтобы сохранить:\n"
+                    "✨ Мгновенные уведомления о новых главах\n"
+                    "🎨 Эксклюзивные рамки и значки профиля\n"
+                    "👥 Режим «Читать с другом»\n"
+                    "⭐ Значок Premium-читателя\n\n"
+                    "Не дайте подписке угаснуть — продлите сейчас 🚀"
+                ),
+                'Premium заканчивается через 5 дней',
+                'Продлите подписку, чтобы не потерять эксклюзивные функции',
+            ),
+            (
+                '1d',
+                now + timedelta(hours=12), now + timedelta(hours=36),
+                'premium_notif_1d',
+                lambda d: (
+                    f"⚠️ <b>Осталось меньше суток!</b>\n\n"
+                    f"Ваш Premium на Манговой истекает <b>{d} МСК</b>.\n\n"
+                    "После окончания вы потеряете доступ к:\n"
+                    "— мгновенным уведомлениям о главах\n"
+                    "— эксклюзивным предметам профиля\n"
+                    "— режиму «Читать с другом»\n\n"
+                    "💔 Продлите прямо сейчас, пока не поздно!"
+                ),
+                'Premium истекает завтра ⚠️',
+                'Успейте продлить — осталось меньше суток',
+            ),
+        ]
+
+        from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+        shop_url = f"{SITE_URL}/shop?tab=premium"
+
+        for tag, win_from, win_to, col, make_text, site_title, site_body in windows:
+            rows = conn.execute(
+                f'''SELECT id, telegram_id, premium_expires_at, {col} as notif_sent
+                    FROM users
+                    WHERE is_premium = 1
+                      AND premium_expires_at IS NOT NULL
+                      AND premium_expires_at >= %s
+                      AND premium_expires_at < %s
+                      AND (
+                          {col} IS NULL
+                          OR {col} != premium_expires_at
+                      )''',
+                (win_from.isoformat(), win_to.isoformat())
+            ).fetchall()
+
+            for row in rows:
+                expires_dt = row['premium_expires_at']
+                if isinstance(expires_dt, str):
+                    try:
+                        expires_dt = datetime.fromisoformat(expires_dt)
+                    except Exception:
+                        continue
+                expires_msk = expires_dt + timedelta(hours=3)
+                expires_str = expires_msk.strftime('%d.%m.%Y в %H:%M')
+
+                # Site-уведомление
+                create_site_notification(
+                    row['id'], 'premium_expiry', site_title, site_body,
+                    shop_url, conn=conn
+                )
+
+                # Telegram-уведомление
+                if row['telegram_id']:
+                    tg_text = make_text(expires_str)
+                    keyboard = InlineKeyboardMarkup([[
+                        InlineKeyboardButton("💎 Продлить Premium", url=shop_url)
+                    ]])
+
+                    async def _send(chat_id=row['telegram_id'], _text=tg_text, _kbd=keyboard):
+                        from bot import telegram_app as _tapp
+                        if _tapp:
+                            await _tapp.bot.send_message(
+                                chat_id=chat_id,
+                                text=_text,
+                                parse_mode='HTML',
+                                reply_markup=_kbd,
+                            )
+
+                    _loop = _get_bot_loop()
+                    if _loop and _loop.is_running():
+                        import asyncio
+                        fut = asyncio.run_coroutine_threadsafe(_send(), _loop)
+                        try:
+                            fut.result(timeout=10)
+                        except Exception as e_send:
+                            logger.warning(f"⚠️ premium-notif tg send: {e_send}")
+
+                conn.execute(
+                    f'UPDATE users SET {col} = premium_expires_at WHERE id = %s',
+                    (row['id'],)
+                )
+                conn.commit()
+                logger.info(f"💎 Premium-notif ({tag}) → user {row['id']}")
+
+        conn.close()
+    except Exception as e:
+        logger.error(f"❌ Ошибка check_premium_expiry_notifications: {e}")
+
+
 def background_checker():
     """Фоновый процесс: новые главы + дайджест + Premium-expired + временные предметы."""
     _init_manga_tracker()
@@ -2555,6 +3149,7 @@ def background_checker():
                 check_new_chapters()
                 check_subscribed_mangas()
                 fill_missing_chapters()
+                fill_missing_details()
                 # Успех — постепенно возвращаем паузу к норме
                 if _backoff > _BACKOFF_NORMAL:
                     _backoff = max(_BACKOFF_NORMAL, _backoff // 2)
@@ -2587,23 +3182,59 @@ def background_checker():
             if datetime.utcnow().weekday() == 0 and datetime.utcnow().hour == 0:
                 award_weekly_collection_trophy()
 
+            # Уведомления о скором истечении Premium (за 3 дня и за 1 день)
+            try:
+                check_premium_expiry_notifications()
+            except Exception as e_notif:
+                logger.error(f"❌ Ошибка premium expiry notifications: {e_notif}")
+
             # Проверяем истёкшие Premium подписки
             try:
                 now_iso = datetime.utcnow().isoformat()
                 conn_bg = get_db()
                 try:
                     c_bg = conn_bg.cursor()
+                    # Шаг 1: Premium только что истёк → снимаем флаг, ставим дату отзыва через 5 дней
                     c_bg.execute(
-                        'SELECT id FROM users WHERE is_premium=1 AND premium_expires_at IS NOT NULL AND premium_expires_at < ?',
+                        'SELECT id, premium_expires_at FROM users WHERE is_premium=1 AND premium_expires_at IS NOT NULL AND premium_expires_at < %s',
                         (now_iso,)
                     )
                     expired = c_bg.fetchall()
                     for row in expired:
-                        c_bg.execute('UPDATE users SET is_premium=0, premium_expires_at=NULL WHERE id=?', (row['id'],))
-                        _revoke_premium_loans(c_bg, row['id'])
+                        revoke_at = (datetime.utcnow() + timedelta(days=5)).isoformat()
+                        c_bg.execute(
+                            'UPDATE users SET is_premium=0, premium_revoke_at=%s WHERE id=%s',
+                            (revoke_at, row['id'])
+                        )
                     if expired:
                         conn_bg.commit()
-                        logger.info(f"⏰ Premium истёк у {len(expired)} пользователей")
+                        logger.info(f"⏰ Premium истёк у {len(expired)} пользователей, кастомы откатятся через 5 дней")
+
+                    # Шаг 2: Прошло 5 дней → отзываем premium-loan предметы и сбрасываем кастомный аватар
+                    c_bg.execute(
+                        'SELECT id FROM users WHERE is_premium=0 AND premium_revoke_at IS NOT NULL AND premium_revoke_at < %s',
+                        (now_iso,)
+                    )
+                    to_revoke = c_bg.fetchall()
+                    for row in to_revoke:
+                        _revoke_premium_loans(c_bg, row['id'])
+                        # Сбрасываем кастомный аватар только если он не выкуплен (нет купленного avatar-item)
+                        c_bg.execute(
+                            '''UPDATE user_profile SET custom_avatar_url = NULL,
+                               avatar_url = CASE
+                                   WHEN avatar_url = custom_avatar_url THEN NULL
+                                   ELSE avatar_url
+                               END
+                               WHERE user_id = %s''',
+                            (row['id'],)
+                        )
+                        c_bg.execute(
+                            'UPDATE users SET premium_expires_at=NULL, premium_revoke_at=NULL WHERE id=%s',
+                            (row['id'],)
+                        )
+                    if to_revoke:
+                        conn_bg.commit()
+                        logger.info(f"🗑 Кастомы Premium отозваны у {len(to_revoke)} пользователей")
                 finally:
                     conn_bg.close()
             except Exception as e_prem:
@@ -2664,6 +3295,14 @@ def background_checker():
 # ==================== BLUEPRINT REGISTRATION ====================
 from routes import bp
 app.register_blueprint(bp)
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template('404.html'), 500
 
 if __name__ == "__main__":
     if not _USE_PG:
