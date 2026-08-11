@@ -410,6 +410,35 @@ def fix_missing_chapters(api, manga_slug, manga_id, manga_title, db_missing_numb
 
         time.sleep(delay)
 
+    # Обновляем manga_tracker до актуальной последней главы из API,
+    # чтобы background_checker не счёл только что добавленные главы «новыми»
+    # и не разослал уведомления подписчикам.
+    if inserted > 0 and manga_id and api_chapters:
+        latest = max(api_chapters, key=lambda ch: parse_number(ch.get("chapter_number")) or 0)
+        latest_id  = latest.get("chapter_id")
+        latest_num = parse_number(latest.get("chapter_number"))
+        if latest_id and latest_num is not None:
+            conn = get_db()
+            try:
+                conn.execute(
+                    """INSERT INTO manga_tracker
+                           (manga_id, last_chapter_id, last_chapter_number, last_checked_at)
+                       VALUES (%s, %s, %s, NOW())
+                       ON CONFLICT (manga_id) DO UPDATE SET
+                           last_chapter_id     = EXCLUDED.last_chapter_id,
+                           last_chapter_number = EXCLUDED.last_chapter_number,
+                           last_checked_at     = NOW()
+                       WHERE manga_tracker.last_chapter_number IS NULL
+                          OR EXCLUDED.last_chapter_number >= manga_tracker.last_chapter_number""",
+                    (manga_id, latest_id, latest_num)
+                )
+                conn.commit()
+                print(f"  ✓ Трекер обновлён → гл. {latest_num:.4g}")
+            except Exception as e:
+                print(f"  [!] Не удалось обновить manga_tracker: {e}")
+            finally:
+                conn.close()
+
     return inserted
 
 
